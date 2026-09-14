@@ -1,4 +1,4 @@
-.PHONY: all init build test run clean format
+.PHONY: all init build test run run-xvfb clean format
 
 all: build
 
@@ -15,6 +15,9 @@ test: build
 
 run: build
 	./build/tgs-compositor ./build/simple_form
+
+run-xvfb:
+	./scripts/run-xvfb.sh xvfb-shot.png
 
 clean:
 	rm -rf build

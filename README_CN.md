@@ -47,6 +47,7 @@ make init     # 克隆依赖
 make build    # 编译
 make test     # 运行测试
 make run      # 启动 compositor + 演示应用
+make run-xvfb # 无显示器：在 Xvfb 下运行并截图
 ```
 
 ## 项目结构

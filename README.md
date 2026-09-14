@@ -47,6 +47,7 @@ make init     # Clone dependencies
 make build    # Compile
 make test     # Run tests
 make run      # Run compositor with demo app
+make run-xvfb # Headless: run under Xvfb and capture a screenshot
 ```
 
 ## Project Structure

@@ -40,6 +40,26 @@ make run
 
 You should see a form with a label, text input, and submit button rendered in an SDL window (or via Sixel in a terminal, depending on the build configuration).
 
+## Xvfb (Headless)
+
+The SDL backend needs an X display. With no `$DISPLAY` set, `SDL_Init` fails and the
+compositor exits immediately. Xvfb provides a virtual X framebuffer, so the *real*
+compositor — not a test harness — can run (and be screenshotted) on a headless machine.
+
+```bash
+make run-xvfb                    # writes xvfb-shot.png
+./scripts/run-xvfb.sh out.png    # or choose the output path
+```
+
+The script claims a free display (`:99`–`:130`), runs `build/tgs-compositor` against
+`build/simple_form`, waits for the window to render, captures it with `import` (falling
+back to the root window, then `scrot`), and then tears everything down. Xvfb and the
+compositor are always cleaned up, including on failure, and the script exits non-zero if
+no screenshot was produced or the result is blank.
+
+Requires `Xvfb` (package `xvfb`), `xdpyinfo` (`x11-utils`), `xdotool`, and a screenshot
+tool (`import` from ImageMagick, or `scrot`).
+
 ## Create Your First TGS App
 
 Copy the `examples/simple_form.c` pattern:
