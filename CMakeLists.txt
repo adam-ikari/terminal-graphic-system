@@ -184,6 +184,7 @@ endif()
 # tgs_compositor — compositor library (no event_engine, no output.c)
 add_library(tgs_compositor STATIC
     src/compositor/parser.c
+    src/compositor/nav.c
     src/compositor/window_manager.c
 )
 target_include_directories(tgs_compositor PUBLIC src/compositor)
@@ -201,6 +202,12 @@ add_executable(simple_form
     examples/simple_form.c
 )
 target_link_libraries(simple_form PRIVATE tgs_client)
+
+# container_demo — explicit container widgets example app
+add_executable(container_demo
+    examples/container_demo.c
+)
+target_link_libraries(container_demo PRIVATE tgs_client)
 
 # render_demo — headless screenshot harness (LVGL backend → PNG, no display server)
 add_executable(render_demo
@@ -221,6 +228,13 @@ add_subdirectory(deps/googletest)
 add_executable(tgs_tests
     tests/test_frame.cpp
     tests/test_protocol.cpp
+    tests/test_nav.cpp
 )
-target_link_libraries(tgs_tests PRIVATE tgs_common gtest gtest_main)
+target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main)
 add_test(NAME tgs_tests COMMAND tgs_tests)
+
+# nav_probe — end-to-end navigation probe (records what the app receives)
+add_executable(nav_probe
+    tests/nav_probe.c
+)
+target_link_libraries(nav_probe PRIVATE tgs_client)

@@ -119,12 +119,12 @@
 #define LV_USE_BAR 1
 #define LV_USE_BARCODE 0
 #define LV_USE_BUTTON 1
-#define LV_USE_BUTTONMATRIX 0
-#define LV_USE_CALENDAR 0
+#define LV_USE_BUTTONMATRIX 1  /* required by LV_USE_CALENDAR (DATEPICK) */
+#define LV_USE_CALENDAR 1
 #define LV_USE_CANVAS 0
 #define LV_USE_CHART 0
 #define LV_USE_CHECKBOX 1
-#define LV_USE_DROPDOWN 0
+#define LV_USE_DROPDOWN 1
 #define LV_USE_IMAGE 1
 #define LV_USE_IMAGEBUTTON 0
 #define LV_USE_KEYBOARD 0
@@ -132,17 +132,18 @@
 #define LV_USE_LABEL 1
 #define LV_USE_LINE 0
 #define LV_USE_SCALE 0
-#define LV_USE_LIST 0
-#define LV_USE_MENU 0
+#define LV_USE_LIST 1
+#define LV_USE_MENU 1
 #define LV_USE_MSGBOX 0
-#define LV_USE_ROLLER 0
+#define LV_USE_ROLLER 1
 #define LV_USE_SLIDER 1
 #define LV_USE_SPAN 0
 #define LV_USE_SPINBOX 0
 #define LV_USE_SPINNER 0
 #define LV_USE_SWITCH 1
 #define LV_USE_TEXTAREA 1
-#define LV_USE_TABVIEW 0
+#define LV_USE_TABLE 1
+#define LV_USE_TABVIEW 1
 #define LV_USE_TILEVIEW 0
 #define LV_USE_WIN 0
 

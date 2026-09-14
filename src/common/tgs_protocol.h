@@ -23,6 +23,7 @@
 /* Handshake */
 #define TGS_CMD_HELLO   1
 #define TGS_CMD_READY   2
+#define TGS_CMD_REJECT  3   /* [rejected_cap] — compositor → app, sent instead of READY */
 
 /* Window */
 #define TGS_CMD_WIN_CREATE   16
@@ -34,21 +35,63 @@
 #define TGS_CMD_WGT_STYLE    34
 #define TGS_CMD_WGT_DESTROY  35
 #define TGS_CMD_EVT_BIND     36
+#define TGS_CMD_WGT_LAYOUT   37  /* [widget_id, layout_type] — optional runtime relayout of a container */
+
+/* Navigation */
+#define TGS_CMD_SET_FOCUS    38  /* [window_id, widget_id] — widget_id 0 clears; app → compositor */
+/* 39 reserved: GET_FOCUS (Layer 2 reply = NTF_FOCUS with reason NONE) */
+#define TGS_CMD_WGT_ATTR     40  /* [widget_id, attr, value] — attr: tgs_widget_attr */
+/* 41 reserved: NAV_BIND (Layer 2 per-app key binding override) */
 
 /* Notify */
 #define TGS_CMD_NTF_RESIZE   64
-#define TGS_CMD_NTF_FOCUS    65
+#define TGS_CMD_NTF_FOCUS    65  /* [win_id, widget_id, focused, reason] — reason: tgs_focus_reason */
 #define TGS_CMD_NTF_DESTROY  66
+#define TGS_CMD_NTF_STATE    67  /* [win_id, state] — state: tgs_window_state */
+/* 68 reserved: NTF_FOCUS_PRE (Layer 2 bounded veto window) */
 
 /* Events */
 #define TGS_CMD_EVT_CLICK    80
 #define TGS_CMD_EVT_KEY      81
 #define TGS_CMD_EVT_VALUE    82
-#define TGS_CMD_EVT_FOCUS    83
+#define TGS_CMD_EVT_FOCUS    83  /* retired: MUST NOT be emitted; NTF_FOCUS (65) is the focus channel */
 
 /* IME */
 #define TGS_CMD_IME_PREEDIT  96
 #define TGS_CMD_IME_COMMIT   97
+#define TGS_CMD_IME_CANDIDATES 98 /* [win_id, widget_id, count, c1, c2, ...] */
+#define TGS_CMD_IME_SELECT   99   /* [win_id, widget_id, index] */
+
+#define TGS_CMD_IME_CANCEL   100 /* [win_id, widget_id] — compositor → IME app, drop active composition */
+
+/* Focus change reason — `reason` argument of NTF_FOCUS (65) */
+typedef enum {
+    TGS_REASON_NONE = 0,        /* unspecified / cold query reply */
+    TGS_REASON_TAB,             /* Tab traversal */
+    TGS_REASON_SHIFT_TAB,       /* Shift+Tab traversal */
+    TGS_REASON_ARROW,           /* spatial arrow navigation */
+    TGS_REASON_POINTER,         /* pointer click on the widget */
+    TGS_REASON_PROGRAMMATIC,    /* SET_FOCUS from the app */
+    TGS_REASON_INIT,            /* initial focus of a window */
+    TGS_REASON_WINDOW_ACTIVATE, /* window activated / raised / unhidden */
+    TGS_REASON_WINDOW_RESTORE,  /* focus restored after a window was hidden or destroyed */
+    TGS_REASON_SCOPE_RESTORE,   /* focus restored inside a scope (dialog/modal closed) */
+    TGS_REASON_DESTROYED,       /* the focused widget was destroyed */
+    TGS_REASON_HIDDEN,          /* focus lost because the window was hidden/minimized */
+} tgs_focus_reason;
+
+/* Behavioural widget attribute — `attr` argument of WGT_ATTR (40).
+ * FOCUSABLE / NAV_ARROWS: -1 = type default, 0 = no, 1 = yes.
+ * NAV_TAB: 0/1. FOCUS_INDEX: -1 = auto, >= 0 = ring position.
+ * FOCUS_SCOPE (containers only): 0 = none, 1 = GROUP (single tab stop),
+ * 2 = TRAP (modal ring). */
+typedef enum {
+    TGS_ATTR_FOCUSABLE = 0,
+    TGS_ATTR_NAV_ARROWS,
+    TGS_ATTR_NAV_TAB,
+    TGS_ATTR_FOCUS_INDEX,
+    TGS_ATTR_FOCUS_SCOPE,
+} tgs_widget_attr;
 
 /* Window types */
 typedef enum {
@@ -114,5 +157,14 @@ typedef enum {
     TGS_LAYOUT_FLEX_COL,
     TGS_LAYOUT_GRID,
 } tgs_layout_type;
+
+/* Window states */
+typedef enum {
+    TGS_STATE_NORMAL = 0,
+    TGS_STATE_MINIMIZED,
+    TGS_STATE_MAXIMIZED,
+    TGS_STATE_FULLSCREEN,
+    TGS_STATE_HIDDEN,
+} tgs_window_state;
 
 #endif /* TGS_PROTOCOL_H */

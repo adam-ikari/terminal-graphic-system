@@ -23,6 +23,14 @@ TGS 将终端变成图形平台。应用通过字节流协议构建界面——�
 └─────────────────────────────────────────┘
 ```
 
+## Layer 1 特性
+
+- **完整 20 控件库** — 每个 `tgs_widget_type` 映射到真实 LVGL 控件（按钮、输入框、滑块、表格、菜单、标签页、下拉、图像、滚轮、日历 等）。
+- **显式容器** — `VLAYOUT`/`HLAYOUT`/`GLAYOUT`/`SCROLL` 在创建时按类型应用布局；只有容器可作为父控件。
+- **键盘导航** — 合成器主导的焦点模型，每窗口焦点环/作用域，`Tab`/`Shift-Tab`/方向键遍历，`SET_FOCUS`/`NTF_FOCUS`（带 reason），`WGT_ATTR`（`FOCUSABLE`/`FOCUS_INDEX`/`NAV_ARROWS`/scope），按键路由优先级。详见 [docs/navigation.md](docs/navigation.md)。
+- **稳健输入管线** — 边沿排队的指针/键盘事件（快点击能注册、不重复按键），规范键码空间 + 修饰键。
+- **FB 呈现契约** — LVGL 发布到绘图缓冲，合成器拷贝到 mmap 的 `/dev/fb0`（16/24/32bpp 已验证）。
+
 ## 快速开始
 
 ```bash
@@ -88,6 +96,7 @@ ESC _ TGS;<stream>;<frame_id>;<command>;<args>... ESC \
 - [快速上手](docs/getting-started.md)
 - [协议规范](protocol/tgs-spec-layer0.md)
 - [输入法框架](docs/ime.md)
+- [键盘导航](docs/navigation.md)
 - [控件参考](docs/widgets.md)
 
 ## 许可证

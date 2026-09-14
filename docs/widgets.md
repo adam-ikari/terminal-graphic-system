@@ -10,7 +10,7 @@ TGS defines 20 widget types (`tgs_widget_type` enum in `tgs_protocol.h`). All ar
 | Label | `TGS_WIDGET_LABEL` | `lv_label` | Static or dynamic text display |
 | Input | `TGS_WIDGET_INPUT` | `lv_textarea` | Single-line text input field |
 | Checkbox | `TGS_WIDGET_CHECKBOX` | `lv_checkbox` | Toggle on/off with visible check |
-| Radio | `TGS_WIDGET_RADIO` | `lv_radio_button` | Mutually exclusive option within a group |
+| Radio | `TGS_WIDGET_RADIO` | `lv_checkbox` (round) | Mutually exclusive option within a group (LVGL has no dedicated radio; a round-styled checkbox) |
 | Slider | `TGS_WIDGET_SLIDER` | `lv_slider` | Draggable value within a range |
 | Progress | `TGS_WIDGET_PROGRESS` | `lv_bar` | Read-only progress indicator |
 | Switch | `TGS_WIDGET_SWITCH` | `lv_switch` | Toggle switch (on/off) |
@@ -22,7 +22,7 @@ TGS defines 20 widget types (`tgs_widget_type` enum in `tgs_protocol.h`). All ar
 | VLayout | `TGS_WIDGET_VLAYOUT` | `lv_flex` (column) | Vertical flex container — stacks children top to bottom |
 | HLayout | `TGS_WIDGET_HLAYOUT` | `lv_flex` (row) | Horizontal flex container — stacks children left to right |
 | GLayout | `TGS_WIDGET_GLAYOUT` | `lv_grid` | Grid container — arranges children in rows and columns |
-| Scroll | `TGS_WIDGET_SCROLL` | `lv_spangroup` / scrollable container | Scrollable viewport for overflow content |
+| Scroll | `TGS_WIDGET_SCROLL` | scrollable `lv_obj` container | Scrollable viewport for overflow content |
 
 ## Complex Widgets
 
@@ -34,8 +34,8 @@ TGS defines 20 widget types (`tgs_widget_type` enum in `tgs_protocol.h`). All ar
 | Tab | `TGS_WIDGET_TAB` | `lv_tabview` | Tabbed container with switchable pages |
 | Dropdown | `TGS_WIDGET_DROPDOWN` | `lv_dropdown` | Collapsible option selector |
 | Image | `TGS_WIDGET_IMAGE` | `lv_image` | Image display (loaded via RESOURCE stream) |
-| TimePick | `TGS_WIDGET_TIMEPICK` | Custom | Time picker widget |
-| DatePick | `TGS_WIDGET_DATEPICK` | Custom | Date picker widget |
+| TimePick | `TGS_WIDGET_TIMEPICK` | `lv_roller` | Time picker widget (roller of time options) |
+| DatePick | `TGS_WIDGET_DATEPICK` | `lv_calendar` | Date picker widget (calendar) |
 
 ## Creating Widgets
 

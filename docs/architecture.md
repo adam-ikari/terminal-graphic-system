@@ -249,6 +249,37 @@ Window types:
 | `FULLSCREEN` | Takes over entire terminal     |
 | `TOOL`       | Hidden/utility window (e.g. IME) |
 
+## Widget Library (Layer 1)
+
+All 20 `tgs_widget_type` values map to real LVGL 9.6 widgets (see [widgets.md](widgets.md)): `lv_button`, `lv_label`, `lv_textarea`, `lv_checkbox`, `lv_slider`, `lv_switch`, `lv_bar`, `lv_list`, `lv_table`, `lv_menu`, `lv_tabview`, `lv_dropdown`, `lv_image`, `lv_roller`, `lv_calendar`, plus the four container types below. `RADIO` is a round-styled checkbox (LVGL has no dedicated radio); `LIST`/`MENU` use LVGL's deprecated-but-present implementations behind a pragma to silence the deprecation warning.
+
+### Explicit containers
+
+`VLAYOUT`, `HLAYOUT`, `GLAYOUT`, `SCROLL` are first-class widget types, not a style flag on a generic box. Each applies its layout from its type at creation (`backend_create_widget` sets `flex_flow` / `grid_dsc_array` / scrollable). The window manager **rejects** `WGT_CREATE` whose `parent` is a window or a container widget only — a leaf widget may never parent another widget (`window_manager.c` WGT_CREATE path), enforcing a single, consistent container rule and keeping tree-walk based focus rings valid.
+
+### Input pipeline
+
+Both backends feed input through an **edge-queued** indev model:
+
+- **Pointer** (`input_sdl.c`, `input_fb.c`): only state *transitions* are enqueued — fast clicks that previously landed between two `mouse_read_cb` polls now register. `mouse_qedged` holds the last queued state to suppress repeats.
+- **Keypad**: only key *DOWN* edges are queued as presses; releasing on key-up made every typed character appear twice, collapsing a burst dropped keys.
+- **Canonical key space**: every source normalises to one space before the backend — printable ASCII is itself, `1000..1005` = LEFT/RIGHT/UP/DOWN/HOME/END, modifiers `0x01` SHIFT / `0x02` CTRL / `0x04` ALT. Shift is applied to letters/digits. The LVGL backend translates this back to `LV_KEY_*`.
+
+### FB present contract
+
+The compositor never hands a pointer directly to `/dev/fb0`. LVGL publishes into `disp_drv->buffer`; `output_present()` (`output_fb.c`) **copies** that buffer to the mmap'd framebuffer. The copy is bpp-agnostic and verified at 16/24/32 bpp against a fake-fb with zero pixel mismatches, so LVGL may republish or reorganise its draw buffer freely.
+
+## Navigation (Layer 1)
+
+Keyboard focus is owned by the compositor, not LVGL. The design and full spec live in [navigation.md](navigation.md); summary:
+
+- **Focus model** (`src/compositor/nav.c`, `nav.h`): a per-window registry of widgets + focus rings + scopes. Only focusable types are ring members; containers are transparent to traversal.
+- **`NTF_FOCUS` (65)** with `[win_id, widget_id, focused, reason]` notifies the app of every focus change (gained/lost) with the reason (Tab, pointer, `SET_FOCUS`, programmatic). `EVT_FOCUS` (83) is retired.
+- **`SET_FOCUS` (38)** / **`WGT_ATTR` (40)**: app requests focus and per-widget attributes (`TGS_ATTR_FOCUSABLE`, `TGS_ATTR_FOCUS_INDEX`, `NAV_ARROWS`, `nav.scope` = GROUP/TRAP).
+- **Key-routing precedence**: the compositor consults a `nav_key_cb` hook *before* LVGL's indev; it consumes Tab/Shift-Tab/arrows only when the focused widget doesn't (e.g. a slider consumes Left/Right, an INPUT consumes arrows when `NAV_ARROWS` is set).
+- **Window navigation**: per-window LVGL roots + groups; pointer click activates and restores last focus; z-order is read-only for restoration.
+- **IME cancel**: focus leaving an IME-armed `INPUT` sends `IME_CANCEL` (100) to the IME process *before* clearing visuals and emitting `NTF_FOCUS` — never auto-commits. The preedit *overlay* itself is a documented Layer-1 gap (see [navigation.md §H.2](navigation.md#h2-preedit-is-an-overlay-never-widget-text-invariant)).
+
 ## Security Model
 
 - **Process isolation**: Each app runs in its own process with its own PTY. Apps cannot read other apps' data.

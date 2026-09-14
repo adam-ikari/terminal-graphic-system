@@ -1,33 +1,324 @@
 /*
  * TGS Window Manager Implementation
- * ID→handle mapping, protocol frame dispatch, event routing.
+ * Protocol frame dispatch, focus authority, event routing.
+ *
+ * The compositor owns focus (docs/navigation.md §A.1): nav.c holds the widget
+ * tree, the effective attributes, the rings and the per-window focus registry;
+ * this file turns protocol frames into those model changes plus backend calls,
+ * and turns backend events into protocol frames. The backend executes the
+ * focus moves and reports the resulting change back, so NTF_FOCUS is emitted
+ * from exactly one place (§F.1). Id 83 (EVT_FOCUS) is retired and never sent.
  */
 #include "window_manager.h"
+#include "nav.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_WIDGETS 256
-#define MAX_WINDOWS 16
-#define MAX_EVENTS  32
+/* Canonical TGS key codes and modifier mask (docs/navigation.md §D.4) — the
+ * same space input_sdl.c/input_fb.c produce and lvgl_backend.c translates. */
+#define TGS_KEY_TAB    9
+#define TGS_KEY_LEFT   1000
+#define TGS_KEY_RIGHT  1001
+#define TGS_KEY_UP     1002
+#define TGS_KEY_DOWN   1003
+#define TGS_KEY_HOME   1004
+#define TGS_KEY_END    1005
 
-typedef struct {
-    int widget_id;
-    void *handle;
-    tgs_widget_type type;
-    int window_id;
-} widget_entry;
+#define TGS_MOD_SHIFT  0x01
+#define TGS_MOD_CTRL   0x02
+#define TGS_MOD_ALT    0x04
 
-typedef struct {
-    int win_id;
-    void *handle;
-} window_entry;
+/* ---- Focus (§E, §F, §G) ---- */
 
-static widget_entry widget_map[MAX_WIDGETS];
-static int widget_count;
+static void emit_focus(window_manager *wm, int win_id, int widget_id,
+                       int focused, tgs_focus_reason reason)
+{
+    char win_str[16], wid_str[16], foc_str[4], reason_str[8];
+    const char *args[4];
 
-static window_entry window_map[MAX_WINDOWS];
-static int window_count;
+    snprintf(win_str, sizeof(win_str), "%d", win_id);
+    snprintf(wid_str, sizeof(wid_str), "%d", widget_id);
+    snprintf(foc_str, sizeof(foc_str), "%d", focused ? 1 : 0);
+    snprintf(reason_str, sizeof(reason_str), "%d", (int)reason);
+
+    args[0] = win_str;
+    args[1] = wid_str;
+    args[2] = foc_str;
+    args[3] = reason_str;
+
+    wm->frame_counter++;
+    tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                    TGS_CMD_NTF_FOCUS, args, 4);
+}
+
+/* Focus the widget in LVGL and remember the reason for the report the backend
+ * will send back (§F.1 keeps the optimistic move from echoing). */
+static void backend_set_focus(window_manager *wm, int widget_id,
+                             tgs_focus_reason reason)
+{
+    nav_widget *w = nav_widget_find(&wm->nav, widget_id);
+
+    wm->pending_focus = widget_id;
+    wm->pending_reason = (int)reason;
+    if (wm->backend->set_focus)
+        wm->backend->set_focus(w ? w->handle : NULL);
+}
+
+/* §H.3 rule 2: composition is cancelled, never auto-committed, before focus
+ * leaves an IME-armed widget. */
+static void ime_cancel(window_manager *wm, int win_id, int widget_id)
+{
+    nav_widget *w = nav_widget_find(&wm->nav, widget_id);
+    char win_str[16], wid_str[16];
+    const char *args[2];
+
+    if (!w || w->type != TGS_WIDGET_INPUT) return;
+    if (!wm->ime_connected || wm->ime_pty_fd < 0) return;
+
+    snprintf(win_str, sizeof(win_str), "%d", win_id);
+    snprintf(wid_str, sizeof(wid_str), "%d", widget_id);
+    args[0] = win_str;
+    args[1] = wid_str;
+
+    wm->frame_counter++;
+    tgs_frame_write(wm->ime_pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                    TGS_CMD_IME_CANCEL, args, 2);
+}
+
+/* The single focus-change path: emit the pair (§F.1), update the registry and
+ * move LVGL's focus. Identical (win, widget) in a row emits nothing. */
+static void focus_commit(window_manager *wm, int win_id, int widget_id,
+                         tgs_focus_reason reason)
+{
+    nav_window *win = nav_window_find(&wm->nav, win_id);
+    int old;
+
+    if (!win) return;
+    old = win->focus;
+    if (old == widget_id) {
+        wm->pending_focus = 0;
+        return;
+    }
+
+    if (old) ime_cancel(wm, win_id, old);
+    nav_set_focus(&wm->nav, win_id, widget_id);
+
+    if (old) emit_focus(wm, win_id, old, 0, reason);
+    if (widget_id) emit_focus(wm, win_id, widget_id, 1, reason);
+
+    if (widget_id && win_id == wm->nav.active_win) {
+        backend_set_focus(wm, widget_id, reason);
+    } else {
+        wm->pending_focus = 0;
+    }
+}
+
+/* Clear the registry without emitting — the caller owns the lost frame. */
+static void focus_forget(window_manager *wm, int win_id)
+{
+    nav_set_focus(&wm->nav, win_id, 0);
+    wm->pending_focus = 0;
+}
+
+/* §G.2: switch the keyboard to `win_id`, hand focus to `target` (0 = the
+ * remembered widget, else the first ring member). The window that loses the
+ * keyboard gets its lost frame with the same reason. */
+static void activate_window(window_manager *wm, int win_id,
+                            tgs_focus_reason reason, int target)
+{
+    nav_window *win = nav_window_find(&wm->nav, win_id);
+    int prev = wm->nav.active_win;
+
+    if (!win) return;
+
+    if (prev != win_id) {
+        nav_window *pw = nav_window_find(&wm->nav, prev);
+
+        if (pw && pw->focus) {
+            emit_focus(wm, prev, pw->focus, 0, reason);
+            focus_forget(wm, prev);
+        }
+        wm->nav.active_win = win_id;
+        if (wm->backend->set_active_window)
+            wm->backend->set_active_window(win->handle);
+    }
+
+    if (!target) nav_restore(&wm->nav, win_id, &target);
+    if (!target) return;
+    if (win->focus == target)
+        backend_set_focus(wm, target, reason); /* registry knew, LVGL did not */
+    else
+        focus_commit(wm, win_id, target, reason);
+}
+
+/* Enroll a window's focusable widgets in its LVGL group (§I.1). */
+static void push_ring(window_manager *wm, int win_id)
+{
+    nav_window *win = nav_window_find(&wm->nav, win_id);
+    void *handles[NAV_MAX_WIDGETS];
+    int n;
+
+    if (!win || !wm->backend->set_window_ring) return;
+    n = nav_all_handles(&wm->nav, win_id, handles, NAV_MAX_WIDGETS);
+    wm->backend->set_window_ring(win->handle, handles, n);
+}
+
+static void enroll_widget(window_manager *wm, nav_widget *w)
+{
+    if (!w || !wm->backend->set_widget_focusable) return;
+    wm->backend->set_widget_focusable(w->handle, nav_widget_focusable(w));
+}
+
+/* ---- Navigation bindings (§D.2, §D.3) ---- */
+
+static int nav_move(window_manager *wm, nav_window *win, int backwards)
+{
+    int target = 0;
+    int reason = TGS_REASON_TAB;
+
+    if (!nav_step(&wm->nav, win->win_id, backwards, &target, &reason)) return 0;
+    focus_commit(wm, win->win_id, target, (tgs_focus_reason)reason);
+    return 1;
+}
+
+static int nav_edge_move(window_manager *wm, nav_window *win, int to_last)
+{
+    int target = 0;
+    int reason = TGS_REASON_ARROW;
+
+    if (!nav_edge(&wm->nav, win->win_id, to_last, &target, &reason)) return 0;
+    focus_commit(wm, win->win_id, target, (tgs_focus_reason)reason);
+    return 1;
+}
+
+/* Spatial arrow navigation inside the current ring (§D.3 rule 3) — the
+ * geometry lives in the backend, the candidate set and the outcome here. */
+static int nav_dir_move(window_manager *wm, nav_window *win, tgs_nav_dir dir)
+{
+    void *cands[NAV_RING_MAX];
+    nav_widget *from = nav_widget_find(&wm->nav, win->focus);
+    nav_widget *to;
+    void *hit;
+    int n;
+
+    if (!from || !wm->backend->focus_dir) return 0;
+    n = nav_ring_handles(&wm->nav, win->win_id, cands, NAV_RING_MAX);
+    if (n <= 0) return 0;
+
+    hit = wm->backend->focus_dir(from->handle, cands, n, dir);
+    if (!hit) return 0;
+    to = nav_widget_by_handle(&wm->nav, hit);
+    if (!to || to->id == from->id) return 0;
+
+    focus_commit(wm, win->win_id, to->id, TGS_REASON_ARROW);
+    return 1;
+}
+
+/* Residual forward (§D.3 rule 4): a key that was neither consumed by the
+ * widget nor usable as navigation still belongs to the app. The compositor
+ * sends it itself instead of letting LVGL hand it to the widget — an object's
+ * own key handling can swallow it before any app-visible event exists. */
+static void forward_key(window_manager *wm, nav_widget *w, int key, int mods)
+{
+    int target_fd = wm->ime_connected && wm->ime_pty_fd >= 0 &&
+                    w->type == TGS_WIDGET_INPUT
+                        ? wm->ime_pty_fd
+                        : wm->pty_fd;
+    char win_str[16], wid_str[16], key_str[16], mod_str[16];
+    const char *args[4];
+
+    snprintf(win_str, sizeof(win_str), "%d", w->win_id);
+    snprintf(wid_str, sizeof(wid_str), "%d", w->id);
+    snprintf(key_str, sizeof(key_str), "%d", key);
+    snprintf(mod_str, sizeof(mod_str), "%d", mods);
+    args[0] = win_str;
+    args[1] = wid_str;
+    args[2] = key_str;
+    args[3] = mod_str;
+
+    wm->frame_counter++;
+    tgs_frame_write(target_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                    TGS_CMD_EVT_KEY, args, 4);
+}
+
+/* Precedence hook (design §D.3), called by the backend for every key edge
+ * before LVGL sees it: the compositor decides whether the key is navigation
+ * for the focused widget, a hand-off to that widget, or neither. */
+static tgs_nav_key_action wm_nav_key(int key, int mods, int pressed, void *user_data)
+{
+    window_manager *wm = (window_manager *)user_data;
+    nav_window *win;
+    nav_widget *w;
+    int consume = 0;
+
+    if (!wm) return TGS_NAV_PASS;
+
+    if (!pressed) {
+        /* Drop the release of a press navigation consumed. */
+        if (key == wm->consumed_key && mods == wm->consumed_mods) {
+            wm->consumed_key = -1;
+            return TGS_NAV_CONSUMED;
+        }
+        return TGS_NAV_PASS;
+    }
+
+    win = nav_window_find(&wm->nav, wm->nav.active_win);
+    w = win ? nav_widget_find(&wm->nav, win->focus) : NULL;
+    if (!win || !w || !nav_widget_focusable(w)) return TGS_NAV_PASS;
+
+    switch (key) {
+    case TGS_KEY_TAB:
+        /* Ctrl+Tab is the escape hatch out of a NAV_TAB=1 widget (§D.2). */
+        if (mods & TGS_MOD_CTRL) {
+            nav_move(wm, win, 0);
+            consume = 1;
+        } else if (nav_widget_consumes_tab(w)) {
+            /* Rule 1: the widget opted out — it takes Tab as text, and the
+             * backend delivers it straight to the widget (rule 2). */
+            return TGS_NAV_WIDGET;
+        } else {
+            consume = nav_move(wm, win, (mods & TGS_MOD_SHIFT) ? 1 : 0);
+        }
+        break;
+
+    case TGS_KEY_LEFT:
+    case TGS_KEY_RIGHT:
+    case TGS_KEY_UP:
+    case TGS_KEY_DOWN:
+        if (nav_widget_consumes_arrows(w)) return TGS_NAV_PASS;
+        consume = nav_dir_move(wm, win, key == TGS_KEY_LEFT ? TGS_NAV_LEFT :
+                                         key == TGS_KEY_RIGHT ? TGS_NAV_RIGHT :
+                                         key == TGS_KEY_UP ? TGS_NAV_UP :
+                                         TGS_NAV_DOWN);
+        if (!consume) {
+            forward_key(wm, w, key, mods);
+            consume = 1;
+        }
+        break;
+
+    case TGS_KEY_HOME:
+    case TGS_KEY_END:
+        if (nav_widget_consumes_arrows(w)) return TGS_NAV_PASS;
+        consume = nav_edge_move(wm, win, key == TGS_KEY_END);
+        if (!consume) {
+            forward_key(wm, w, key, mods);
+            consume = 1;
+        }
+        break;
+
+    default:
+        return TGS_NAV_PASS;
+    }
+
+    if (!consume) return TGS_NAV_PASS; /* residual forward (§D.3 rule 4) */
+    wm->consumed_key = key;
+    wm->consumed_mods = mods;
+    return TGS_NAV_CONSUMED;
+}
+
+/* ---- Protocol dispatch ---- */
 
 void wm_init(window_manager *wm, tgs_backend *backend, int pty_fd, int ime_pty_fd)
 {
@@ -39,86 +330,13 @@ void wm_init(window_manager *wm, tgs_backend *backend, int pty_fd, int ime_pty_f
     wm->disp_h = 0;
     wm->hello_received = 0;
     wm->ime_connected = 0;
-    widget_count = 0;
-    window_count = 0;
-}
+    wm->pending_focus = 0;
+    wm->pending_reason = TGS_REASON_NONE;
+    wm->consumed_key = -1;
+    wm->consumed_mods = 0;
 
-static int widget_add(int id, void *handle, tgs_widget_type type, int window_id)
-{
-    if (widget_count >= MAX_WIDGETS) return -1;
-    widget_map[widget_count].widget_id = id;
-    widget_map[widget_count].handle = handle;
-    widget_map[widget_count].type = type;
-    widget_map[widget_count].window_id = window_id;
-    widget_count++;
-    return 0;
-}
-
-static void widget_remove(int id)
-{
-    int i;
-    for (i = 0; i < widget_count; i++) {
-        if (widget_map[i].widget_id == id) {
-            widget_map[i] = widget_map[--widget_count];
-            return;
-        }
-    }
-}
-
-static void *widget_find(int id)
-{
-    int i;
-    for (i = 0; i < widget_count; i++) {
-        if (widget_map[i].widget_id == id) return widget_map[i].handle;
-    }
-    return NULL;
-}
-
-static tgs_widget_type find_widget_type(void *handle)
-{
-    int i;
-    for (i = 0; i < widget_count; i++) {
-        if (widget_map[i].handle == handle) return widget_map[i].type;
-    }
-    return TGS_WIDGET_LABEL;
-}
-
-static int find_widget_window_id(void *handle)
-{
-    int i;
-    for (i = 0; i < widget_count; i++) {
-        if (widget_map[i].handle == handle) return widget_map[i].window_id;
-    }
-    return -1;
-}
-
-static int window_add(int id, void *handle)
-{
-    if (window_count >= MAX_WINDOWS) return -1;
-    window_map[window_count].win_id = id;
-    window_map[window_count].handle = handle;
-    window_count++;
-    return 0;
-}
-
-static void window_remove(int id)
-{
-    int i;
-    for (i = 0; i < window_count; i++) {
-        if (window_map[i].win_id == id) {
-            window_map[i] = window_map[--window_count];
-            return;
-        }
-    }
-}
-
-static void *window_find(int id)
-{
-    int i;
-    for (i = 0; i < window_count; i++) {
-        if (window_map[i].win_id == id) return window_map[i].handle;
-    }
-    return NULL;
+    nav_init(&wm->nav);
+    if (backend->set_nav_key_cb) backend->set_nav_key_cb(wm_nav_key, wm);
 }
 
 static void send_resize(window_manager *wm, int win_id)
@@ -164,15 +382,14 @@ static tgs_widget_type str_to_widget_type(const char *s)
     if (strcmp(s, "image") == 0)    return TGS_WIDGET_IMAGE;
     if (strcmp(s, "timepick") == 0) return TGS_WIDGET_TIMEPICK;
     if (strcmp(s, "datepick") == 0) return TGS_WIDGET_DATEPICK;
-    /* The client (tgs_client.c) encodes the type numerically via
-     * int_to_str((int)type); accept that form too so non-label widgets
-     * are not silently collapsed into plain labels. */
+    /* Same numeric encoding as str_to_window_type: the client sends
+     * int_to_str((int)type), so digits must decode too. */
     if (s[0] >= '0' && s[0] <= '9') {
         int v = atoi(s);
-        if (v >= 0 && v < (int)TGS_WIDGET_COUNT)
-            return (tgs_widget_type)v;
+
+        if (v >= 0 && v < (int)TGS_WIDGET_COUNT) return (tgs_widget_type)v;
     }
-    return TGS_WIDGET_LABEL;
+    return TGS_WIDGET_BUTTON;
 }
 
 static tgs_window_type str_to_window_type(const char *s)
@@ -184,6 +401,7 @@ static tgs_window_type str_to_window_type(const char *s)
      * int_to_str((int)type), so digits must decode too. */
     if (s[0] >= '0' && s[0] <= '9') {
         int v = atoi(s);
+
         if (v >= 0 && v <= (int)TGS_WINDOW_TOOL)
             return (tgs_window_type)v;
     }
@@ -208,88 +426,162 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
 
     case TGS_CMD_WIN_CREATE: {
         /* args: [win_id, type, title] */
+        int win_id;
+        tgs_window_type wtype;
+        void *handle;
+
         if (frame->num_args < 3) break;
-        int win_id = atoi(frame->args[0]);
-        tgs_window_type wtype = str_to_window_type(frame->args[1]);
-        void *handle = be->create_window(wtype, frame->args[2]);
-        window_add(win_id, handle);
+        win_id = atoi(frame->args[0]);
+        wtype = str_to_window_type(frame->args[1]);
+        handle = be->create_window(wtype, frame->args[2]);
+        if (!handle) break;
+
+        nav_add_window(&wm->nav, win_id, wtype, handle);
         send_resize(wm, win_id);
+        /* Newest window is topmost and takes the keyboard (§G.2). */
+        activate_window(wm, win_id, TGS_REASON_WINDOW_ACTIVATE, 0);
         break;
     }
 
     case TGS_CMD_WIN_DESTROY: {
         /* args: [win_id] */
+        nav_window *win;
+        void *handle;
+        int win_id, next;
+
         if (frame->num_args < 1) break;
-        int win_id = atoi(frame->args[0]);
-        void *handle = window_find(win_id);
-        if (handle) {
-            be->destroy_window(handle);
-            window_remove(win_id);
-        }
+        win_id = atoi(frame->args[0]);
+        win = nav_window_find(&wm->nav, win_id);
+        if (!win) break;
+        handle = win->handle;
+
+        /* Destroy is hide plus registry removal (§G.2): the app that owned the
+         * window sees its widget lose focus. */
+        if (win->focus) emit_focus(wm, win_id, win->focus, 0, TGS_REASON_HIDDEN);
+        focus_forget(wm, win_id);
+        nav_remove_window(&wm->nav, win_id);
+        be->destroy_window(handle);
+
+        next = nav_other_window(&wm->nav, 0);
+        if (next) activate_window(wm, next, TGS_REASON_WINDOW_RESTORE, 0);
         break;
     }
 
     case TGS_CMD_WGT_CREATE: {
         /* args: [widget_id, parent_id, type, x, y, w, h, content] */
-        if (frame->num_args < 8) break;
-        int wid = atoi(frame->args[0]);
-        int parent_id = atoi(frame->args[1]);
-        tgs_widget_type wtype = str_to_widget_type(frame->args[2]);
-        int x = atoi(frame->args[3]);
-        int y = atoi(frame->args[4]);
-        int w = atoi(frame->args[5]);
-        int h = atoi(frame->args[6]);
+        int wid, parent_id, x, y, w, h, win_id = -1;
+        tgs_widget_type wtype;
+        nav_window *pwin;
+        nav_widget *pw = NULL, *nw;
+        void *parent = NULL;
+        void *handle;
 
-        /* Find parent: try window first, then widget */
-        void *parent = window_find(parent_id);
-        int win_id_for_widget = -1;
-        if (parent) {
-            win_id_for_widget = parent_id;
+        if (frame->num_args < 8) break;
+        wid = atoi(frame->args[0]);
+        parent_id = atoi(frame->args[1]);
+        wtype = str_to_widget_type(frame->args[2]);
+        x = atoi(frame->args[3]);
+        y = atoi(frame->args[4]);
+        w = atoi(frame->args[5]);
+        h = atoi(frame->args[6]);
+
+        /* A window is always a valid parent; a widget parent must be an
+         * explicit container. */
+        pwin = nav_window_find(&wm->nav, parent_id);
+        if (pwin) {
+            parent = pwin->handle;
+            win_id = parent_id;
         } else {
-            parent = widget_find(parent_id);
-            if (parent) win_id_for_widget = find_widget_window_id(parent);
+            pw = nav_widget_find(&wm->nav, parent_id);
+            if (!pw || !nav_type_is_container(pw->type)) {
+                fprintf(stderr,
+                        "wm: WGT_CREATE rejected — parent %d is neither a window "
+                        "nor a container, cannot parent widget %d\n",
+                        parent_id, wid);
+                break;
+            }
+            parent = pw->handle;
+            win_id = pw->win_id;
         }
 
-        void *handle = be->create_widget(parent, wtype);
+        handle = be->create_widget(parent, wtype);
+        if (!handle) break;
         be->set_widget_rect(handle, x, y, w, h);
         /* Content is always present in the frame; an empty string means an
          * empty widget, so it must still be applied — otherwise LVGL's
          * placeholder text (LV_LABEL_DEFAULT_TEXT) leaks through. */
-        if (frame->num_args >= 8) {
-            be->set_widget_content(handle, frame->args[7]);
+        be->set_widget_content(handle, frame->args[7]);
+
+        nav_add_widget(&wm->nav, wid, win_id, parent_id, pwin ? 1 : 0, wtype,
+                       handle);
+        nw = nav_widget_find(&wm->nav, wid);
+        enroll_widget(wm, nw);
+        push_ring(wm, win_id);
+
+        /* §E: the first focusable widget of a window whose focus is "none"
+         * takes focus with reason INIT. */
+        if (nw && win_id == wm->nav.active_win) {
+            nav_window *win = nav_window_find(&wm->nav, win_id);
+
+            if (win && win->focus == 0 && nav_widget_focusable(nw))
+                focus_commit(wm, win_id, wid, TGS_REASON_INIT);
         }
-        widget_add(wid, handle, wtype, win_id_for_widget);
         break;
     }
 
     case TGS_CMD_WGT_UPDATE: {
         /* args: [widget_id, content] */
+        nav_widget *w;
+
         if (frame->num_args < 2) break;
-        int wid = atoi(frame->args[0]);
-        void *handle = widget_find(wid);
-        if (handle) be->set_widget_content(handle, frame->args[1]);
+        w = nav_widget_find(&wm->nav, atoi(frame->args[0]));
+        if (w) be->set_widget_content(w->handle, frame->args[1]);
         break;
     }
 
     case TGS_CMD_WGT_STYLE: {
-        /* args: [widget_id, prop, value] */
+        /* args: [widget_id, prop, value] — appearance only (§J.2). */
+        nav_widget *w;
+
         if (frame->num_args < 3) break;
-        int wid = atoi(frame->args[0]);
-        tgs_style_prop prop = (tgs_style_prop)atoi(frame->args[1]);
-        int32_t value = (int32_t)atoi(frame->args[2]);
-        void *handle = widget_find(wid);
-        if (handle) be->set_widget_style(handle, prop, value);
+        w = nav_widget_find(&wm->nav, atoi(frame->args[0]));
+        if (w) be->set_widget_style(w->handle, (tgs_style_prop)atoi(frame->args[1]),
+                                    (int32_t)atoi(frame->args[2]));
         break;
     }
 
     case TGS_CMD_WGT_DESTROY: {
         /* args: [widget_id] */
+        nav_widget *w;
+        nav_window *win;
+        int wid, win_id, succ = 0, focused;
+
         if (frame->num_args < 1) break;
-        int wid = atoi(frame->args[0]);
-        void *handle = widget_find(wid);
-        if (handle) {
+        wid = atoi(frame->args[0]);
+        w = nav_widget_find(&wm->nav, wid);
+        if (!w) break;
+
+        win_id = w->win_id;
+        win = nav_window_find(&wm->nav, win_id);
+        focused = (win && win->focus == wid);
+        /* Successor is picked while the corpse is still in the ring (§G.2). */
+        if (focused) succ = nav_successor(&wm->nav, win_id, wid);
+        {
+            void *handle = w->handle;
+
+            nav_remove_widget(&wm->nav, wid);
             be->destroy_widget(handle);
-            widget_remove(wid);
+        }
+        push_ring(wm, win_id);
+
+        if (focused) {
+            nav_widget *sw;
+
+            emit_focus(wm, win_id, wid, 0, TGS_REASON_DESTROYED);
+            focus_forget(wm, win_id);
+            sw = nav_widget_find(&wm->nav, succ);
+            if (sw && nav_widget_focusable(sw))
+                focus_commit(wm, win_id, succ, TGS_REASON_DESTROYED);
         }
         break;
     }
@@ -298,22 +590,76 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         /* Layer 0: all events forwarded, no-op */
         break;
 
-    case TGS_CMD_IME_COMMIT: {
-        /* args: [win_id, widget_id, text] */
-        if (frame->num_args < 3) break;
-        int wid = atoi(frame->args[1]);
-        void *handle = widget_find(wid);
-        if (handle && be->insert_widget_text) {
-            be->insert_widget_text(handle, frame->args[2]);
+    case TGS_CMD_SET_FOCUS: {
+        /* args: [window_id, widget_id]; 0 clears (§E) */
+        nav_window *win;
+        nav_widget *w;
+        int win_id, wid;
+
+        if (frame->num_args < 2) break;
+        win_id = atoi(frame->args[0]);
+        wid = atoi(frame->args[1]);
+        win = nav_window_find(&wm->nav, win_id);
+        if (!win) {
+            fprintf(stderr, "wm: SET_FOCUS ignored — unknown window %d\n", win_id);
+            break;
         }
+        if (wid == 0) {
+            focus_commit(wm, win_id, 0, TGS_REASON_PROGRAMMATIC);
+            break;
+        }
+        w = nav_widget_find(&wm->nav, wid);
+        if (!w || w->win_id != win_id || !nav_widget_focusable(w)) {
+            fprintf(stderr, "wm: SET_FOCUS ignored — widget %d is not focusable "
+                            "in window %d\n", wid, win_id);
+            break;
+        }
+        focus_commit(wm, win_id, wid, TGS_REASON_PROGRAMMATIC);
         break;
     }
 
-    case TGS_CMD_IME_PREEDIT: {
-        /* args: [win_id, widget_id, text, cursor] */
-        /* Store preedit text for future display in textarea */
+    case TGS_CMD_WGT_ATTR: {
+        /* args: [widget_id, attr, value] (§J.4) */
+        nav_widget *w;
+        int wid;
+
+        if (frame->num_args < 3) break;
+        wid = atoi(frame->args[0]);
+        w = nav_widget_find(&wm->nav, wid);
+        if (!w) {
+            fprintf(stderr, "wm: WGT_ATTR ignored — unknown widget %d\n", wid);
+            break;
+        }
+        if (!nav_attr_set(&wm->nav, wid, (tgs_widget_attr)atoi(frame->args[1]),
+                          (int32_t)atoi(frame->args[2]))) {
+            fprintf(stderr, "wm: WGT_ATTR ignored — widget %d, attr %s, value %s\n",
+                    wid, frame->args[1], frame->args[2]);
+            break;
+        }
+        if (atoi(frame->args[1]) == TGS_ATTR_FOCUSABLE)
+            enroll_widget(wm, w);
+        push_ring(wm, w->win_id);
         break;
     }
+
+    case TGS_CMD_IME_COMMIT: {
+        /* args: [win_id, widget_id, text] — a commit for a widget that no
+         * longer has focus is discarded (§H.3 rule 2). */
+        nav_widget *w;
+        nav_window *win;
+
+        if (frame->num_args < 3) break;
+        w = nav_widget_find(&wm->nav, atoi(frame->args[1]));
+        win = w ? nav_window_find(&wm->nav, w->win_id) : NULL;
+        if (!w || !win || win->focus != w->id) break;
+        if (be->insert_widget_text) be->insert_widget_text(w->handle, frame->args[2]);
+        break;
+    }
+
+    case TGS_CMD_IME_PREEDIT:
+        /* args: [win_id, widget_id, text, cursor] — the preedit overlay is
+         * rendered by the backend (deferred, docs/navigation.md §H.2). */
+        break;
 
     default:
         break;
@@ -324,80 +670,76 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
                       const char *event_data, void *user_data)
 {
     window_manager *wm = (window_manager *)user_data;
+    nav_widget *w = nav_widget_by_handle(&wm->nav, widget_handle);
     char wid_str[16];
     char win_str[16];
-    int widget_id = -1;
-    int win_id = -1;
-    int i;
 
-    /* Look up widget_id from handle */
-    for (i = 0; i < widget_count; i++) {
-        if (widget_map[i].handle == widget_handle) {
-            widget_id = widget_map[i].widget_id;
-            break;
-        }
-    }
-    if (widget_id < 0) return;
+    if (!w) return;
 
-    /* Look up which window owns this widget — scan all windows for match.
-     * For Layer 0: use first window as default. */
-    if (window_count > 0) {
-        win_id = window_map[0].win_id;
-    }
-    if (win_id < 0) return;
-
-    snprintf(wid_str, sizeof(wid_str), "%d", widget_id);
-    snprintf(win_str, sizeof(win_str), "%d", win_id);
-
+    snprintf(wid_str, sizeof(wid_str), "%d", w->id);
+    snprintf(win_str, sizeof(win_str), "%d", w->win_id);
     wm->frame_counter++;
 
     switch (type) {
     case TGS_EVENT_CLICK: {
         const char *args[2] = {win_str, wid_str};
-        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT,
-                        wm->frame_counter, TGS_CMD_EVT_CLICK,
-                        args, 2);
+
+        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                        TGS_CMD_EVT_CLICK, args, 2);
         break;
     }
     case TGS_EVENT_VALUE_CHANGED: {
-        const char *args[3] = {win_str, wid_str,
-                               event_data ? event_data : ""};
-        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT,
-                        wm->frame_counter, TGS_CMD_EVT_VALUE,
-                        args, 3);
+        const char *args[3] = {win_str, wid_str, event_data ? event_data : ""};
+
+        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                        TGS_CMD_EVT_VALUE, args, 3);
         break;
     }
     case TGS_EVENT_FOCUS: {
-        const char *args[3] = {win_str, wid_str, "1"};
-        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT,
-                        wm->frame_counter, TGS_CMD_EVT_FOCUS,
-                        args, 3);
+        /* Reasons, in order (§F.1, §G.2): the move the compositor asked for,
+         * the initial focus of a window that had none (LVGL focuses the first
+         * member of a group by itself), or a pointer click. */
+        nav_window *win = nav_window_find(&wm->nav, w->win_id);
+        tgs_focus_reason reason;
+
+        if (!win) break;
+        if (win->focus == w->id) {
+            /* Already known: a ring rebuild re-reporting the same focus is
+             * not a focus change and must not become a POINTER frame. */
+            wm->pending_focus = 0;
+            break;
+        }
+        reason = (wm->pending_focus == w->id)
+                     ? (tgs_focus_reason)wm->pending_reason
+                     : (win->focus == 0 ? TGS_REASON_INIT : TGS_REASON_POINTER);
+
+        wm->pending_focus = 0;
+        if (wm->nav.active_win != w->win_id)
+            activate_window(wm, w->win_id, reason, w->id);
+        else
+            focus_commit(wm, w->win_id, w->id, reason);
         break;
     }
-    case TGS_EVENT_BLUR: {
-        const char *args[3] = {win_str, wid_str, "0"};
-        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT,
-                        wm->frame_counter, TGS_CMD_EVT_FOCUS,
-                        args, 3);
-        /* Deactivate IME on blur */
+    case TGS_EVENT_BLUR:
+        /* A bare defocus is not a focus change: the lost frame goes out with
+         * its gained counterpart (§F.1), or from the path that caused it
+         * (destroy, hide, activation). */
         break;
-    }
     case TGS_EVENT_KEY: {
-        /* Route key to IME app if connected and focused widget is input,
-         * otherwise route to main app */
-        int target_fd = wm->pty_fd;
+        int target_fd = wm->ime_connected && wm->ime_pty_fd >= 0 &&
+                        w->type == TGS_WIDGET_INPUT
+                            ? wm->ime_pty_fd
+                            : wm->pty_fd;
         char key_buf[16] = "0";
         char mod_buf[16] = "0";
         const char *kargs[4];
-        if (wm->ime_connected && i < widget_count &&
-            widget_map[i].type == TGS_WIDGET_INPUT && wm->ime_pty_fd >= 0) {
-            target_fd = wm->ime_pty_fd;
-        }
-        /* Parse key and mods from event_data */
+
         if (event_data) {
             const char *semi = strchr(event_data, ';');
+
             if (semi) {
                 int klen = (int)(semi - event_data);
+
                 if (klen > 0 && klen < (int)sizeof(key_buf) - 1) {
                     memcpy(key_buf, event_data, (size_t)klen);
                     key_buf[klen] = '\0';
@@ -413,12 +755,11 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
         kargs[1] = wid_str;
         kargs[2] = key_buf;
         kargs[3] = mod_buf;
-        tgs_frame_write(target_fd, TGS_STREAM_EVENT,
-                        wm->frame_counter, TGS_CMD_EVT_KEY,
-                        kargs, 4);
+        tgs_frame_write(target_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                        TGS_CMD_EVT_KEY, kargs, 4);
         break;
     }
     default:
         break;
-}
+    }
 }

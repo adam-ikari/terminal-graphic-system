@@ -61,9 +61,11 @@ Each stream has its own `frame_id` counter. Frame IDs start at 0 and increment p
 |----|-------|------------------|-------------------------------|
 | 1  | HELLO | app → compositor | `version`, `caps`             |
 | 2  | READY | compositor → app | `version`, `caps`             |
+| 3  | REJECT | compositor → app | `rejected_cap`                |
 
 - `version`: Protocol version string (e.g. `"1.0"`)
 - `caps`: Comma-separated capability tokens (e.g. `"layout.tiled,widget.button"`)
+- `rejected_cap`: Capability token the compositor cannot honour. Present only in `REJECT`.
 
 ### 4.2 Window (stream 1)
 
@@ -79,16 +81,43 @@ Each stream has its own `frame_id` counter. Frame IDs start at 0 and increment p
 
 | ID | Name       | Direction  | Args                                          |
 |----|------------|------------|-----------------------------------------------|
-| 32 | WGT_CREATE | app → comp | `parent_id`, `widget_type`, `widget_id`       |
+| 32 | WGT_CREATE | app → comp | `widget_id`, `parent_id`, `widget_type`, `x`, `y`, `w`, `h`, `content` |
 | 33 | WGT_UPDATE | app → comp | `widget_id`, `property`, `value`              |
 | 34 | WGT_STYLE  | app → comp | `widget_id`, `prop`, `value`                  |
 | 35 | WGT_DESTROY| app → comp | `widget_id`                                   |
 | 36 | EVT_BIND   | app → comp | `widget_id`, `event_type`                     |
+| 37 | WGT_LAYOUT | app → comp | `widget_id`, `layout_type` (optional)         |
 
-- `parent_id`: Parent widget/window ID (0 for root)
+- `widget_id`: Unique widget ID, assigned by the app and used by all later commands.
+- `parent_id`: Explicit parent reference. `0` = direct child of the window root; otherwise the ID of an existing **container** widget.
 - `widget_type`: Widget type enum value (§5.2)
 - `prop`: Style property enum value (§5.4)
 - `event_type`: Event type enum value (§5.3)
+- `layout_type`: Layout type enum value (§5.5); used only by `WGT_LAYOUT`.
+
+#### 4.3.1 Container Widgets
+
+容器控件是显式的控件类型；其布局由控件类型决定；子控件通过 `parent_id` 显式引用容器；只有容器可以有子控件。
+
+A container is an explicit widget type. Its layout behaviour comes from its **type**, so `WGT_CREATE` alone declares and configures it — no separate layout command is required:
+
+| Container type | Implied layout on creation |
+|----------------|----------------------------|
+| `VLAYOUT` (8)  | Vertical flex flow         |
+| `HLAYOUT` (9)  | Horizontal flex flow       |
+| `GLAYOUT` (10) | Grid layout                |
+| `SCROLL` (11)  | Scrollable container       |
+
+Hierarchy is explicit via `parent_id`:
+
+```
+WGT_CREATE;<container_id>;<parent_id=0>;<type=VLAYOUT>;...
+WGT_CREATE;<button_id>;<parent_id=container_id>;<type=BUTTON>;...
+```
+
+**Only containers may have children.** A `WGT_CREATE` whose `parent_id` names a leaf widget (BUTTON, LABEL, INPUT, CHECKBOX, RADIO, SLIDER, PROGRESS, SWITCH, IMAGE, DROPDOWN, TIMEPICK, DATEPICK) is invalid and MUST be rejected by the compositor.
+
+`WGT_LAYOUT` is **optional**. It changes the layout of an existing container at runtime (for example switching a `VLAYOUT` to row flow) without destroying and recreating its subtree. Normal container creation never needs it.
 
 ### 4.4 Notifications (stream 4)
 
@@ -97,6 +126,7 @@ Each stream has its own `frame_id` counter. Frame IDs start at 0 and increment p
 | 64 | NTF_RESIZE  | comp → app   | `width`, `height`                      |
 | 65 | NTF_FOCUS   | comp → app   | `widget_id`, `focused`                 |
 | 66 | NTF_DESTROY | comp → app   | `widget_id`                            |
+| 67 | NTF_STATE   | comp → app   | `win_id`, `state`                      |
 
 ### 4.5 Events (stream 4)
 
@@ -117,8 +147,12 @@ Each stream has its own `frame_id` counter. Frame IDs start at 0 and increment p
 |----|--------------|---------------|-------------------------------|
 | 96 | IME_PREEDIT  | app → comp    | `widget_id`, `text`           |
 | 97 | IME_COMMIT   | app → comp    | `widget_id`, `text`           |
+| 98 | IME_CANDIDATES | app → comp | `win_id`, `widget_id`, `count`, `c1`..`cN` |
+| 99 | IME_SELECT     | app → comp | `win_id`, `widget_id`, `index`             |
 
 The IME application sends `IME_PREEDIT` for in-progress composition text and `IME_COMMIT` for finalized text. The compositor routes these to the focused textarea widget.
+
+`IME_CANDIDATES` carries the candidate list for the active composition (`count` entries, `c1`..`cN`); at most `TGS_MAX_ARGS - 3` (13) candidates fit in one frame. `IME_SELECT` reports the zero-based `index` of the candidate the user picked.
 
 ## 5. Enums
 
@@ -158,6 +192,8 @@ The IME application sends `IME_PREEDIT` for in-progress composition text and `IM
 
 Total: 20 widget types.
 
+Container semantics (§4.3.1): `VLAYOUT` (8), `HLAYOUT` (9), `GLAYOUT` (10) and `SCROLL` (11) are the only types valid as a `parent_id`. Every other type is a leaf.
+
 ### 5.3 Event Types
 
 | Value | Name            | Description                  |
@@ -193,6 +229,16 @@ Total: 20 widget types.
 | 2     | FLEX_COL  | Vertical flex layout           |
 | 3     | GRID      | Grid layout                    |
 
+### 5.6 Window States
+
+| Value | Name       | Description                    |
+|-------|------------|--------------------------------|
+| 0     | NORMAL     | Restored, visible window       |
+| 1     | MINIMIZED  | Minimized to taskbar           |
+| 2     | MAXIMIZED  | Maximized to workspace bounds  |
+| 3     | FULLSCREEN | Fullscreen, no window chrome   |
+| 4     | HIDDEN     | Hidden but still alive         |
+
 ## 6. Handshake Sequence
 
 ```
@@ -205,11 +251,25 @@ App                              Compositor
  │         (connection ready)         │
 ```
 
+Or, when the compositor cannot honour the requested capabilities:
+
+```
+App                              Compositor
+ │                                    │
+ │──── HELLO (version, caps) ────────>│
+ │                                    │
+ │<─── REJECT (rejected_cap) ─────────│
+ │                                    │
+ │         (app disconnects)          │
+```
+
 1. App sends `HELLO` on stream 0 with protocol version and supported capabilities.
-2. Compositor responds with `READY` on stream 0, echoing its version and capabilities.
+2. If the request is supported, the compositor responds with `READY` on stream 0, echoing its version and capabilities.
 3. Both sides may now use streams 1-4.
 
 If the compositor does not support the requested version, it responds with `READY` containing its own version. The app must re-negotiate or disconnect.
+
+If the compositor cannot support a capability the app requested, it responds with `REJECT` on stream 0 instead of `READY`, carrying the offending capability token in `rejected_cap`. The app must not send further commands and should disconnect or re-handshake without that capability.
 
 ## 7. Capability Negotiation
 
@@ -252,6 +312,15 @@ TGS;1;<frame_id>;97;<widget_id>;<committed_text>  (IME_COMMIT)
 The compositor routes these to the focused textarea/input widget. `IME_PREEDIT` updates the composition display; `IME_COMMIT` inserts the finalized text at the cursor position.
 
 IME events are also reflected back on stream 4 as `TGS_EVENT_IME_PREEDIT` (5) and `TGS_EVENT_IME_COMMIT` (6) for app-side tracking.
+
+Candidate lists travel on stream 1 as well:
+
+```
+TGS;1;<frame_id>;98;<win_id>;<widget_id>;<count>;<c1>;...;<cN>  (IME_CANDIDATES)
+TGS;1;<frame_id>;99;<win_id>;<widget_id>;<index>               (IME_SELECT)
+```
+
+`IME_CANDIDATES` replaces the compositor's view of the candidate list for the focused input widget. `IME_SELECT` tells the compositor which zero-based candidate index the user chose; it is typically followed by an `IME_COMMIT`.
 
 ## 9. Frame ID Rules
 

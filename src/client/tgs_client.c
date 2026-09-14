@@ -20,6 +20,10 @@ static int  input_len = 0;
 #define MAX_WIDGETS 256
 static char widget_text_cache[MAX_WIDGETS][256];
 
+/* Focused widget id per window, kept up to date from NTF_FOCUS (65); 0 = none */
+#define MAX_FOCUS_WINDOWS 64
+static int focus_cache[MAX_FOCUS_WINDOWS];
+
 /* Window ID counter */
 static int next_window_id = 1;
 
@@ -113,9 +117,9 @@ static int read_stdin_timeout(int timeout_ms)
     return n;
 }
 
-/* Wait for a specific command on a given stream. Blocks until received or error.
- * Returns 0 on success (frame parsed into *out), -1 on error. */
-static int wait_for_frame(int stream_id, int command, tgs_frame *out)
+/* Read the next frame arriving on `stream_id` into *out.
+ * Blocks until one arrives. Returns 0 on success, -1 on error. */
+static int read_stream_frame(int stream_id, tgs_frame *out)
 {
     char payload[TGS_MAX_ARGS * TGS_MAX_ARG_LEN + 64];
     int payload_len;
@@ -141,11 +145,32 @@ static int wait_for_frame(int stream_id, int command, tgs_frame *out)
         if (tgs_frame_decode(payload, payload_len, out) != 0) {
             return -1;
         }
-        if (out->stream_id == stream_id && out->command == command) {
-            return 0;
-        }
+        if (out->stream_id == stream_id) return 0;
+        /* Not our stream — keep looking */
+    }
+}
+
+/* Wait for a specific command on a given stream. Blocks until received or error.
+ * Returns 0 on success (frame parsed into *out), -1 on error. */
+static int wait_for_frame(int stream_id, int command, tgs_frame *out)
+{
+    while (read_stream_frame(stream_id, out) == 0) {
+        if (out->command == command) return 0;
         /* Not the frame we want — keep looking */
     }
+    return -1;
+}
+
+/* Wait for READY (return 0) or REJECT (return 1, rejected capability in
+ * out->args[0]) on the handshake stream. Returns -1 on error. */
+static int wait_for_ready_or_reject(tgs_frame *out)
+{
+    while (read_stream_frame(TGS_STREAM_HANDSHAKE, out) == 0) {
+        if (out->command == TGS_CMD_READY) return 0;
+        if (out->command == TGS_CMD_REJECT) return 1;
+        /* Other handshake traffic — keep looking */
+    }
+    return -1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -155,6 +180,7 @@ int tgs_client_init(void)
     tgs_frame hello;
     char ver_str[32];
     const char *hello_args[2];
+    int ret;
 
     debug_log("[TGS] client init: waiting for HELLO\n");
 
@@ -179,9 +205,16 @@ int tgs_client_init(void)
 
     debug_log("[TGS] sent HELLO, waiting for READY\n");
 
-    /* Wait for READY */
-    if (wait_for_frame(TGS_STREAM_HANDSHAKE, TGS_CMD_READY, &hello) != 0) {
+    /* Wait for READY, or REJECT if our capabilities cannot be honoured */
+    ret = wait_for_ready_or_reject(&hello);
+    if (ret < 0) {
         debug_log("[TGS] failed to receive READY\n");
+        return -1;
+    }
+    if (ret == 1) {
+        debug_log("[TGS] handshake rejected; unsupported capability: ");
+        debug_log(hello.num_args > 0 ? hello.args[0] : "(unspecified)");
+        debug_log("\n");
         return -1;
     }
 
@@ -288,6 +321,44 @@ int tgs_client_set_widget_style(int id, tgs_style_prop prop, int32_t value)
                            TGS_CMD_WGT_STYLE, args, 3) < 0 ? -1 : 0;
 }
 
+int tgs_client_set_focus(int win_id, int widget_id)
+{
+    char win_str[32], wid_str[32];
+    const char *args[2];
+
+    int_to_str(win_id, win_str, (int)sizeof(win_str));
+    int_to_str(widget_id, wid_str, (int)sizeof(wid_str));
+
+    args[0] = win_str;
+    args[1] = wid_str;
+
+    return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
+                           TGS_CMD_SET_FOCUS, args, 2) < 0 ? -1 : 0;
+}
+
+int tgs_client_get_focus(int win_id)
+{
+    if (win_id < 0 || win_id >= MAX_FOCUS_WINDOWS) return 0;
+    return focus_cache[win_id];
+}
+
+int tgs_client_set_widget_attr(int id, tgs_widget_attr attr, int32_t value)
+{
+    char id_str[32], attr_str[32], val_str[32];
+    const char *args[3];
+
+    int_to_str(id, id_str, (int)sizeof(id_str));
+    int_to_str((int)attr, attr_str, (int)sizeof(attr_str));
+    int_to_str((int)value, val_str, (int)sizeof(val_str));
+
+    args[0] = id_str;
+    args[1] = attr_str;
+    args[2] = val_str;
+
+    return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
+                           TGS_CMD_WGT_ATTR, args, 3) < 0 ? -1 : 0;
+}
+
 int tgs_client_destroy_widget(int id)
 {
     char id_str[32];
@@ -389,13 +460,20 @@ int tgs_client_poll_event(tgs_event *ev, int timeout_ms)
                 }
                 return 0;
 
-            case TGS_CMD_EVT_FOCUS:
+            case TGS_CMD_NTF_FOCUS:
+                /* args: [win_id, widget_id, focused, reason] */
                 if (frame.num_args >= 3) {
                     ev->window_id = atoi(frame.args[0]);
                     ev->widget_id = atoi(frame.args[1]);
                     ev->focused = atoi(frame.args[2]);
-                    ev->type = ev->focused ? TGS_EVENT_FOCUS
-                                           : TGS_EVENT_BLUR;
+                    ev->reason = frame.num_args >= 4
+                                     ? atoi(frame.args[3])
+                                     : TGS_REASON_NONE;
+                    if (ev->window_id >= 0 && ev->window_id < MAX_FOCUS_WINDOWS) {
+                        focus_cache[ev->window_id] =
+                            ev->focused ? ev->widget_id : 0;
+                    }
+                    ev->type = ev->focused ? TGS_EVENT_FOCUS : TGS_EVENT_BLUR;
                 }
                 return 0;
 
@@ -455,4 +533,82 @@ int tgs_client_send_ime_preedit(int win_id, int widget_id, const char *text, int
     const char *args[] = { win_str, wid_str, text, cur_str };
     return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
                            TGS_CMD_IME_PREEDIT, args, 4) < 0 ? -1 : 0;
+}
+
+/* Frame 100 is compositor → IME app (stream 4, same channel as the key
+ * hand-off); this writer exists for tests and simulated compositors. */
+int tgs_client_send_ime_cancel(int win_id, int widget_id)
+{
+    char win_str[32], wid_str[32];
+    const char *args[2];
+
+    int_to_str(win_id, win_str, (int)sizeof(win_str));
+    int_to_str(widget_id, wid_str, (int)sizeof(wid_str));
+
+    args[0] = win_str;
+    args[1] = wid_str;
+
+    return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_EVENT, 0,
+                           TGS_CMD_IME_CANCEL, args, 2) < 0 ? -1 : 0;
+}
+
+/* Change a container's layout at runtime. Optional: containers receive their
+ * layout from their widget type at WGT_CREATE time. */
+int tgs_client_set_widget_layout(int id, tgs_layout_type layout)
+{
+    char id_str[32], layout_str[32];
+    const char *args[2];
+
+    int_to_str(id, id_str, (int)sizeof(id_str));
+    int_to_str((int)layout, layout_str, (int)sizeof(layout_str));
+
+    args[0] = id_str;
+    args[1] = layout_str;
+
+    return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
+                           TGS_CMD_WGT_LAYOUT, args, 2) < 0 ? -1 : 0;
+}
+
+int tgs_client_send_ime_candidates(int win_id, int widget_id,
+                                   const char *candidates[], int count)
+{
+    char win_str[16], wid_str[16], cnt_str[16];
+    const char *args[TGS_MAX_ARGS];
+    int i;
+
+    if (count < 0 || (count > 0 && !candidates)) return -1;
+
+    /* win_id + widget_id + count occupy three arg slots */
+    if (count > TGS_MAX_ARGS - 3) count = TGS_MAX_ARGS - 3;
+
+    int_to_str(win_id, win_str, (int)sizeof(win_str));
+    int_to_str(widget_id, wid_str, (int)sizeof(wid_str));
+    int_to_str(count, cnt_str, (int)sizeof(cnt_str));
+
+    args[0] = win_str;
+    args[1] = wid_str;
+    args[2] = cnt_str;
+    for (i = 0; i < count; i++) {
+        args[3 + i] = candidates[i] ? candidates[i] : "";
+    }
+
+    return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
+                           TGS_CMD_IME_CANDIDATES, args, count + 3) < 0 ? -1 : 0;
+}
+
+int tgs_client_send_ime_select(int win_id, int widget_id, int index)
+{
+    char win_str[16], wid_str[16], idx_str[16];
+    const char *args[3];
+
+    int_to_str(win_id, win_str, (int)sizeof(win_str));
+    int_to_str(widget_id, wid_str, (int)sizeof(wid_str));
+    int_to_str(index, idx_str, (int)sizeof(idx_str));
+
+    args[0] = win_str;
+    args[1] = wid_str;
+    args[2] = idx_str;
+
+    return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
+                           TGS_CMD_IME_SELECT, args, 3) < 0 ? -1 : 0;
 }
