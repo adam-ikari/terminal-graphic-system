@@ -165,6 +165,9 @@ endif()
 if(TGS_USE_SIXEL)
     list(APPEND BACKEND_SOURCES src/backends/lvgl/lvgl_sixel.c)
 endif()
+if(NOT TGS_USE_SDL AND NOT TGS_USE_SIXEL)
+    list(APPEND BACKEND_SOURCES src/backends/output_fb.c src/backends/input_fb.c)
+endif()
 
 add_library(tgs_lvgl_backend STATIC ${BACKEND_SOURCES})
 target_include_directories(tgs_lvgl_backend PUBLIC
