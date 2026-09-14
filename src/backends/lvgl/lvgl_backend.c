@@ -79,8 +79,10 @@ static lv_obj_t *create_lvgl_widget(tgs_widget_type type, lv_obj_t *parent)
 
 static void display_flush_cb(lv_display_t *d, const lv_area_t *area, uint8_t *px)
 {
-    (void)d; (void)area; (void)px;
-    /* Buffer is shared with display — output_present() reads it directly */
+    (void)area; (void)px;
+    /* Buffer is shared with display — output_present() reads it directly.
+     * Still must report completion, otherwise LVGL stalls the refresh. */
+    lv_display_flush_ready(d);
 }
 
 void lvgl_backend_set_display(tgs_display *display)
@@ -161,6 +163,9 @@ static void *backend_create_window(tgs_window_type type, const char *title)
     /* The root LVGL screen is the window */
     lv_obj_t *scr = lv_screen_active();
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x222222), 0);
+    /* Default theme text is near-black, which is invisible on the dark window
+     * background used above — force a light default so labels inherit it. */
+    lv_obj_set_style_text_color(scr, lv_color_hex(0xEEEEEE), 0);
     return (void *)scr;
 }
 

@@ -202,6 +202,12 @@ add_executable(simple_form
 )
 target_link_libraries(simple_form PRIVATE tgs_client)
 
+# render_demo — headless screenshot harness (LVGL backend → PNG, no display server)
+add_executable(render_demo
+    tools/render_demo.c
+)
+target_link_libraries(render_demo PRIVATE tgs_lvgl_backend tgs_common)
+
 # ime_app — IME engine (separate TGS app)
 add_executable(ime_app
     examples/ime_app.c

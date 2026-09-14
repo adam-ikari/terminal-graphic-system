@@ -212,7 +212,7 @@ int tgs_client_create_window(tgs_window_type type, const char *title,
     }
 
     /* Wait for NTF_RESIZE */
-    if (wait_for_frame(TGS_STREAM_EVENT, TGS_CMD_NTF_RESIZE, &resp) != 0) {
+    if (wait_for_frame(TGS_STREAM_COMMAND, TGS_CMD_NTF_RESIZE, &resp) != 0) {
         return -1;
     }
 

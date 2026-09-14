@@ -164,6 +164,14 @@ static tgs_widget_type str_to_widget_type(const char *s)
     if (strcmp(s, "image") == 0)    return TGS_WIDGET_IMAGE;
     if (strcmp(s, "timepick") == 0) return TGS_WIDGET_TIMEPICK;
     if (strcmp(s, "datepick") == 0) return TGS_WIDGET_DATEPICK;
+    /* The client (tgs_client.c) encodes the type numerically via
+     * int_to_str((int)type); accept that form too so non-label widgets
+     * are not silently collapsed into plain labels. */
+    if (s[0] >= '0' && s[0] <= '9') {
+        int v = atoi(s);
+        if (v >= 0 && v < (int)TGS_WIDGET_COUNT)
+            return (tgs_widget_type)v;
+    }
     return TGS_WIDGET_LABEL;
 }
 
@@ -172,6 +180,13 @@ static tgs_window_type str_to_window_type(const char *s)
     if (strcmp(s, "dialog") == 0)      return TGS_WINDOW_DIALOG;
     if (strcmp(s, "fullscreen") == 0)  return TGS_WINDOW_FULLSCREEN;
     if (strcmp(s, "tool") == 0)        return TGS_WINDOW_TOOL;
+    /* Same numeric encoding as str_to_widget_type: the client sends
+     * int_to_str((int)type), so digits must decode too. */
+    if (s[0] >= '0' && s[0] <= '9') {
+        int v = atoi(s);
+        if (v >= 0 && v <= (int)TGS_WINDOW_TOOL)
+            return (tgs_window_type)v;
+    }
     return TGS_WINDOW_NORMAL;
 }
 
@@ -237,7 +252,10 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
 
         void *handle = be->create_widget(parent, wtype);
         be->set_widget_rect(handle, x, y, w, h);
-        if (frame->num_args >= 8 && frame->args[7][0] != '\0') {
+        /* Content is always present in the frame; an empty string means an
+         * empty widget, so it must still be applied — otherwise LVGL's
+         * placeholder text (LV_LABEL_DEFAULT_TEXT) leaks through. */
+        if (frame->num_args >= 8) {
             be->set_widget_content(handle, frame->args[7]);
         }
         widget_add(wid, handle, wtype, win_id_for_widget);

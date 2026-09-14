@@ -48,12 +48,14 @@ void tgs_parser_feed(tgs_parser *p, const uint8_t *data, int len)
             }
         }
         if (frame_end < 0) {
-            /* Incomplete frame — need more data. Compact if possible. */
-            if (frame_start > 0) {
-                /* Discard everything before frame_start */
-                memmove(p->buf, p->buf + frame_start,
-                        (size_t)(p->buf_len - frame_start));
-                p->buf_len -= frame_start;
+            /* Incomplete frame — need more data. Compact if possible,
+             * keeping the ESC _ introducer so the frame can still be
+             * recognised once the remainder arrives. */
+            int keep = frame_start - 2;
+            if (keep > 0) {
+                memmove(p->buf, p->buf + keep,
+                        (size_t)(p->buf_len - keep));
+                p->buf_len -= keep;
             }
             break;
         }

@@ -34,10 +34,31 @@ int tgs_frame_encode(int stream_id, int frame_id, int command,
     return written;
 }
 
+/* Split off one ';'-separated field, advancing *cursor. Unlike strtok_r,
+ * empty fields are preserved: the client legitimately sends empty arguments
+ * (e.g. an empty widget content), and collapsing them silently shifts or
+ * drops trailing arguments. Returns NULL once the payload is exhausted. */
+static char *next_field(char **cursor)
+{
+    char *start = *cursor;
+    char *sep;
+
+    if (!start) return NULL;
+
+    sep = strchr(start, ';');
+    if (sep) {
+        *sep = '\0';
+        *cursor = sep + 1;
+    } else {
+        *cursor = NULL;
+    }
+    return start;
+}
+
 int tgs_frame_decode(const char *data, int len, tgs_frame *frame)
 {
     char buf[TGS_MAX_ARGS * TGS_MAX_ARG_LEN + 64];
-    char *saveptr;
+    char *cursor;
     char *token;
     int count;
 
@@ -49,28 +70,30 @@ int tgs_frame_decode(const char *data, int len, tgs_frame *frame)
 
     memset(frame, 0, sizeof(*frame));
 
-    /* First token: must be "TGS" */
-    token = strtok_r(buf, ";", &saveptr);
+    cursor = buf;
+
+    /* First field: must be "TGS" */
+    token = next_field(&cursor);
     if (!token || strcmp(token, "TGS") != 0) return -1;
 
     /* stream_id */
-    token = strtok_r(NULL, ";", &saveptr);
+    token = next_field(&cursor);
     if (!token) return -1;
     frame->stream_id = atoi(token);
 
     /* frame_id */
-    token = strtok_r(NULL, ";", &saveptr);
+    token = next_field(&cursor);
     if (!token) return -1;
     frame->frame_id = atoi(token);
 
     /* command */
-    token = strtok_r(NULL, ";", &saveptr);
+    token = next_field(&cursor);
     if (!token) return -1;
     frame->command = atoi(token);
 
-    /* remaining tokens are args */
+    /* remaining fields are args */
     count = 0;
-    while ((token = strtok_r(NULL, ";", &saveptr)) != NULL) {
+    while ((token = next_field(&cursor)) != NULL) {
         if (count >= TGS_MAX_ARGS) return -1;
         strncpy(frame->args[count], token, TGS_MAX_ARG_LEN - 1);
         frame->args[count][TGS_MAX_ARG_LEN - 1] = '\0';

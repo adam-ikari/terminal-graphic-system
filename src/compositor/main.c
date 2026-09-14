@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <poll.h>
 #include <pty.h>
+#include <termios.h>
 #include <sys/wait.h>
 
 #include "tgs_protocol.h"
@@ -31,6 +32,17 @@ static void sig_handler(int sig)
 {
     (void)sig;
     running = 0;
+}
+
+/* Put the app's PTY slave into raw mode so binary protocol frames are
+ * delivered byte-for-byte without line-discipline buffering or echo. */
+static void pty_set_raw(void)
+{
+    struct termios tio;
+
+    if (tcgetattr(STDIN_FILENO, &tio) != 0) return;
+    cfmakeraw(&tio);
+    tcsetattr(STDIN_FILENO, TCSANOW, &tio);
 }
 
 int main(int argc, char *argv[])
@@ -93,6 +105,7 @@ int main(int argc, char *argv[])
     }
 
     if (child_pid == 0) {
+        pty_set_raw();
         /* Child: exec the app */
         execvp(argv[1], &argv[1]);
         perror("execvp");
@@ -106,6 +119,7 @@ int main(int argc, char *argv[])
         const char *ime_path = "ime_app";
         ime_pid = forkpty(&ime_master_fd, NULL, NULL, NULL);
         if (ime_pid == 0) {
+            pty_set_raw();
             execlp(ime_path, ime_path, (char *)NULL);
             _exit(1);
         }
@@ -189,6 +203,10 @@ int main(int argc, char *argv[])
 
         /* LVGL tick */
         be->tick(10);
+
+        /* Pump LVGL's refresh timers — without this the draw buffer is never
+         * painted and output_present() uploads an all-zero framebuffer. */
+        be->render();
 
         /* Present framebuffer */
         output_present(&disp);
