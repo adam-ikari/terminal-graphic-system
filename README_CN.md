@@ -10,11 +10,11 @@ TGS 将终端变成图形平台。应用通过字节流协议构建界面——�
 
 ```
 ┌─────────────────────────────────────────┐
-│  TGS Compositor（终端模拟器）             │
+│  TGS Compositor（桌面/嵌入式）            │
 │  ├── 协议解析器（APC 帧）                │
 │  ├── 窗口管理器                          │
 │  ├── LVGL 后端（20+ 控件）               │
-│  ├── Sixel 输出（像素渲染）              │
+│  ├── 输出后端（SDL2 或 FB）              │
 │  └── IME 路由 → IME 应用                 │
 ├─────────────────────────────────────────┤
 │  TGS 客户端库（C API）                   │
@@ -28,7 +28,7 @@ TGS 将终端变成图形平台。应用通过字节流协议构建界面——�
 ```bash
 # 构建
 git submodule update --init --recursive
-mkdir -p build && cd build && cmake .. && make -j$(nproc)
+mkdir -p build && cd build && cmake -DTGS_USE_SDL=ON .. && make -j$(nproc)
 
 # 运行演示
 ./build/tgs-compositor ./build/simple_form
@@ -38,7 +38,7 @@ mkdir -p build && cd build && cmake .. && make -j$(nproc)
 
 - C99 编译器
 - Linux（macOS/Windows WSL 后续支持）
-- 支持 Sixel 的终端（xterm -ti vt340、mlterm、mintty 等）
+- SDL2 开发库（`libsdl2-dev`）
 
 ## 构建命令
 
@@ -80,6 +80,14 @@ ESC _ TGS;<stream>;<frame_id>;<command>;<args>... ESC \
 - **协议与后端解耦** — TGS 协议不绑定任何渲染后端
 - **IME 是独立应用** — 输入法作为独立 TGS 应用运行，不内置到合成器
 - **能力协商驱动** — 连接时双向交换能力，不支持的能力明确拒绝
+
+## 文档
+
+- [系统架构](docs/architecture.md)
+- [快速上手](docs/getting-started.md)
+- [协议规范](protocol/tgs-spec-layer0.md)
+- [输入法框架](docs/ime.md)
+- [控件参考](docs/widgets.md)
 
 ## 许可证
 

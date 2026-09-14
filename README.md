@@ -10,11 +10,11 @@ TGS turns your terminal into a graphical platform. Applications build UIs throug
 
 ```
 ┌─────────────────────────────────────────┐
-│  TGS Compositor (terminal emulator)     │
+│  TGS Compositor (desktop/embedded)      │
 │  ├── Protocol Parser (APC frames)       │
 │  ├── Window Manager                     │
 │  ├── LVGL Backend (20+ widgets)         │
-│  ├── Sixel Output (pixel rendering)     │
+│  ├── Output Backend (SDL2 or FB)        │
 │  └── IME Router → IME App               │
 ├─────────────────────────────────────────┤
 │  TGS Client Library (C API)             │
@@ -28,7 +28,7 @@ TGS turns your terminal into a graphical platform. Applications build UIs throug
 ```bash
 # Build
 git submodule update --init --recursive
-mkdir -p build && cd build && cmake .. && make -j$(nproc)
+mkdir -p build && cd build && cmake -DTGS_USE_SDL=ON .. && make -j$(nproc)
 
 # Run demo
 ./build/tgs-compositor ./build/simple_form
@@ -38,7 +38,7 @@ mkdir -p build && cd build && cmake .. && make -j$(nproc)
 
 - C99 compiler
 - Linux (macOS/Windows WSL later)
-- Terminal with Sixel support (xterm -ti vt340, mlterm, mintty, etc.)
+- SDL2 development libraries (`libsdl2-dev`)
 
 ## Building
 
@@ -73,6 +73,14 @@ ESC _ TGS;<stream>;<frame_id>;<command>;<args>... ESC \
 ```
 
 See [protocol/tgs-spec-layer0.md](protocol/tgs-spec-layer0.md) for the full specification.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Getting Started](docs/getting-started.md)
+- [Protocol Specification](protocol/tgs-spec-layer0.md)
+- [IME Framework](docs/ime.md)
+- [Widget Reference](docs/widgets.md)
 
 ## License
 

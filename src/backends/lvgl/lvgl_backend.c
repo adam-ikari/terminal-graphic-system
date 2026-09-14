@@ -12,8 +12,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Sixel flush callback — defined in lvgl_sixel.c */
-extern void sixel_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px);
+#include "output.h"
+
+/* Display buffer pointer — set via lvgl_backend_set_display() */
+static tgs_display *g_display;
 
 /* ---- Static State ---- */
 
@@ -73,6 +75,18 @@ static lv_obj_t *create_lvgl_widget(tgs_widget_type type, lv_obj_t *parent)
     default:                  return lv_obj_create(parent);
     }
 }
+/* ---- Display Buffer ---- */
+
+static void display_flush_cb(lv_display_t *d, const lv_area_t *area, uint8_t *px)
+{
+    (void)d; (void)area; (void)px;
+    /* Buffer is shared with display — output_present() reads it directly */
+}
+
+void lvgl_backend_set_display(tgs_display *display)
+{
+    g_display = display;
+}
 
 /* ---- Backend Interface Implementation ---- */
 
@@ -84,14 +98,16 @@ static int backend_init(int width, int height)
     disp = lv_display_create(width, height);
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_ARGB8888);
 
-    /* Allocate full-screen draw buffer (RGBA32) */
+    /* Use display buffer (set via lvgl_backend_set_display) */
+    if (!g_display) return -1;
     size_t buf_size = (size_t)width * (size_t)height * 4;
     draw_buf = (uint8_t *)malloc(buf_size);
     if (!draw_buf) return -1;
+    g_display->buffer = draw_buf;
 
     lv_display_set_buffers(disp, draw_buf, NULL, (uint32_t)buf_size,
                            LV_DISPLAY_RENDER_MODE_DIRECT);
-    lv_display_set_flush_cb(disp, sixel_flush);
+    lv_display_set_flush_cb(disp, display_flush_cb);
 
     /* Mouse input device */
     mouse_indev = lv_indev_create();

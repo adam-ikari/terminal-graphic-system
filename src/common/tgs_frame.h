@@ -2,8 +2,13 @@
  * TGS Frame encode/decode API.
  * Fixed-buffer, no dynamic allocation.
  */
+
 #ifndef TGS_FRAME_H
 #define TGS_FRAME_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TGS_MAX_ARGS    16
 #define TGS_MAX_ARG_LEN 128
@@ -37,5 +42,9 @@ int tgs_frame_decode(const char *data, int len, tgs_frame *frame);
  */
 int tgs_frame_write(int fd, int stream_id, int frame_id, int command,
                     const char *args[], int num_args);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TGS_FRAME_H */
