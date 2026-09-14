@@ -10,7 +10,6 @@ __pycache__/
 .clang-format
 tests/test_frame
 tests/test_protocol
-build/
 
 # Generated artifacts (screenshots / reports)
 demo.png
