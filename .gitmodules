@@ -1,0 +1,9 @@
+[submodule "deps/lvgl"]
+	path = deps/lvgl
+	url = https://github.com/lvgl/lvgl.git
+	shallow = true
+
+[submodule "deps/libsixel"]
+	path = deps/libsixel
+	url = https://github.com/saitoha/libsixel.git
+	shallow = true
