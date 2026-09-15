@@ -1,0 +1,11 @@
+# L0 snapshot: l0-layout
+# frozen: 10x5 ASCII
+# CUP is one-based; wrap happens at the right margin
+# EL erases from the cursor to the end and leaves the cursor put
+geometry 10x5
+cursor 4,3 visible=1 shape=block
+ 0 "abcdefghij"
+ 1 "kl        "
+ 2 "   ADDR   "
+ 3 "1234      "
+ 4 "          "

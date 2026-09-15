@@ -188,6 +188,39 @@ TEST(Term, decscusr_sets_the_cursor_shape)
     tgs_term_free(t);
 }
 
+/* The invariant a terminal owes every program: a control byte is an action, so
+ * none of them may ever end up as a visible cell. */
+TEST(Term, no_control_byte_ever_reaches_a_cell)
+{
+    tgs_term *t = make_term(20, 3);
+    feed(t, "a\x1b[31mb\x1b[0m\x07\x08\x0b\x0c" "c\x1b[2Jd");
+
+    const tgs_term_cell *cells = tgs_term_cells(t);
+    for (int i = 0; i < 20 * 3; i++) {
+        uint32_t cp = cells[i].cp;
+        EXPECT_TRUE(cp == 0 || cp >= 32)
+            << "cell " << i << " holds control code " << cp;
+    }
+    tgs_term_free(t);
+}
+
+/* Full-screen programs hide the cursor and restore it on the way out. A
+ * terminal that keeps the hidden state leaves the user with no cursor at all. */
+TEST(Term, leaving_the_alternate_screen_restores_the_cursor)
+{
+    tgs_term *t = make_term(10, 3);
+    feed(t, "main");
+    EXPECT_EQ(tgs_term_cursor_visible(t), 1);
+
+    feed(t, "\x1b[?1049h\x1b[?25l");       /* enter the alt screen, hide the cursor */
+    EXPECT_EQ(tgs_term_cursor_visible(t), 0);
+
+    feed(t, "\x1b[?1049l");                /* leaving it restores what was saved */
+    EXPECT_EQ(tgs_term_cursor_visible(t), 1);
+    EXPECT_EQ(row_text(t, 0), "main      ");
+    tgs_term_free(t);
+}
+
 /* --- one stream: character output and TGS frames ---------------------- */
 
 namespace {

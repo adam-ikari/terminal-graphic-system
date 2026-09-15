@@ -1,0 +1,8 @@
+# L0 snapshot: l0-scrollback
+# frozen: 8x2
+# viewport scrolled one line back: history first, then the live screen
+geometry 8x2
+cursor 4,1 visible=1 shape=block
+scroll 1
+ 0 "AAAA    "
+ 1 "BBBB    "

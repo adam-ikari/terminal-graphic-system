@@ -249,7 +249,10 @@ add_executable(tgs_tests
     tests/test_nav.cpp
     tests/test_term.cpp
     tests/test_pty.cpp
+    tests/test_snapshot.cpp
 )
+target_compile_definitions(tgs_tests PRIVATE
+    TGS_SNAPSHOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/snapshots")
 target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main util)
 add_test(NAME tgs_tests COMMAND tgs_tests)
 

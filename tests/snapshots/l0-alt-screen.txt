@@ -1,0 +1,9 @@
+# L0 snapshot: l0-alt-screen
+# frozen: 12x3
+# the alternate screen starts blank and the cursor is hidden;
+# the primary screen is untouched while it is shown
+geometry 12x3
+cursor 0,1 visible=0 shape=block
+ 0 "ALT         "
+ 1 "            "
+ 2 "            "

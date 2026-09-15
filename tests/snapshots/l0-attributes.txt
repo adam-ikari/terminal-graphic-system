@@ -1,0 +1,11 @@
+# L0 snapshot: l0-attributes
+# frozen: 24x5 ASCII, resolved ARGB, no clock or randomness
+# colours are the emulator's palette values, not the host theme's
+# SGR 2 (FAINT) renders at normal intensity: libvterm has no faint bit
+geometry 24x5
+cursor 0,4 visible=1 shape=block
+ 0 "plain                   "
+ 1 "RED GREEN BLUE          " [0-2] fg=E00000 [4-8] fg=00E000 [10-13] fg=0000E0
+ 2 "BOLD FAINT UNDER REV    " [0-3] a=B [11-15] a=U [17-19] a=R
+ 3 "BG                      " [0-1] bg=E00000
+ 4 "                        "

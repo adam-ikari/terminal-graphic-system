@@ -10,11 +10,16 @@
 
 #include <stdint.h>
 
-/* Cell attributes */
+/* Cell attributes the emulator can actually express.
+ *
+ * libvterm models bold, underline, italic, blink, reverse, conceal and strike —
+ * but it has no faint/dim bit at all, and a 1-bit bitmap font has no italic or
+ * blink to render. So what a program paints arrives here as these three, plus
+ * conceal (which clears the cell). Everything else renders at normal intensity:
+ * that is a stated contract, not an oversight. */
 #define TGS_ATTR_BOLD      0x01
-#define TGS_ATTR_DIM       0x02
-#define TGS_ATTR_UNDERLINE 0x04
-#define TGS_ATTR_REVERSE   0x08
+#define TGS_ATTR_UNDERLINE 0x02
+#define TGS_ATTR_REVERSE   0x04
 
 /* Default colour sentinel. A resolved colour is 0xFFRRGGBB; 0 means
  * "the terminal's default foreground/background". */

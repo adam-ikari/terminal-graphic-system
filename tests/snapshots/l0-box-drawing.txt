@@ -1,0 +1,11 @@
+# L0 snapshot: l0-box-drawing
+# frozen: 8x5
+# box drawing arrives as UTF-8 and occupies one cell each;
+# the codepoint is stated because the text line is ASCII
+geometry 8x5
+cursor 5,3 visible=1 shape=block
+ 0 "        "
+ 1 "  ...   " [2-2] cp=250C [3-3] cp=2500 [4-4] cp=2510
+ 2 "  . .   " [2-2] cp=2502 [4-4] cp=2502
+ 3 "  ...   " [2-2] cp=2514 [3-3] cp=2500 [4-4] cp=2518
+ 4 "        "

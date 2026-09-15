@@ -199,7 +199,6 @@ static void draw_cell(lv_layer_t *L, const tgs_term_cell *c, int px, int py, int
 
     if (swapped) { uint32_t s = fg; fg = bg; bg = s; }
     if (c->attr & TGS_ATTR_BOLD) fg = scale(fg, 5, 4);
-    if (c->attr & TGS_ATTR_DIM)  fg = scale(fg, 2, 3);
 
     if (bg != DEF_BG || swapped)
         rect(L, px, py, px + g_cell_w - 1, py + g_cell_h - 1, bg);
