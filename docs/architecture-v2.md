@@ -59,6 +59,39 @@ Two kinds:
 **Lifecycle:** `create → map → draw/damage → resize (server→client notify) → raise/lower → unmap →
 destroy`. On client crash or disconnect the server **auto-cleans** the surface (no orphans).
 
+### Nesting — recursive composition (the completion principle)
+
+**A complete terminal graphics window system is composed by multi-level nesting.** A surface is the
+primitive, and a surface may be backed by:
+
+- server-rendered widgets, or
+- client pixels, or
+- **a nested display server** — a full TGS server running as a *client program* inside the surface.
+
+Because the server is just a program (§1), it can itself be a client of another server. So a surface
+can host a whole window system, which hosts surfaces, which can host another window system —
+recursively, to arbitrary depth:
+
+```
+terminal → server → surface → nested server → surface → nested server → …
+```
+
+Every level is the *same primitive set*; nesting adds isolation (a session, a container, a
+window-in-a-window) — exactly as tmux panes or Xephyr-in-X11 extend their hosts.
+
+**What nesting forces the design to get right — and therefore proves it complete:**
+
+- **Hierarchical input routing** — an event goes to the topmost surface under the pointer; a nested
+  server consumes events within its rect and re-routes them to its own children.
+- **Coordinate spaces** — each nested server has its own origin inside the rect it was granted.
+- **Hierarchical focus** — outer focus = the nested server's surface; inner focus = a widget inside it.
+- **No special cases** — a nested server is an ordinary client, so nesting needs *no* mechanism beyond
+  the surface, transport, and input primitives already defined.
+
+**Completeness test:** when a TGS server can run as a TGS program inside a TGS surface and behave
+correctly — input, focus, and geometry right at every level — TGS is a complete terminal graphics
+window system, not a toolkit with a window feature bolted on.
+
 ---
 
 ## 4. Transport — pluggable
@@ -103,7 +136,7 @@ for the app, IME input is indistinguishable from stdin. There are **no IME proto
 
 ---
 
-## 6. The path — L0 → L5
+## 6. The path — L0 → L6 (to a complete window system)
 
 Each rung reuses the previous; no rung is a lesser product.
 
@@ -115,6 +148,7 @@ Each rung reuses the previous; no rung is a lesser product.
 | **L3** | client pixel surface (a widget kind) + binary DCS transport + animation | an app opts into a pixel widget and paints into it |
 | **L4** | multi-surface scene compositor (z-order/alpha/transforms) + transport pluggability (local shm/dmabuf zero-copy) | two client surfaces overlap — one local (shm), one remote (DCS) |
 | **L5** | desktop graphics system: a **WM program** (decorations, layouts, workspaces, launch/activate) + GPU path | a TGS **WM program** decorates and moves a local app's window beside a TGS widget window |
+| **L6** | **Nesting** — a TGS server runs as a TGS program inside a TGS surface: a window system inside a window, recursively | a TGS server runs inside a TGS pixel surface; input, focus, and geometry are correct at both levels |
 
 ---
 
