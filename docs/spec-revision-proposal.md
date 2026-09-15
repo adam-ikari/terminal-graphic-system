@@ -14,9 +14,9 @@ critique into concrete edits to the requirements.
   frames; the compositor renders them with LVGL; the transport stays in the char-grid economy
   (a form is ≈100 bytes). This is what the demos prove and what the terminal's nature supports.
 - **Opt-in, late path — a pixel surface.** An app that needs video/games/custom drawing gets a
-  **widget-sized drawable region** fed by a **binary/length-prefixed frame type**; the compositor
-  composites it alongside native widgets. This is the normal text→graphics evolution
-  (Tektronix 4014 → ReGIS → Sixel → kitty/iTerm2), not a second product.
+  **widget-sized drawable region** fed by a **binary DCS frame with an explicit length prefix**;
+  the compositor composites it alongside native widgets. This is the normal text→graphics
+  evolution (Tektronix 4014 → ReGIS → Sixel → kitty/iTerm2), not a second product.
 
 TGS is **not** a desktop window manager, and its pixel path is **not** Wayland-over-SSH: the
 terminal owns geometry, the app paints inside a widget it was granted.
@@ -93,12 +93,22 @@ terminal owns geometry, the app paints inside a widget it was granted.
 ### §5.4 — Framebuffer stream · REDEFINE (do not cut)
 - **Change.** Redefine as: *an app may request a **pixel-backed widget** (a drawable region).*
   - The framebuffer is a **widget kind**, not a peer economy — the terminal still owns its geometry.
-  - Pixels travel on a **new binary / length-prefixed frame type** (transport split): control stays
-    text; bulk data (framebuffer, resource bytes) gets a namespace that can carry binary.
   - It is a **late layer** (L3), **opt-in**, with native widgets the default.
-- **Tradeoff.** Requires building binary framing and a framebuffer widget kind. Justified: this is
-  the normal terminal text→graphics path, and without the transport split the requirement is
-  unreachable (its pixels currently have nowhere to travel).
+- **Transport split (decided).** Two payload classes get two transports:
+  - **Embedded images / resource bytes → base64 in the existing APC frame** (kitty / iTerm2 style).
+    Text-safe — base64 is `A–Z a–z 0–9 + / =`, which cannot collide with the frame's `;` delimiter
+    or the `ESC \` terminator — needs no new parser, costs ≈ +33% size. Fine for occasional,
+    bounded payloads.
+  - **Framebuffer stream → binary DCS with an explicit byte-length prefix**, e.g.
+    `ESC P TGSFB;<w>;<h>;<format>;<len> ST <len raw bytes> ESC \`. The length prefix is what makes
+    raw binary unambiguous: the parser reads exactly `<len>` bytes, so any `ESC` inside is data, not
+    a terminator. **0% overhead** (vs +33% for base64), no escaping — required for a continuous,
+    high-bandwidth stream.
+- **Tradeoff.** Requires a second frame parser (binary DCS) alongside the APC one. Justified: base64
+  on a 60fps framebuffer would waste a third of the terminal's scarcest resource (SSH bandwidth),
+  while base64 on an occasional image costs nothing measurable. Bandwidth itself is still managed by
+  **dirty-region incremental sends** (spec §5.4) and optional compression — this decision fixes
+  *framing*, not *volume*.
 
 ### §5.5 — Events · KEEP + CUT
 - **Keep:** mouse, keyboard, single/2-point touch, widget events, routing rules, window-id per event.
