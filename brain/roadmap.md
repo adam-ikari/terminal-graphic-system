@@ -2,15 +2,18 @@
 slug: roadmap
 title: Roadmap
 role: milestones
-updated: "2026-09-14"
+updated: "2026-09-15T01:53:46"
 ---
 
 # Roadmap
 
-See: [docs/getting-started.md](../docs/getting-started.md) · [docs/navigation.md §K](../docs/navigation.md)
+See: [docs/spec-revision-proposal.md](../docs/spec-revision-proposal.md) · [docs/navigation.md](../docs/navigation.md)
 
-## Milestones
-- Layer 0 (MVP): Single window + tiling + basic widgets/events + IME framework — done
-- Layer 1 (partial, 2026-09-14): full 20-widget library + explicit containers + keyboard navigation (focus model/rings/scopes, `SET_FOCUS`/`NTF_FOCUS`+reason, key-routing) + pipeline fixes landed; preedit overlay is a documented gap (nav §H.2). Floating/split layouts + resource URIs still pending.
-- Layer 2: Docking + scroll overlay + FB stream + IME engine
-- Layer 3: Multi-workspace + layout templates + drag-to-resize
+## Milestones (revised 2026-09-14 — prove the toolkit before the WM)
+- Layer 0: single window + size-notify + input/textarea/button/label + events + resize→relayout
+- Layer 1: styles + full 20-widget library + containers + focus/navigation — partial (landed: widgets/containers/nav; gap: preedit overlay)
+- Layer 2: multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal, no protocol commands)
+- Layer 3: pixel surface (a widget kind) + binary frame transport + animation
+
+## Revision
+Requirements re-layered and re-scoped per `docs/spec-revision-proposal.md` (§5.1 shrink, §5.3 shrink, §4.2 soften, §5.5 IME cut, §6.1 end-to-end latency, §6.2 app-side fallback).
