@@ -46,6 +46,20 @@ std::string row_text(const tgs_term *t, int row)
     return out;
 }
 
+/* The viewport (scroll offset applied), as opposed to the live screen that
+ * row_text() reads. */
+std::string view_row_text(const tgs_term *t, int row)
+{
+    const tgs_term_cell *line = tgs_term_view_line(t, row);
+    int cols = tgs_term_cols(t);
+    std::string out;
+    for (int x = 0; x < cols; x++) {
+        uint32_t cp = line ? line[x].cp : ' ';
+        out += (cp != 0 && cp < 127) ? (char)cp : ' ';
+    }
+    return out;
+}
+
 } // namespace
 
 TEST(Term, wraps_at_the_right_margin_without_skipping_a_column)
@@ -139,6 +153,38 @@ TEST(Term, scrolling_region_leaves_lines_outside_it_untouched)
     EXPECT_EQ(row_text(t, 1), "3     ");
     EXPECT_EQ(row_text(t, 2), "4     ");
     EXPECT_EQ(row_text(t, 3), "      ");
+    tgs_term_free(t);
+}
+
+TEST(Term, scrolled_off_lines_are_reachable_from_the_viewport)
+{
+    tgs_term *t = tgs_term_new(8, 2);
+    feed(t, "AAAA\r\nBBBB\r\nCCCC");   /* AAAA scrolls off; live is BBBB/CCCC */
+    EXPECT_EQ(row_text(t, 0), "BBBB    ");
+    EXPECT_EQ(row_text(t, 1), "CCCC    ");
+
+    tgs_term_scroll(t, 1);             /* one line back: the scrolled-off row shows */
+    EXPECT_EQ(view_row_text(t, 0), "AAAA    ");
+    EXPECT_EQ(view_row_text(t, 1), "BBBB    ");
+    EXPECT_EQ(tgs_term_scroll_offset(t), 1);
+
+    feed(t, "\r\nDDDD");               /* new output drops back to the live screen */
+    EXPECT_EQ(tgs_term_scroll_offset(t), 0);
+    EXPECT_EQ(row_text(t, 0), "CCCC    ");
+    EXPECT_EQ(row_text(t, 1), "DDDD    ");
+    tgs_term_free(t);
+}
+
+TEST(Term, decscusr_sets_the_cursor_shape)
+{
+    tgs_term *t = make_term(5, 2);
+    EXPECT_EQ(tgs_term_cursor_shape(t), TGS_CURSOR_BLOCK);   /* the default */
+    feed(t, "\x1b[3 q");   /* DECSCUSR: underline */
+    EXPECT_EQ(tgs_term_cursor_shape(t), TGS_CURSOR_UNDERLINE);
+    feed(t, "\x1b[5 q");   /* vertical bar */
+    EXPECT_EQ(tgs_term_cursor_shape(t), TGS_CURSOR_BAR);
+    feed(t, "\x1b[2 q");   /* steady block */
+    EXPECT_EQ(tgs_term_cursor_shape(t), TGS_CURSOR_BLOCK);
     tgs_term_free(t);
 }
 

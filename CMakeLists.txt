@@ -248,8 +248,9 @@ add_executable(tgs_tests
     tests/test_protocol.cpp
     tests/test_nav.cpp
     tests/test_term.cpp
+    tests/test_pty.cpp
 )
-target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main)
+target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main util)
 add_test(NAME tgs_tests COMMAND tgs_tests)
 
 # letter_probe — does lv_draw_letter rasterise into a canvas layer?
