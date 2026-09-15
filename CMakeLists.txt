@@ -143,6 +143,23 @@ endif()
 # TGS targets
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# deps/libvterm — the C99 terminal emulator core behind the character base
+add_library(vterm STATIC
+    deps/libvterm/src/encoding.c
+    deps/libvterm/src/keyboard.c
+    deps/libvterm/src/mouse.c
+    deps/libvterm/src/parser.c
+    deps/libvterm/src/pen.c
+    deps/libvterm/src/screen.c
+    deps/libvterm/src/state.c
+    deps/libvterm/src/unicode.c
+    deps/libvterm/src/vterm.c
+)
+target_include_directories(vterm PUBLIC
+    deps/libvterm/include
+    deps/libvterm/src
+)
+
 # tgs_common — protocol + backend abstraction
 add_library(tgs_common STATIC
     src/common/tgs_frame.c
@@ -189,7 +206,7 @@ add_library(tgs_compositor STATIC
     src/compositor/window_manager.c
 )
 target_include_directories(tgs_compositor PUBLIC src/compositor)
-target_link_libraries(tgs_compositor PUBLIC tgs_common)
+target_link_libraries(tgs_compositor PUBLIC tgs_common vterm)
 
 # tgs-compositor — executable
 add_executable(tgs-compositor
@@ -245,4 +262,10 @@ target_link_libraries(nav_probe PRIVATE tgs_client)
 add_executable(term_probe
     tests/term_probe.c
 )
+
+# font_probe — report the cell metrics the terminal renderer must match
+add_executable(font_probe
+    tests/font_probe.c
+)
+target_link_libraries(font_probe PRIVATE tgs_lvgl_backend)
 target_link_libraries(term_probe PRIVATE tgs_compositor)

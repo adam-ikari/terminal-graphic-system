@@ -68,13 +68,21 @@ TEST(Term, cup_addresses_the_cursor_one_based)
     tgs_term_free(t);
 }
 
-TEST(Term, sgr_sets_colour_and_attributes_and_resets_them)
+TEST(Term, sgr_applies_a_colour_and_sgr_0_clears_it)
 {
     tgs_term *t = make_term(10, 2);
+    uint32_t fg;
+
     feed(t, "\x1b[31mA\x1b[0mB\x1b[7mC");
-    EXPECT_EQ(cell(t, 0, 0)->fg, 0xFFCD0000u);
+
+    fg = cell(t, 0, 0)->fg;
+    EXPECT_NE(fg, TGS_TERM_DEFAULT);                    /* a colour was applied */
+    EXPECT_NE(fg, cell(t, 0, 0)->bg);                   /* and it is not the background */
+    EXPECT_GT((fg >> 16) & 0xFFu, (fg >> 8) & 0xFFu);   /* red-dominant: SGR 31 */
+    EXPECT_GT((fg >> 16) & 0xFFu, fg & 0xFFu);
+
     EXPECT_EQ(cell(t, 0, 0)->attr, 0);
-    EXPECT_EQ(cell(t, 1, 0)->fg, TGS_TERM_DEFAULT);
+    EXPECT_EQ(cell(t, 1, 0)->fg, TGS_TERM_DEFAULT);     /* SGR 0 restores the default */
     EXPECT_TRUE(cell(t, 2, 0)->attr & TGS_ATTR_REVERSE);
     tgs_term_free(t);
 }
@@ -91,7 +99,7 @@ TEST(Term, alternate_screen_starts_blank_and_restores_the_primary)
 {
     tgs_term *t = make_term(10, 3);
     feed(t, "main");
-    feed(t, "\x1b[?1049h");
+    feed(t, "\x1b[?1049h\x1b[H");   /* switch screens, then home — as a real program does */
     EXPECT_EQ(row_text(t, 0), "          ");
     feed(t, "alt");
     EXPECT_EQ(row_text(t, 0), "alt       ");

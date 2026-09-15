@@ -56,16 +56,11 @@ static void term_reply_cb(const char *bytes, int len, void *ud)
 
 static void term_key_sink(int key, int mods, int pressed, void *ud)
 {
-    char buf[8];
-    int n;
-
     (void)ud;
+    /* Until the program speaks TGS it is a character program, and a character
+     * program gets exactly the bytes a terminal would send it. */
     if (!g_wm || g_wm->hello_received || !pressed) return;
-    n = tgs_term_key_bytes(key, mods, buf, (int)sizeof(buf));
-    if (n > 0 && g_master_fd >= 0) {
-        ssize_t written = write(g_master_fd, buf, (size_t)n);
-        (void)written;
-    }
+    tgs_term_key(g_term, key, mods);
 }
 
 /* Debug aid: dump the character grid as text (TGS_TERM_DUMP=<path>). When the

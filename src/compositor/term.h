@@ -29,9 +29,11 @@ typedef struct {
 
 typedef struct tgs_term tgs_term;
 
-/* Encode one canonical key edge (the key space of docs/navigation.md §D.4) as
- * the bytes a terminal sends to its program. Returns the byte count. */
-int tgs_term_key_bytes(int key, int mods, char *out, int cap);
+/* Feed one key edge (the key space of docs/navigation.md §D.4) to the program.
+ * The bytes are encoded for the mode the program has put the terminal in
+ * (cursor-key application mode, keypad mode, ...) and leave through the reply
+ * callback, exactly as a real terminal would send them. */
+void tgs_term_key(tgs_term *t, int key, int mods);
 
 /* Bytes the terminal must send back to the program (DSR replies etc.). */
 typedef void (*tgs_term_reply_cb)(const char *bytes, int len, void *ud);
