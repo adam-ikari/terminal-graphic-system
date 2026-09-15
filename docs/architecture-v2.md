@@ -46,15 +46,30 @@ program. If it is a fact about the machine (this surface exists, that buffer was
 
 ## 3. Surface model
 
-A **surface** is the single primitive: an id, a buffer, a geometry rect (server-owned), an input
-region, and a z-order slot. Everything visual is a surface.
+**TGS evolved from the terminal character system: the character grid is the foundation.** Widget and
+pixel surfaces are *extensions layered on that base* — the same move Sixel and Kitty graphics make on
+a character terminal. A TGS-unaware program still works (it is a character program on the base); a
+TGS-unaware terminal still works (it shows the base).
 
-Two kinds:
+The **base is a cell grid** — cells of char + attributes, driven by ANSI/escape sequences. It is
+always present and always the reference model. On top of it, richer content is placed in surfaces:
 
-- **Widget surface** — server-rendered from declarative commands (`WGT_CREATE` …). The toolkit rung.
-- **Client pixel surface** — the buffer is provided by the client. This is §5.4 *redefined*: a
-  pixel-backed **widget** at L3, a first-class **overlapping surface** at L4. The app never owns the
+A **surface** is a region of the display: an id, a content buffer, a geometry rect (server-owned), an
+input region, and a z-order slot. Each richer content kind is a surface *over the base*:
+
+- **Character content (the base).** A region carrying the cell grid itself. A **terminal surface**
+  binds such a region to a PTY running an **ordinary character program** (`bash`, `vim`, `htop`,
+  `tmux`) — the base made addressable, so existing TUIs keep running unchanged.
+- **Widget surface (extension).** Server-rendered from declarative commands (`WGT_CREATE` …) — the
+  character model upgraded to interactive controls.
+- **Client pixel surface (extension).** The buffer is provided by the client. This is §5.4 *redefined*:
+  a pixel-backed **widget** at L3, a first-class **overlapping surface** at L4. The app never owns the
   surface's geometry — it paints inside a rect it was granted.
+
+**Coexistence is the point.** All kinds composite together over the base: a TGS form, a pixel surface,
+and an `htop` in a terminal surface can be visible at once. TGS is thus a *superset* of the character
+terminal — and §6.2's "degrade to char" becomes **the base it always rests on**: a TGS-unaware program
+is simply a program running on character content.
 
 **Lifecycle:** `create → map → draw/damage → resize (server→client notify) → raise/lower → unmap →
 destroy`. On client crash or disconnect the server **auto-cleans** the surface (no orphans).
@@ -134,17 +149,27 @@ program), and delivers **text** to the focused text surface. The app sees only `
 for the app, IME input is indistinguishable from stdin. There are **no IME protocol commands**
 (§5.5 cut — `IME_PREEDIT`/`IME_COMMIT`/`IME_CANDIDATES`/`IME_SELECT`/`IME_CANCEL` are removed).
 
+**Terminal surfaces** receive input as **PTY bytes**, not as widget events: the server encodes the
+focused terminal surface's input (keys, pointer reports, paste) into the byte stream its child
+expects (e.g. arrow → `ESC [ A`), exactly as a terminal emulator does. An ordinary char program gets
+what it always got; the rest of the system never sees the difference.
+
 ---
 
 ## 6. The path — L0 → L6 (to a complete window system)
 
 Each rung reuses the previous; no rung is a lesser product.
 
+**The base (below L0): character mode.** The cell grid — the terminal emulator, ANSI/escape
+sequences — is the foundation every rung rests on. No rung replaces it; each extends it. The
+**terminal surface** (a char program on a PTY) is that base made addressable, and it can land early
+because it is what a terminal already is.
+
 | Layer | Adds | Exit criterion |
 |---|---|---|
 | **L0** | single window + size-notify + input/textarea/button/label + events + **resize→relayout** | `simple_form` works end-to-end **and responds to a resize** |
 | **L1** | styles + full 20+ widget library + container widgets + focus/navigation | `container_demo` + Tab/arrow/focus with `NTF_FOCUS` |
-| **L2** | multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal) | two windows coexist; an image renders; CJK input commits |
+| **L2** | multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal) + **terminal surface (char grid + PTY)** | two TGS windows coexist; an image renders; CJK input commits; **`htop` runs in a terminal surface beside a TGS form** |
 | **L3** | client pixel surface (a widget kind) + binary DCS transport + animation | an app opts into a pixel widget and paints into it |
 | **L4** | multi-surface scene compositor (z-order/alpha/transforms) + transport pluggability (local shm/dmabuf zero-copy) | two client surfaces overlap — one local (shm), one remote (DCS) |
 | **L5** | desktop graphics system: a **WM program** (decorations, layouts, workspaces, launch/activate) + GPU path | a TGS **WM program** decorates and moves a local app's window beside a TGS widget window |

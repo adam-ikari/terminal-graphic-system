@@ -40,8 +40,9 @@ SDL / `/dev/fb0`), so this is an extension, not a new system. Where LVGL stops b
 composition of independent surfaces — L4 introduces a light scene layer *beside* LVGL, not a
 replacement for it.
 
-TGS is **not** Wayland-over-SSH, and it is **not** merely a terminal toolkit: it is a toolkit whose
-surface model grows into a desktop graphics system.
+TGS is **not** Wayland-over-SSH, and it is **not** merely a terminal toolkit. **TGS evolved from the
+terminal character system; the character grid is the foundation**, and its surface model grows from
+there into a desktop graphics window system.
 
 **Self-consistency principle: everything above the server is a terminal program.** The compositor
 is a *display server*: it owns the display, renders, routes input, and exposes surface/widget
@@ -57,32 +58,36 @@ self-consistent at every rung, from terminal toolkit to desktop graphics system.
 
 | § | Verdict (`requirements-rationale.md`) | Action |
 |---|---|---|
-| §2 premise | RATIONAL (root ambiguity) | **REWRITE** — state the claim honestly + add char-fallback guarantee |
+| §2 premise | RATIONAL (root ambiguity) | **REWRITE** — state the claim honestly: TGS evolves from the character terminal; **the char grid is the foundation** (not a fallback) |
 | §4.1 terminal-manages / app-lays-out | HIDDEN-FLAW | **KEEP + SPECIFY** the missing resize→relayout loop |
 | §4.2 capability negotiation | OVER-SCOPE | **SOFTEN** — drop "never silent degrade" |
 | §5.1 window management | OVER-SCOPE *now* | **SERVER: primitives only; POLICY: a WM program.** The server exposes create / size-notify / focus / z-order / destroy / cleanup; decorations / layouts / workspaces are a **separate TGS program** at L4–L5, **deferred, not deleted** |
-| §5.2 widget toolkit | RATIONAL | **KEEP** (this is the product) |
+| §5.2 widget toolkit | RATIONAL | **KEEP** — the primary extension of the character base |
 | §5.3 resources | OVER-SCOPE *now* | **SEQUENCE** — data/file/theme/builtin + in-memory cache at L2; https/remote/proxy/refcount at L4, **deferred, not deleted** |
 | §5.4 framebuffer stream | RATIONAL AS EVOLUTION | **REDEFINE** — client pixel surface (a widget kind at L3, a first-class surface at L4) + binary transport; the first rung toward the endpoint |
 | §5.5 events | RATIONAL (2 over-scope clauses) | **KEEP** kbd/mouse/touch; **CUT** 5 IME protocol commands + ≥10pt multitouch |
 | §6.1 performance | HIDDEN-FLAW | **FIX MEASUREMENT** — add an end-to-end latency budget |
-| §6.2 compat + degrade-to-char | RATIONAL (one-sided) | **KEEP + EXTEND** — add an app-side char fallback |
+| §6.2 compat + degrade-to-char | RATIONAL (one-sided) | **KEEP + EXTEND** — char is the **foundation** (degrade-to-char is the base, not a failure); a char program is a **terminal surface** on a PTY |
 | §6.3 security / §6.4 reliability | RATIONAL | **KEEP** |
-| §7 progressive delivery | HIDDEN-FLAW | **RE-LAYER** — toolkit → client pixel surface → surface compositor → desktop graphics system (see §3) |
+| §7 progressive delivery | HIDDEN-FLAW | **RE-LAYER** — character base → toolkit → terminal surface → client pixel surface → surface compositor → desktop WM (see §3) |
 
 ---
 
 ## 2. Per-area detail
 
 ### §2 — Background & goal · REWRITE
-- **Change.** Replace "make the terminal a lightweight graphics *platform*" with the honest
-  claim: *extend the terminal's display model from a char grid to a widget surface, over the
-  terminal's existing transport.* Name the two meanings of "graphics" the current text conflates
-  (native widgets vs client-painted pixels) and state that **native widgets are the default;
-  pixels are a later, opt-in surface.** Add the guarantee: **a TGS-unaware terminal degrades to
-  its char grid, and a TGS app that loses TGS falls back to text output.**
-- **Tradeoff.** Admits that overlaying a widget surface on a char grid breaks the grid contract
-  with existing TUIs — a bigger claim than "extend escape sequences".
+- **Change.** Replace "make the terminal a lightweight graphics *platform*" with the honest claim:
+  *TGS is an evolution of the terminal character system — the **character grid is the foundation**,
+  and TGS extends it with escape-sequence-driven widget and pixel surfaces, over the terminal's
+  existing transport.* Name the two meanings of "graphics" the text conflates (native widgets vs
+  client-painted pixels) and state that **native widgets are the default; pixels are a later, opt-in
+  surface.**
+- **Guarantee — the base, not a fallback.** A TGS-unaware terminal shows the character base; a
+  TGS-unaware program runs as a **terminal surface** (a char program on a PTY). Degrading to char is
+  not a failure mode — it is the foundation. **The char grid is preserved as first-class, not
+  replaced**, so existing TUIs keep working beside TGS surfaces.
+- **Tradeoff.** The TUI contract is not broken (the grid survives as the base); the honest cost is
+  that TGS is a *new display model layered on the old one* — more surface kinds to keep coherent.
 
 ### §4.1 — Terminal manages windows; app manages layout · KEEP + SPECIFY
 - **Keep** the split (sound). **Specify** the missing feedback loop:
@@ -176,9 +181,11 @@ self-consistent at every rung, from terminal toolkit to desktop graphics system.
 - **Tradeoff.** The end-to-end budget is harder to meet; it forces the reactive model to be honest.
 
 ### §6.2 — Compatibility · KEEP + EXTEND
-- **Keep** ANSI/VT100, SSH/PTY transport, degrade-to-char. **Extend:** add an **app-side fallback
-  contract** — what a TGS app does when the terminal lacks TGS (it currently has no char-grid
-  rendering path, so the "degrade" only protects the terminal, not the app).
+- **Keep** ANSI/VT100, SSH/PTY transport, degrade-to-char. **Extend:** the char grid is the
+  **foundation**, so compatibility is not a degrade path but the base itself — a character program is
+  simply a program running in a **terminal surface** (PTY-backed, fed PTY-byte input), unchanged. Add
+  the **app-side fallback contract** for a TGS app on a TGS-unaware terminal: it emits text, which is
+  character content on the base.
 
 ### §6.3 / §6.4 — Security / Reliability · KEEP
 - Unchanged.
@@ -191,11 +198,15 @@ self-consistent at every rung, from terminal toolkit to desktop graphics system.
 
 ## 3. Revised progressive delivery
 
+**The base (below L0): character mode.** The cell grid (terminal emulator, ANSI/escape sequences) is
+the foundation every rung rests on; no rung replaces it. The **terminal surface** is that base made
+addressable.
+
 | Layer | Content | Exit criterion (must demo) |
 |---|---|---|
 | **L0** | Single window + size notification + input/textarea/button/label + click/change/key events + **resize→relayout** | `simple_form` works end-to-end **and responds to a window resize** |
 | **L1** | Styles + full 20+ widget library + container widgets + focus/navigation | `container_demo` renders + Tab/arrow/focus work with `NTF_FOCUS` |
-| **L2** | Multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal, no protocol commands) | Two windows coexist; an image renders; CJK input commits into a textarea |
+| **L2** | Multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal, no protocol commands) + **terminal surface (char grid + PTY)** | Two windows coexist; an image renders; CJK input commits into a textarea; **`htop` runs in a terminal surface beside a TGS form** |
 | **L3** | Pixel surface (a widget kind) + binary/length-prefixed frame transport + animation | An app opts into a pixel widget and paints into it |
 | **L4** | Multi-surface scene compositor: overlapping client surfaces, z-order, alpha, transforms; **local shm/dmabuf transport** (zero-copy) + the remote DCS path | Two client surfaces overlap correctly — one local (shm), one remote (DCS) |
 | **L5** | Desktop graphics system: a **WM program** — decorations, layouts, workspaces, launch/activate — built on the public surface API, plus a GPU path | A TGS **WM program** decorates and moves a local app's window beside a TGS widget window |
