@@ -1,31 +1,33 @@
 /*
  * Terminal view — draws a tgs_term cell grid into an LVGL canvas.
  *
- * The bitmap font in use (unscii-16) covers ASCII only, and every TUI draws
- * its frames from the box-drawing and block ranges. Rather than pull in a
- * larger font, those glyphs are synthesised as rectangles: exact at any cell
- * size, and it keeps the font tiny.
+ * The bitmap font in use (unscii-8) covers ASCII only, and every TUI draws its
+ * frames from the box-drawing and block ranges. Rather than pull in a larger
+ * font, those glyphs are synthesised as rectangles: exact at any cell size, and
+ * it keeps the font tiny.
  */
 #include "lvgl_term.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-extern const lv_font_t lv_font_unscii_16;
+extern const lv_font_t lv_font_unscii_8;
 
 /* The cell is what the font actually advances, read from the font rather than
- * assumed: unscii-16 advances 16 px on a 17 px line here, so a hard-coded 8x16
- * cell drew every glyph across its neighbour. */
+ * assumed: guessing a cell size is how every glyph ends up drawn across its
+ * neighbour. unscii-8 is a true bitmap terminal font, which keeps a normal
+ * terminal's column count (100+ at 800 px) instead of the ~50 a double-width
+ * font gives. */
 static int g_cell_w;
 static int g_cell_h;
 
 static void ensure_cell_size(void)
 {
     if (g_cell_w > 0) return;
-    g_cell_w = (int)lv_font_get_glyph_width(&lv_font_unscii_16, 'M', 'M');
-    g_cell_h = (int)lv_font_get_line_height(&lv_font_unscii_16);
-    if (g_cell_w < 1) g_cell_w = 16;
-    if (g_cell_h < 1) g_cell_h = 17;
+    g_cell_w = (int)lv_font_get_glyph_width(&lv_font_unscii_8, 'M', 'M');
+    g_cell_h = (int)lv_font_get_line_height(&lv_font_unscii_8);
+    if (g_cell_w < 1) g_cell_w = 8;
+    if (g_cell_h < 1) g_cell_h = 9;
 }
 
 int tgs_term_view_cell_w(void) { ensure_cell_size(); return g_cell_w; }
@@ -166,7 +168,7 @@ static void draw_char(lv_layer_t *L, int x, int y, uint32_t cp, uint32_t fg)
     lv_draw_letter_dsc_init(&d);
     d.unicode = cp;
     d.color = lv_color_hex(rgb_of(fg));
-    d.font = &lv_font_unscii_16;
+    d.font = &lv_font_unscii_8;
 
     p.x = x;
     p.y = y;

@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 
-extern const lv_font_t lv_font_unscii_16;
+extern const lv_font_t lv_font_unscii_8;
 
 int main(void)
 {
@@ -20,7 +20,7 @@ int main(void)
     lv_init();
 
     for (i = 0; i < sizeof(cps) / sizeof(cps[0]); i++) {
-        if (lv_font_get_glyph_dsc(&lv_font_unscii_16, &d, cps[i], 0)) {
+        if (lv_font_get_glyph_dsc(&lv_font_unscii_8, &d, cps[i], 0)) {
             printf("U+%04X '%c'  adv_w=%u  box=%ux%u  ofs=(%d,%d)\n",
                    (unsigned)cps[i], (int)cps[i],
                    (unsigned)d.adv_w, (unsigned)d.box_w, (unsigned)d.box_h,
@@ -30,7 +30,7 @@ int main(void)
         }
     }
     printf("--- line_height=%d  glyph_width('M')=%d\n",
-           (int)lv_font_get_line_height(&lv_font_unscii_16),
-           (int)lv_font_get_glyph_width(&lv_font_unscii_16, 'M', 'M'));
+           (int)lv_font_get_line_height(&lv_font_unscii_8),
+           (int)lv_font_get_glyph_width(&lv_font_unscii_8, 'M', 'M'));
     return 0;
 }
