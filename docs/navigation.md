@@ -20,7 +20,7 @@ The design below is a delta against this reality. Facts verified against the wor
 | `TGS_CMD_NTF_FOCUS` (65) is declared but **never emitted** | `grep -rn TGS_CMD_NTF_FOCUS src/` → header only |
 | Focus reaches the app only as `EVT_FOCUS` (83) with payload `[win_id, widget_id, focused]`, `reason` does not exist | `src/compositor/window_manager.c:388-399`, `src/client/tgs_client.c:421-430` |
 | The compositor does not track focus at all; `win_id` for every event is hardcoded to `window_map[0]` | `src/compositor/window_manager.c:360-364` |
-| Key codes arriving from SDL: TAB=9, ESC=27, arrows=**1000-1003**, HOME=1004, END=1005 | `src/backends/input_sdl.c:19-37` |
+| Key codes arriving from SDL: TAB=9, ESC=27, arrows=**1000-1003**, HOME=1004, END=1005, PAGEUP=1006, PAGEDOWN=1007 | `src/backends/input_sdl.c` |
 | `map_tgs_key()` maps arrows from **1-4**, so SDL arrow codes 1000-1003 fall through to `default` and reach LVGL unmatched | `src/backends/lvgl/lvgl_backend.c:43-57` |
 | Modifiers are dropped: `input_sdl.c` always injects `mods = 0`, so Shift+Tab cannot be distinguished | `src/backends/input_sdl.c:73-74`, `src/common/tgs_backend.h` (`inject_key(key, mods, pressed)`) |
 | `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:153` |

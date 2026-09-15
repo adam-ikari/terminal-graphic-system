@@ -10,6 +10,7 @@
  * same values input_fb.c/evdev emits and lvgl_backend.c translates to LVGL.
  * Printable ASCII maps to itself and 1000+ is reserved for keys without one:
  *   1000 LEFT  1001 RIGHT  1002 UP  1003 DOWN  1004 HOME  1005 END
+ *   1006 PAGEUP  1007 PAGEDOWN
  * Modifiers, carried in inject_key()'s `mods`; left/right collapse into the
  * class bit (navigation only tests the class, e.g. Shift+Tab):
  *   0x01 SHIFT   0x02 CTRL   0x04 ALT */
@@ -19,6 +20,8 @@
 #define TGS_KEY_DOWN   1003
 #define TGS_KEY_HOME   1004
 #define TGS_KEY_END    1005
+#define TGS_KEY_PAGEUP   1006
+#define TGS_KEY_PAGEDOWN 1007
 
 #define TGS_MOD_SHIFT  0x01
 #define TGS_MOD_CTRL   0x02
@@ -107,6 +110,8 @@ static int map_sdl_key(int sdlkey, int shift)
     case SDLK_DOWN:      return TGS_KEY_DOWN;
     case SDLK_HOME:      return TGS_KEY_HOME;
     case SDLK_END:       return TGS_KEY_END;
+    case SDLK_PAGEUP:    return TGS_KEY_PAGEUP;
+    case SDLK_PAGEDOWN:  return TGS_KEY_PAGEDOWN;
     default:             return 0;
     }
 }

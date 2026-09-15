@@ -21,6 +21,8 @@
 #define TGS_KEY_DOWN   1003
 #define TGS_KEY_HOME   1004
 #define TGS_KEY_END    1005
+#define TGS_KEY_PAGEUP   1006
+#define TGS_KEY_PAGEDOWN 1007
 
 #define TGS_MOD_SHIFT  0x01
 #define TGS_MOD_CTRL   0x02
@@ -160,6 +162,8 @@ void input_poll(void)
                 case KEY_DELETE:    tgs_key = 127; break;
                 case KEY_HOME:      tgs_key = TGS_KEY_HOME;  break;
                 case KEY_END:       tgs_key = TGS_KEY_END;   break;
+                case KEY_PAGEUP:    tgs_key = TGS_KEY_PAGEUP;   break;
+                case KEY_PAGEDOWN:  tgs_key = TGS_KEY_PAGEDOWN; break;
                 default:
                     tgs_key = keycode_to_ascii(ev.code,
                                                (mods_state & TGS_MOD_SHIFT) != 0);

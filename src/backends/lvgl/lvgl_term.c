@@ -248,15 +248,13 @@ lv_obj_t *tgs_term_view_create(int cols, int rows)
 void tgs_term_view_draw(lv_obj_t *view, const tgs_term *t)
 {
     term_view *tv;
-    const tgs_term_cell *cells;
     lv_layer_t layer;
     int cols, rows, cx, cy;
 
     if (!view || !t) return;
     ensure_cell_size();
     tv = (term_view *)lv_obj_get_user_data(view);
-    cells = tgs_term_cells(t);
-    if (!tv || !cells) return;
+    if (!tv) return;
 
     cols = tgs_term_cols(t);
     rows = tgs_term_rows(t);
@@ -268,15 +266,19 @@ void tgs_term_view_draw(lv_obj_t *view, const tgs_term *t)
      * show through. */
     rect(&layer, 0, 0, tv->w - 1, tv->h - 1, DEF_BG);
 
-    for (cy = 0; cy < rows; cy++)
+    for (cy = 0; cy < rows; cy++) {
+        /* History first, then the live screen: one accessor covers both, so a
+         * scrolled viewport needs no separate path. */
+        const tgs_term_cell *line = tgs_term_view_line(t, cy);
+        if (!line) continue;
         for (cx = 0; cx < cols; cx++)
-            draw_cell(&layer, &cells[(size_t)cy * (size_t)cols + (size_t)cx],
-                      cx * g_cell_w, cy * g_cell_h, 0);
+            draw_cell(&layer, &line[cx], cx * g_cell_w, cy * g_cell_h, 0);
+    }
 
     /* Cursor, drawn last so it is never overpainted. A block cursor is the cell
      * painted in reverse — that is what a terminal's cursor actually is, and it
      * keeps the character under it readable. */
-    if (tgs_term_cursor_visible(t)) {
+    if (tgs_term_scroll_offset(t) == 0 && tgs_term_cursor_visible(t)) {
         int ccx = tgs_term_cx(t);
         int ccy = tgs_term_cy(t);
         if (ccx >= 0 && ccy >= 0 && ccx < cols && ccy < rows) {
@@ -291,7 +293,7 @@ void tgs_term_view_draw(lv_obj_t *view, const tgs_term *t)
                 break;
             case TGS_CURSOR_BLOCK:
             default:
-                draw_cell(&layer, &cells[(size_t)ccy * (size_t)cols + (size_t)ccx], px, py, 1);
+                draw_cell(&layer, tgs_term_view_line(t, ccy), px, py, 1);
                 break;
             }
         }

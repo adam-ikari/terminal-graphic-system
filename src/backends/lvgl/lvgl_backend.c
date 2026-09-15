@@ -90,7 +90,8 @@ static void kb_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
  * ASCII value. Mirrors docs/navigation.md §D.4.
  *
  *   1000 LEFT   1001 RIGHT   1002 UP   1003 DOWN   1004 HOME   1005 END
- *   1006/1007 PAGEUP/PAGEDOWN — reserved; LVGL has no equivalent, dropped.
+ *   1006 PAGEUP 1007 PAGEDOWN — terminal bindings; the widget path has no page
+ *                               concept, so these pass through unmapped
  *
  * Modifier mask carried by inject_key(key, mods, pressed) — same section:
  *   TGS_MOD_SHIFT 0x01   TGS_MOD_CTRL 0x02   TGS_MOD_ALT 0x04
@@ -103,6 +104,8 @@ static void kb_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
 #define TGS_KEY_DOWN   1003
 #define TGS_KEY_HOME   1004
 #define TGS_KEY_END    1005
+#define TGS_KEY_PAGEUP   1006
+#define TGS_KEY_PAGEDOWN 1007
 
 #define TGS_MOD_SHIFT  0x01
 #define TGS_MOD_CTRL   0x02

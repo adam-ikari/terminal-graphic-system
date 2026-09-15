@@ -60,6 +60,14 @@ static void term_key_sink(int key, int mods, int pressed, void *ud)
     /* Until the program speaks TGS it is a character program, and a character
      * program gets exactly the bytes a terminal would send it. */
     if (!g_wm || g_wm->hello_received || !pressed) return;
+
+    /* Shift+PageUp/PageDown belongs to the scrollback, never to the program —
+     * the binding every terminal has. */
+    if ((mods & 0x01) && (key == 1006 || key == 1007)) {
+        tgs_term_scroll(g_term, key == 1006 ? 5 : -5);
+        return;
+    }
+
     tgs_term_key(g_term, key, mods);
 }
 
@@ -138,7 +146,6 @@ static void term_focus_sink(int focused, void *ud)
 static void term_dump(void)
 {
     const char *path = getenv("TGS_TERM_DUMP");
-    const tgs_term_cell *cells;
     FILE *f;
     int x, y, cols, rows;
 
@@ -147,13 +154,15 @@ static void term_dump(void)
     if (!f) return;
     cols = tgs_term_cols(g_term);
     rows = tgs_term_rows(g_term);
-    cells = tgs_term_cells(g_term);
-    fprintf(f, "# grid %dx%d cursor %d,%d visible %d\n",
+    fprintf(f, "# grid %dx%d cursor %d,%d visible %d scroll %d\n",
             cols, rows, tgs_term_cx(g_term), tgs_term_cy(g_term),
-            tgs_term_cursor_visible(g_term));
+            tgs_term_cursor_visible(g_term), tgs_term_scroll_offset(g_term));
     for (y = 0; y < rows; y++) {
+        /* What is on screen, not just the live screen: a scrolled viewport is
+         * the thing being checked when scrollback is the question. */
+        const tgs_term_cell *line = tgs_term_view_line(g_term, y);
         for (x = 0; x < cols; x++) {
-            uint32_t cp = cells[(size_t)y * (size_t)cols + (size_t)x].cp;
+            uint32_t cp = line ? line[x].cp : ' ';
             fputc((cp >= 32 && cp < 127) ? (int)cp : (cp ? '.' : ' '), f);
         }
         fputc('\n', f);
@@ -184,14 +193,25 @@ static void sig_handler(int sig)
     running = 0;
 }
 
-/* Put the app's PTY slave into raw mode so binary protocol frames are
- * delivered byte-for-byte without line-discipline buffering or echo. */
-static void pty_set_raw(void)
+/* The program's tty: a terminal's, not a pipe.
+ *
+ * Non-canonical and without echo, so protocol frames are delivered byte-for-byte
+ * and the compositor never reads its own writes back. Everything else stays as a
+ * terminal has it, because a character program depends on the line discipline:
+ * ICRNL so Enter arrives as a newline, ISIG so Ctrl-C signals, and OPOST|ONLCR so
+ * a program's "\n" reaches the screen as CR LF — which is how every terminal
+ * renders plain output, and what such output is written against. */
+static void pty_set_terminal_mode(void)
 {
     struct termios tio;
 
     if (tcgetattr(STDIN_FILENO, &tio) != 0) return;
-    cfmakeraw(&tio);
+
+    tio.c_lflag &= ~(tcflag_t)(ICANON | ECHO);
+    tio.c_iflag |= ICRNL;
+    tio.c_oflag |= OPOST | ONLCR;
+    tio.c_cc[VMIN]  = 1;
+    tio.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &tio);
 }
 
@@ -267,7 +287,7 @@ int main(int argc, char *argv[])
     }
 
     if (child_pid == 0) {
-        pty_set_raw();
+        pty_set_terminal_mode();
         /* The compositor *is* the terminal, so it advertises what it actually
          * emulates. Inheriting the ambient TERM is wrong: under a script or a
          * dumb parent (TERM=dumb) ncurses degrades every TUI to plain text,
@@ -285,7 +305,7 @@ int main(int argc, char *argv[])
         const char *ime_path = "ime_app";
         ime_pid = forkpty(&ime_master_fd, NULL, NULL, NULL);
         if (ime_pid == 0) {
-            pty_set_raw();
+            pty_set_terminal_mode();
             execlp(ime_path, ime_path, (char *)NULL);
             _exit(1);
         }

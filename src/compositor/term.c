@@ -30,6 +30,12 @@ struct tgs_term {
     int dirty;                   /* repaint wanted */
     int snapshot_dirty;          /* the cell snapshot is stale */
 
+    /* Scrollback ring of lines that have scrolled off the top. */
+    tgs_term_cell *sb;           /* TGS_TERM_SCROLLBACK lines of `cols` cells */
+    int sb_head;                 /* next slot to write */
+    int sb_count;                /* lines held, <= TGS_TERM_SCROLLBACK */
+    int sb_offset;               /* viewport offset; 0 = the live screen */
+
     tgs_term_reply_cb reply_cb;
     void *reply_ud;
 };
@@ -37,6 +43,8 @@ struct tgs_term {
 /* ------------------------------------------------------------------ */
 /* libvterm callbacks                                                  */
 /* ------------------------------------------------------------------ */
+
+static void cell_from(tgs_term *t, const VTermScreenCell *sc, tgs_term_cell *out);
 
 static void output_cb(const char *s, size_t len, void *user)
 {
@@ -50,6 +58,7 @@ static int on_damage(VTermRect rect, void *user)
     (void)rect;
     t->dirty = 1;
     t->snapshot_dirty = 1;
+    t->sb_offset = 0;   /* new output always brings the viewport back down */
     return 1;
 }
 
@@ -105,14 +114,52 @@ static int on_resize(int rows, int cols, void *user)
 
 static int on_sb_pushline(int cols, const VTermScreenCell *cells, void *user)
 {
-    (void)cols; (void)cells; (void)user;
-    return 0;   /* no scrollback yet */
+    tgs_term *t = (tgs_term *)user;
+    tgs_term_cell *dst;
+    int x;
+
+    if (!t || !t->sb || cols > t->cols) return 0;
+
+    dst = &t->sb[(size_t)t->sb_head * (size_t)t->cols];
+    for (x = 0; x < cols; x++) cell_from(t, &cells[x], &dst[x]);
+    for (; x < t->cols; x++) cell_from(t, &(const VTermScreenCell){0}, &dst[x]);
+
+    t->sb_head = (t->sb_head + 1) % TGS_TERM_SCROLLBACK;
+    if (t->sb_count < TGS_TERM_SCROLLBACK) t->sb_count++;
+    return 1;
 }
 
+/* libvterm scrolls a line back down and asks history for it. */
 static int on_sb_popline(int cols, VTermScreenCell *cells, void *user)
 {
-    (void)cols; (void)cells; (void)user;
-    return 0;
+    tgs_term *t = (tgs_term *)user;
+    const tgs_term_cell *src;
+    int slot, x;
+
+    if (!t || !t->sb || t->sb_count <= 0) return 0;
+
+    t->sb_count--;
+    slot = (t->sb_head - 1 + TGS_TERM_SCROLLBACK) % TGS_TERM_SCROLLBACK;
+    t->sb_head = slot;
+    src = &t->sb[(size_t)slot * (size_t)t->cols];
+
+    for (x = 0; x < cols; x++) {
+        memset(&cells[x], 0, sizeof(cells[x]));
+        if (x >= t->cols) continue;
+        cells[x].chars[0] = src[x].cp ? src[x].cp : ' ';
+        vterm_color_rgb(&cells[x].fg,
+                        (uint8_t)((src[x].fg >> 16) & 0xFFu),
+                        (uint8_t)((src[x].fg >> 8) & 0xFFu),
+                        (uint8_t)(src[x].fg & 0xFFu));
+        vterm_color_rgb(&cells[x].bg,
+                        (uint8_t)((src[x].bg >> 16) & 0xFFu),
+                        (uint8_t)((src[x].bg >> 8) & 0xFFu),
+                        (uint8_t)(src[x].bg & 0xFFu));
+        cells[x].attrs.bold      = (src[x].attr & TGS_ATTR_BOLD) != 0;
+        cells[x].attrs.underline = (src[x].attr & TGS_ATTR_UNDERLINE) ? 1 : 0;
+        cells[x].attrs.reverse   = (src[x].attr & TGS_ATTR_REVERSE) != 0;
+    }
+    return 1;
 }
 
 static int on_sb_clear(void *user)
@@ -152,41 +199,40 @@ static uint32_t color_argb(tgs_term *t, const VTermColor *c, int is_bg)
          |  (uint32_t)col.rgb.blue;
 }
 
+/* One libvterm screen cell into the renderer's cell. */
+static void cell_from(tgs_term *t, const VTermScreenCell *sc, tgs_term_cell *out)
+{
+    if (sc->chars[0] == 0) {
+        /* Untouched cell: the terminal's own default colours. */
+        out->cp = ' ';
+        out->fg = TGS_TERM_DEFAULT;
+        out->bg = TGS_TERM_DEFAULT;
+        out->attr = 0;
+        return;
+    }
+
+    out->cp = sc->attrs.conceal ? ' ' : sc->chars[0];
+    out->fg = color_argb(t, &sc->fg, 0);
+    out->bg = color_argb(t, &sc->bg, 1);
+    out->attr = 0;
+    if (sc->attrs.bold)      out->attr |= TGS_ATTR_BOLD;
+    if (sc->attrs.underline) out->attr |= TGS_ATTR_UNDERLINE;
+    if (sc->attrs.reverse)   out->attr |= TGS_ATTR_REVERSE;
+}
+
 static void rebuild_snapshot(tgs_term *t)
 {
     VTermPos pos;
     VTermScreenCell sc;
-    tgs_term_cell *out;
-    uint8_t attr;
     int x, y;
 
     for (y = 0; y < t->rows; y++) {
         for (x = 0; x < t->cols; x++) {
             pos.row = y;
             pos.col = x;
-            out = &t->cells[(size_t)y * (size_t)t->cols + (size_t)x];
-
             memset(&sc, 0, sizeof(sc));
             (void)vterm_screen_get_cell(t->screen, pos, &sc);
-
-            if (sc.chars[0] == 0) {
-                /* Untouched cell: the terminal's own default colours. */
-                out->cp = ' ';
-                out->fg = TGS_TERM_DEFAULT;
-                out->bg = TGS_TERM_DEFAULT;
-                out->attr = 0;
-                continue;
-            }
-
-            attr = 0;
-            if (sc.attrs.bold)      attr |= TGS_ATTR_BOLD;
-            if (sc.attrs.underline) attr |= TGS_ATTR_UNDERLINE;
-            if (sc.attrs.reverse)   attr |= TGS_ATTR_REVERSE;
-
-            out->cp = sc.attrs.conceal ? ' ' : sc.chars[0];
-            out->fg = color_argb(t, &sc.fg, 0);
-            out->bg = color_argb(t, &sc.bg, 1);
-            out->attr = attr;
+            cell_from(t, &sc, &t->cells[(size_t)y * (size_t)t->cols + (size_t)x]);
         }
     }
 
@@ -214,6 +260,12 @@ tgs_term *tgs_term_new(int cols, int rows)
     if (!t->cells) { free(t); return NULL; }
     memset(t->cells, 0, (size_t)cols * (size_t)rows * sizeof(tgs_term_cell));
 
+    t->sb = (tgs_term_cell *)malloc((size_t)TGS_TERM_SCROLLBACK
+                                    * (size_t)cols * sizeof(tgs_term_cell));
+    if (!t->sb) { free(t->cells); free(t); return NULL; }
+    memset(t->sb, 0, (size_t)TGS_TERM_SCROLLBACK * (size_t)cols
+                      * sizeof(tgs_term_cell));
+
     t->vt = vterm_new(rows, cols);
     if (!t->vt) { free(t->cells); free(t); return NULL; }
 
@@ -240,6 +292,7 @@ void tgs_term_free(tgs_term *t)
     if (!t) return;
     if (t->vt) vterm_free(t->vt);
     free(t->cells);
+    free(t->sb);
     free(t);
 }
 
@@ -258,6 +311,13 @@ void tgs_term_resize(tgs_term *t, int cols, int rows)
     t->cells = nc;
     t->cols = cols;
     t->rows = rows;
+
+    /* History is tied to the old width, so a resize drops it rather than
+     * reflowing it — reflow is a terminal feature of its own. */
+    free(t->sb);
+    t->sb = (tgs_term_cell *)malloc((size_t)TGS_TERM_SCROLLBACK
+                                    * (size_t)cols * sizeof(tgs_term_cell));
+    t->sb_head = t->sb_count = t->sb_offset = 0;
 
     vterm_set_size(t->vt, rows, cols);
     rebuild_snapshot(t);
@@ -302,7 +362,8 @@ void tgs_term_key(tgs_term *t, int key, int mods)
     case 1003: vterm_keyboard_key(t->vt, VTERM_KEY_DOWN, m);      return;
     case 1004: vterm_keyboard_key(t->vt, VTERM_KEY_HOME, m);      return;
     case 1005: vterm_keyboard_key(t->vt, VTERM_KEY_END, m);       return;
-    default:   break;
+    case 1006: vterm_keyboard_key(t->vt, VTERM_KEY_PAGEUP, m);    return;
+    case 1007: vterm_keyboard_key(t->vt, VTERM_KEY_PAGEDOWN, m);  return;
     }
 
     if (key > 0 && key < 0x110000)
@@ -343,4 +404,47 @@ void tgs_term_focus(tgs_term *t, int focused)
      * focus. */
     if (focused) vterm_state_focus_in(t->state);
     else         vterm_state_focus_out(t->state);
+}
+
+int tgs_term_scroll(tgs_term *t, int lines)
+{
+    if (!t) return 0;
+
+    t->sb_offset += lines;
+    if (t->sb_offset > t->sb_count) t->sb_offset = t->sb_count;
+    if (t->sb_offset < 0) t->sb_offset = 0;
+
+    t->dirty = 1;
+    return t->sb_offset;
+}
+
+int tgs_term_scroll_offset(const tgs_term *t)
+{
+    return t ? t->sb_offset : 0;
+}
+
+const tgs_term_cell *tgs_term_view_line(const tgs_term *t, int row)
+{
+    int first, idx;
+
+    if (!t || row < 0 || row >= t->rows) return NULL;
+
+    /* Where the viewport starts in history, then which line viewport row `row`
+     * is: history first, then the live screen. */
+    first = t->sb_count - t->sb_offset;
+    idx = first + row;
+    if (idx < 0) return NULL;
+
+    if (idx < t->sb_count) {
+        int slot;
+        if (!t->sb) return NULL;
+        slot = t->sb_head - t->sb_count + idx;
+        while (slot < 0) slot += TGS_TERM_SCROLLBACK;
+        slot %= TGS_TERM_SCROLLBACK;
+        return &t->sb[(size_t)slot * (size_t)t->cols];
+    }
+
+    idx -= t->sb_count;
+    if (idx >= t->rows) return NULL;
+    return &t->cells[(size_t)idx * (size_t)t->cols];
 }

@@ -51,6 +51,21 @@ void tgs_term_mouse(tgs_term *t, int col, int row, int button, int pressed);
  * the program asked for focus reporting (CSI ?1004h). */
 void tgs_term_focus(tgs_term *t, int focused);
 
+/* Scrollback — the lines that have scrolled off the top.
+ *
+ * The viewport is the live screen at offset 0 and history at any larger offset;
+ * new output drops back to the live screen, as a terminal does. History is
+ * dropped rather than reflowed on resize. */
+#define TGS_TERM_SCROLLBACK 1000
+
+/* Move the viewport; positive looks further back. Returns the new offset. */
+int tgs_term_scroll(tgs_term *t, int lines);
+int tgs_term_scroll_offset(const tgs_term *t);
+
+/* The cells of viewport row `row`, with the scroll offset applied — NULL when
+ * the row is past everything that has been written. */
+const tgs_term_cell *tgs_term_view_line(const tgs_term *t, int row);
+
 /* Bytes the terminal must send back to the program (DSR replies etc.). */
 typedef void (*tgs_term_reply_cb)(const char *bytes, int len, void *ud);
 
