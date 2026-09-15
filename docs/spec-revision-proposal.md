@@ -69,7 +69,7 @@ self-consistent at every rung, from terminal toolkit to desktop graphics system.
 | §6.1 performance | HIDDEN-FLAW | **FIX MEASUREMENT** — add an end-to-end latency budget |
 | §6.2 compat + degrade-to-char | RATIONAL (one-sided) | **KEEP + EXTEND** — char is the **foundation** (degrade-to-char is the base, not a failure); a char program is a **terminal surface** on a PTY |
 | §6.3 security / §6.4 reliability | RATIONAL | **KEEP** |
-| §7 progressive delivery | HIDDEN-FLAW | **RE-LAYER** — character base → toolkit → terminal surface → client pixel surface → surface compositor → desktop WM (see §3) |
+| §7 progressive delivery | HIDDEN-FLAW | **RE-LAYER** — **working character terminal first** → char+graphics in one program → toolkit → pixel surface → compositor → desktop WM (see §3) |
 
 ---
 
@@ -191,25 +191,27 @@ self-consistent at every rung, from terminal toolkit to desktop graphics system.
 - Unchanged.
 
 ### §7 — Progressive delivery · RE-LAYER
-- Current L0 front-loads a WM (tiled layout, decorations, focus) before the toolkit is proven.
-  Re-order so the toolkit is proven first (see §3).
+- Current L0 front-loads a WM (tiled layout, decorations, focus) — before the toolkit, and long before
+  character compatibility. Re-order the sequence: **a working character terminal first**, then
+  char+graphics in one program, then the toolkit, then surfaces/compositor/WM (see §3).
 
 ---
 
 ## 3. Revised progressive delivery
 
-**The base (below L0): character mode.** The cell grid (terminal emulator, ANSI/escape sequences) is
-the foundation every rung rests on; no rung replaces it. The **terminal surface** is that base made
-addressable.
+**L0 — character compatibility first.** Before any graphics, the server must be a working character
+terminal: `bash`, `vim`, `htop` run unchanged, with **zero TGS awareness**. Character compatibility is
+the foundation, not a fallback — and it is the **first** exit criterion.
 
 | Layer | Content | Exit criterion (must demo) |
 |---|---|---|
-| **L0** | Single window + size notification + input/textarea/button/label + click/change/key events + **resize→relayout** | `simple_form` works end-to-end **and responds to a window resize** |
-| **L1** | Styles + full 20+ widget library + container widgets + focus/navigation | `container_demo` renders + Tab/arrow/focus work with `NTF_FOCUS` |
-| **L2** | Multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal, no protocol commands) + **terminal surface (char grid + PTY)** | Two windows coexist; an image renders; CJK input commits into a textarea; **`htop` runs in a terminal surface beside a TGS form** |
-| **L3** | Pixel surface (a widget kind) + binary/length-prefixed frame transport + animation | An app opts into a pixel widget and paints into it |
-| **L4** | Multi-surface scene compositor: overlapping client surfaces, z-order, alpha, transforms; **local shm/dmabuf transport** (zero-copy) + the remote DCS path | Two client surfaces overlap correctly — one local (shm), one remote (DCS) |
-| **L5** | Desktop graphics system: a **WM program** — decorations, layouts, workspaces, launch/activate — built on the public surface API, plus a GPU path | A TGS **WM program** decorates and moves a local app's window beside a TGS widget window |
+| **L0** | A working **character terminal** — cell grid + PTY + ANSI/escape sequences; ordinary char programs run unchanged | `bash` / `vim` / `htop` run normally, no TGS awareness |
+| **L1** | **Char + graphics in one program** — the one byte stream carries text *and* TGS frames; a program prints text and creates widgets | a program prints a line, creates a widget, prints again — both visible |
+| **L2** | Single window + size-notify + input/textarea/button/label + events + **resize→relayout** | `simple_form` works end-to-end **and responds to a resize** |
+| **L3** | Styles + full 20+ widget library + containers + focus/navigation + multi-window + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME (internal) | `container_demo` + two windows + an image + CJK input commits |
+| **L4** | Client pixel surface + binary DCS transport + scene compositor (z-order/alpha/transforms) + transport pluggability (local shm/dmabuf zero-copy) | overlapping surfaces — one local (shm), one remote (DCS) |
+| **L5** | Desktop graphics system: a **WM program** — decorations, layouts, workspaces, launch/activate — built on the public surface API, plus a GPU path | a TGS **WM program** decorates and moves a local app's window beside a TGS widget window |
+| **L6** | **Nesting** — a TGS server runs as a TGS program inside a TGS surface: a window system inside a window, recursively | a TGS server runs inside a TGS pixel surface; input, focus, and geometry are correct at both levels |
 
 ---
 

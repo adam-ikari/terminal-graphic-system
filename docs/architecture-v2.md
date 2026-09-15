@@ -7,6 +7,24 @@
 
 ---
 
+## 0. Priority — pure character programs first
+
+**The first thing TGS must do is run ordinary character programs, unchanged.** `bash`, `vim`, `htop`,
+`tmux` — programs that know nothing about TGS — must work with **zero adaptation**. This is not a
+compatibility mode bolted on later: it is the **base**, and everything graphics is layered above it.
+
+**And one program may be both at once.** A program's connection to the server is a single byte
+stream, read as:
+
+- **ordinary bytes → its character region** (the cell grid, its `stdout`), and
+- **TGS APC frames (`ESC _ TGS;… ESC \`) → directives** (create a widget, bind an event, …).
+
+So **every TGS program is a terminal program**: text is the default reading of the stream, and TGS
+frames are control interleaved into it — exactly how a terminal already mixes text with escape
+sequences. A pure character program is the case with **no TGS frames**; it just works. A program that
+wants graphics interleaves frames. **One program can print a line, create a widget, and print again —
+character and graphics in the same process, on the same stream, at the same time.**
+
 ## 1. Role model — the self-consistency principle
 
 **Everything above the server is a terminal program.** One primitive set, many programs.
@@ -15,7 +33,7 @@
 |---|---|---|
 | **Display server** (the compositor) | one process owning a display | display ownership, rendering, input capture, input routing, **surface/widget primitives**, and *mechanisms* (raise/lower, focus delivery, resize notify, destroy, crash cleanup). **It holds no policy.** |
 | **WM program** | a TGS client | window *policy*: decorations, layouts (tiled/floating), workspaces, focus policy, window list — through the public API. |
-| **App programs** | TGS clients | widget trees + client pixel surfaces. |
+| **App programs** | TGS clients | character output (the default) **and/or** widget trees + client pixel surfaces — one program may be both at once (§0). |
 | **IME program** | a TGS client (or a server-internal module) | text input transformation; the app sees only value changes. |
 
 The server is policy-free and the WM is a client (the **X11 model**: the WM is not the server). This
@@ -66,10 +84,16 @@ input region, and a z-order slot. Each richer content kind is a surface *over th
   a pixel-backed **widget** at L3, a first-class **overlapping surface** at L4. The app never owns the
   surface's geometry — it paints inside a rect it was granted.
 
-**Coexistence is the point.** All kinds composite together over the base: a TGS form, a pixel surface,
-and an `htop` in a terminal surface can be visible at once. TGS is thus a *superset* of the character
-terminal — and §6.2's "degrade to char" becomes **the base it always rests on**: a TGS-unaware program
-is simply a program running on character content.
+**Coexistence is the point — at two scales.**
+
+- **Across programs:** a TGS form, a pixel surface, and an `htop` in a terminal surface can be visible
+  at once.
+- **Within one program:** a single program emits character output *and* TGS frames on its one stream,
+  so it can print text and drive widgets/pixels simultaneously (§0). It is not "a char app" *or* "a
+  TGS app" — it is a terminal program that may use graphics.
+
+TGS is thus a *superset* of the character terminal — and §6.2's "degrade to char" becomes **the base it
+always rests on**: a TGS-unaware program is simply a program running on character content.
 
 **Lifecycle:** `create → map → draw/damage → resize (server→client notify) → raise/lower → unmap →
 destroy`. On client crash or disconnect the server **auto-cleans** the surface (no orphans).
