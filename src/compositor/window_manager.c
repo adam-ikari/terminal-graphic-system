@@ -414,15 +414,27 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
     tgs_backend *be = wm->backend;
 
     switch (frame->command) {
-    case TGS_CMD_HELLO:
-        wm->hello_received = 1;
-        /* Check if this is the IME app (hello args contain "ime=true") */
-        if (frame->num_args >= 2) {
-            if (strstr(frame->args[1], "ime=true") != NULL) {
-                wm->ime_connected = 1;
-            }
+    case TGS_CMD_HELLO: {
+        /* The handshake is program-initiated: the compositor must never write
+         * to a stream whose program has not asked for TGS, or a plain
+         * character program would find protocol bytes on its stdin. The
+         * program speaks first; the compositor answers READY. */
+        const char *ready_args[1] = { TGS_CAPS_LAYER0 };
+        int is_ime = (frame->num_args >= 2 &&
+                      strstr(frame->args[1], "ime=true") != NULL);
+
+        if (is_ime) {
+            wm->ime_connected = 1;
+            if (wm->ime_pty_fd >= 0)
+                tgs_frame_write(wm->ime_pty_fd, TGS_STREAM_HANDSHAKE, 2,
+                                TGS_CMD_READY, ready_args, 1);
+        } else {
+            wm->hello_received = 1;
+            tgs_frame_write(wm->pty_fd, TGS_STREAM_HANDSHAKE, 2,
+                            TGS_CMD_READY, ready_args, 1);
         }
         break;
+    }
 
     case TGS_CMD_WIN_CREATE: {
         /* args: [win_id, type, title] */

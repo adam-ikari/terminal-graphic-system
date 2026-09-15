@@ -27,10 +27,16 @@ static int focus_cache[MAX_FOCUS_WINDOWS];
 /* Window ID counter */
 static int next_window_id = 1;
 
-/* Helper: write string to stderr for debugging */
+/* Trace to stderr, opt-in via TGS_DEBUG.
+ *
+ * An app's stderr is the same PTY as its stdout, so anything written here
+ * arrives on the terminal as characters and lands in the middle of the UI.
+ * Silent unless asked for. */
 static void debug_log(const char *msg)
 {
-    (void)write(STDERR_FILENO, msg, strlen(msg));
+    static int enabled = -1;
+    if (enabled < 0) enabled = (getenv("TGS_DEBUG") != NULL) ? 1 : 0;
+    if (enabled) (void)write(STDERR_FILENO, msg, strlen(msg));
 }
 
 /* Helper: convert int to string buffer */
@@ -182,17 +188,11 @@ int tgs_client_init(void)
     const char *hello_args[2];
     int ret;
 
-    debug_log("[TGS] client init: waiting for HELLO\n");
+    debug_log("[TGS] client init: sending HELLO\n");
 
-    /* Wait for HELLO from compositor */
-    if (wait_for_frame(TGS_STREAM_HANDSHAKE, TGS_CMD_HELLO, &hello) != 0) {
-        debug_log("[TGS] failed to receive HELLO\n");
-        return -1;
-    }
-
-    debug_log("[TGS] received HELLO\n");
-
-    /* Send our HELLO */
+    /* The handshake is program-initiated: the compositor does not write to a
+     * program that has not asked for TGS, so a character program never finds
+     * protocol bytes on its stdin. The program speaks first. */
     hello_args[0] = TGS_PROTOCOL_VERSION;
     hello_args[1] = TGS_CAPS_LAYER0;
     if (tgs_frame_write(STDOUT_FILENO, TGS_STREAM_HANDSHAKE, 0,

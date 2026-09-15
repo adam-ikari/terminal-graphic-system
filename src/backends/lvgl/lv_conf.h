@@ -105,7 +105,7 @@
 #define LV_FONT_SOURCE_HAN_SANS_SC_14_CJK 0
 #define LV_FONT_SOURCE_HAN_SANS_SC_16_CJK 0
 #define LV_FONT_UNSCII_8 0
-#define LV_FONT_UNSCII_16 0
+#define LV_FONT_UNSCII_16 1
 #define LV_USE_FONT_PLACEHOLDER 1
 
 /*============================================================================
@@ -121,7 +121,7 @@
 #define LV_USE_BUTTON 1
 #define LV_USE_BUTTONMATRIX 1  /* required by LV_USE_CALENDAR (DATEPICK) */
 #define LV_USE_CALENDAR 1
-#define LV_USE_CANVAS 0
+#define LV_USE_CANVAS 1
 #define LV_USE_CHART 0
 #define LV_USE_CHECKBOX 1
 #define LV_USE_DROPDOWN 1

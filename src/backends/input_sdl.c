@@ -27,6 +27,17 @@
 static tgs_backend *g_backend;
 static int g_inited;
 
+/* Compositor-owned sink (input.h) — who consumes a key is not the backend's
+ * business, so the backend only reports the edge to both consumers. */
+static tgs_input_key_sink g_key_sink;
+static void *g_key_sink_ud;
+
+void input_set_key_sink(tgs_input_key_sink sink, void *ud)
+{
+    g_key_sink = sink;
+    g_key_sink_ud = ud;
+}
+
 int input_init(tgs_backend *backend)
 {
     g_backend = backend;
@@ -104,9 +115,11 @@ void input_poll(void)
         case SDL_KEYUP: {
             int mods = sdl_mods(ev.key.keysym.mod);
             int key  = map_sdl_key(ev.key.keysym.sym, mods & TGS_MOD_SHIFT);
-            if (key)
-                g_backend->inject_key(key, mods,
-                                      ev.type == SDL_KEYDOWN ? 1 : 0);
+            int down = (ev.type == SDL_KEYDOWN) ? 1 : 0;
+            if (key) {
+                if (g_key_sink) g_key_sink(key, mods, down, g_key_sink_ud);
+                g_backend->inject_key(key, mods, down);
+            }
             break;
         }
 

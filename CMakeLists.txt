@@ -158,7 +158,7 @@ target_include_directories(tgs_client PUBLIC src/client)
 target_link_libraries(tgs_client PUBLIC tgs_common)
 
 # tgs_lvgl_backend — LVGL rendering
-set(BACKEND_SOURCES src/backends/lvgl/lvgl_backend.c)
+set(BACKEND_SOURCES src/backends/lvgl/lvgl_backend.c src/backends/lvgl/lvgl_term.c)
 if(TGS_USE_SDL)
     list(APPEND BACKEND_SOURCES src/backends/output_sdl.c src/backends/input_sdl.c)
 endif()
@@ -185,6 +185,7 @@ endif()
 add_library(tgs_compositor STATIC
     src/compositor/parser.c
     src/compositor/nav.c
+    src/compositor/term.c
     src/compositor/window_manager.c
 )
 target_include_directories(tgs_compositor PUBLIC src/compositor)
@@ -229,6 +230,7 @@ add_executable(tgs_tests
     tests/test_frame.cpp
     tests/test_protocol.cpp
     tests/test_nav.cpp
+    tests/test_term.cpp
 )
 target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main)
 add_test(NAME tgs_tests COMMAND tgs_tests)
@@ -238,3 +240,9 @@ add_executable(nav_probe
     tests/nav_probe.c
 )
 target_link_libraries(nav_probe PRIVATE tgs_client)
+
+# term_probe — replay captured program output through the terminal emulator
+add_executable(term_probe
+    tests/term_probe.c
+)
+target_link_libraries(term_probe PRIVATE tgs_compositor)

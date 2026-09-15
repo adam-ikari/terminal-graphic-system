@@ -1,0 +1,55 @@
+/*
+ * TGS Terminal Emulator — the character base.
+ *
+ * A program's ordinary output goes here; TGS APC frames are demultiplexed
+ * separately by the parser (parser.h). This module is the character grid and
+ * its ANSI/VT parser — no LVGL, no platform dependency, unit-testable alone.
+ */
+#ifndef TGS_TERM_H
+#define TGS_TERM_H
+
+#include <stdint.h>
+
+/* Cell attributes */
+#define TGS_ATTR_BOLD      0x01
+#define TGS_ATTR_DIM       0x02
+#define TGS_ATTR_UNDERLINE 0x04
+#define TGS_ATTR_REVERSE   0x08
+
+/* Default colour sentinel. A resolved colour is 0xFFRRGGBB; 0 means
+ * "the terminal's default foreground/background". */
+#define TGS_TERM_DEFAULT 0u
+
+typedef struct {
+    uint32_t cp;    /* Unicode codepoint (0 for an empty cell) */
+    uint32_t fg;    /* 0xFFRRGGBB, or TGS_TERM_DEFAULT */
+    uint32_t bg;
+    uint8_t  attr;  /* TGS_ATTR_* */
+} tgs_term_cell;
+
+typedef struct tgs_term tgs_term;
+
+/* Encode one canonical key edge (the key space of docs/navigation.md §D.4) as
+ * the bytes a terminal sends to its program. Returns the byte count. */
+int tgs_term_key_bytes(int key, int mods, char *out, int cap);
+
+/* Bytes the terminal must send back to the program (DSR replies etc.). */
+typedef void (*tgs_term_reply_cb)(const char *bytes, int len, void *ud);
+
+tgs_term *tgs_term_new(int cols, int rows);
+void      tgs_term_free(tgs_term *t);
+void      tgs_term_resize(tgs_term *t, int cols, int rows);
+void      tgs_term_feed(tgs_term *t, const uint8_t *data, int len);
+void      tgs_term_set_reply_cb(tgs_term *t, tgs_term_reply_cb cb, void *ud);
+
+int tgs_term_cols(const tgs_term *t);
+int tgs_term_rows(const tgs_term *t);
+const tgs_term_cell *tgs_term_cells(const tgs_term *t);
+int tgs_term_cx(const tgs_term *t);
+int tgs_term_cy(const tgs_term *t);
+int tgs_term_cursor_visible(const tgs_term *t);
+
+/* 1 if the grid changed since the previous call; clears the flag. */
+int tgs_term_take_dirty(tgs_term *t);
+
+#endif /* TGS_TERM_H */

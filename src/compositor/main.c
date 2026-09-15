@@ -14,6 +14,7 @@
 #include <termios.h>
 #include <sys/wait.h>
 
+#include <sys/ioctl.h>
 #include "tgs_protocol.h"
 #include "tgs_frame.h"
 #include "tgs_backend.h"
@@ -21,10 +22,94 @@
 #include "window_manager.h"
 #include "output.h"
 #include "input.h"
+#include "term.h"
+#include "lvgl_term.h"
 
 /* LVGL backend registration — defined in lvgl_backend.c */
 extern void lvgl_backend_register(void);
 extern void lvgl_backend_set_display(tgs_display *display);
+
+/* ---- Character base (L0) ------------------------------------------------
+ * A program that never sends a TGS frame is a character program. Its output
+ * drives this terminal and its keys go back as terminal bytes; a program that
+ * speaks TGS first (HELLO) gets the widget path instead. Both may happen in
+ * one program — the stream is split, character output is never lost. */
+static tgs_term   *g_term;
+static lv_obj_t   *g_term_view;
+static int         g_master_fd = -1;
+static window_manager *g_wm;
+
+static void term_text_cb(const uint8_t *data, int len, void *ud)
+{
+    (void)ud;
+    tgs_term_feed(g_term, data, len);
+}
+
+static void term_reply_cb(const char *bytes, int len, void *ud)
+{
+    (void)ud;
+    if (g_master_fd >= 0) {
+        ssize_t n = write(g_master_fd, bytes, (size_t)len);
+        (void)n;
+    }
+}
+
+static void term_key_sink(int key, int mods, int pressed, void *ud)
+{
+    char buf[8];
+    int n;
+
+    (void)ud;
+    if (!g_wm || g_wm->hello_received || !pressed) return;
+    n = tgs_term_key_bytes(key, mods, buf, (int)sizeof(buf));
+    if (n > 0 && g_master_fd >= 0) {
+        ssize_t written = write(g_master_fd, buf, (size_t)n);
+        (void)written;
+    }
+}
+
+/* Debug aid: dump the character grid as text (TGS_TERM_DUMP=<path>). When the
+ * picture and the bytes disagree, the grid is the arbitration artifact. */
+static void term_dump(void)
+{
+    const char *path = getenv("TGS_TERM_DUMP");
+    const tgs_term_cell *cells;
+    FILE *f;
+    int x, y, cols, rows;
+
+    if (!path || !g_term) return;
+    f = fopen(path, "w");
+    if (!f) return;
+    cols = tgs_term_cols(g_term);
+    rows = tgs_term_rows(g_term);
+    cells = tgs_term_cells(g_term);
+    fprintf(f, "# grid %dx%d cursor %d,%d visible %d\n",
+            cols, rows, tgs_term_cx(g_term), tgs_term_cy(g_term),
+            tgs_term_cursor_visible(g_term));
+    for (y = 0; y < rows; y++) {
+        for (x = 0; x < cols; x++) {
+            uint32_t cp = cells[(size_t)y * (size_t)cols + (size_t)x].cp;
+            fputc((cp >= 32 && cp < 127) ? (int)cp : (cp ? '.' : ' '), f);
+        }
+        fputc('\n', f);
+    }
+    fclose(f);
+}
+
+/* Debug aid: append the bytes read from the program (TGS_RAW_DUMP=<path>).
+ * Comparing this with what the emulator produced localises a rendering fault
+ * to the input side or the emulator side. */
+static void raw_dump(const uint8_t *data, int len)
+{
+    const char *path = getenv("TGS_RAW_DUMP");
+    FILE *f;
+
+    if (!path || len <= 0) return;
+    f = fopen(path, "ab");
+    if (!f) return;
+    fwrite(data, 1, (size_t)len, f);
+    fclose(f);
+}
 
 static volatile sig_atomic_t running = 1;
 
@@ -58,6 +143,8 @@ int main(int argc, char *argv[])
     tgs_display disp;
     uint8_t rbuf[4096];
     struct pollfd fds[3];
+    int term_cols, term_rows;   /* the character grid the compositor emulates */
+    struct winsize ws;
 
     (void)argc;
 
@@ -95,8 +182,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* The grid this compositor emulates. The child must see it through
+     * TIOCGWINSZ *before* it execs: a TUI reads the size once at startup and
+     * lays its entire screen out from it — htop would otherwise draw itself an
+     * 80x24 screen inside a 100x37 grid. */
+    term_cols = disp.width / tgs_term_view_cell_w();
+    term_rows = disp.height / tgs_term_view_cell_h();
+    memset(&ws, 0, sizeof(ws));
+    ws.ws_col = (unsigned short)term_cols;
+    ws.ws_row = (unsigned short)term_rows;
+
     /* Fork PTY */
-    child_pid = forkpty(&master_fd, NULL, NULL, NULL);
+    child_pid = forkpty(&master_fd, NULL, NULL, &ws);
     if (child_pid < 0) {
         perror("forkpty");
         be->deinit();
@@ -106,7 +203,11 @@ int main(int argc, char *argv[])
 
     if (child_pid == 0) {
         pty_set_raw();
-        /* Child: exec the app */
+        /* The compositor *is* the terminal, so it advertises what it actually
+         * emulates. Inheriting the ambient TERM is wrong: under a script or a
+         * dumb parent (TERM=dumb) ncurses degrades every TUI to plain text,
+         * and the emulator would never be exercised at all. */
+        setenv("TERM", "xterm-256color", 1);
         execvp(argv[1], &argv[1]);
         perror("execvp");
         _exit(1);
@@ -136,27 +237,39 @@ int main(int argc, char *argv[])
 
     tgs_parser_init(&parser, wm_handle_frame, &wm);
 
-    /* Handshake: send HELLO, wait for HELLO from app, send READY */
-    {
-        const char *hello_args[2] = {TGS_PROTOCOL_VERSION, TGS_CAPS_LAYER0};
-        tgs_frame_write(master_fd, TGS_STREAM_HANDSHAKE, 1,
-                        TGS_CMD_HELLO, hello_args, 2);
-
-        while (!wm.hello_received && running) {
-            ssize_t n = read(master_fd, rbuf, sizeof(rbuf));
-            if (n <= 0) break;
-            tgs_parser_feed(&parser, rbuf, (int)n);
-        }
-
-        if (wm.hello_received) {
-            const char *ready_args[1] = {TGS_CAPS_LAYER0};
-            tgs_frame_write(master_fd, TGS_STREAM_HANDSHAKE, 2,
-                            TGS_CMD_READY, ready_args, 1);
-        }
-    }
+    /* The handshake is program-initiated (see wm_handle_frame): a program
+     * that wants TGS sends HELLO and gets READY; a character program is never
+     * written to. Nothing to do here but run. */
 
     /* Initialize input */
     input_init(be);
+
+    /* Character base: always present, widgets composite above it. */
+    {
+        int cols = term_cols;
+        int rows = term_rows;
+
+        g_term = tgs_term_new(cols, rows);
+        if (!g_term) {
+            fprintf(stderr, "terminal init failed\n");
+            be->deinit();
+            output_cleanup(&disp);
+            return 1;
+        }
+        g_term_view = tgs_term_view_create(cols, rows);
+        if (!g_term_view) {
+            fprintf(stderr, "terminal view failed\n");
+            tgs_term_free(g_term);
+            be->deinit();
+            output_cleanup(&disp);
+            return 1;
+        }
+        tgs_term_set_reply_cb(g_term, term_reply_cb, NULL);
+        tgs_parser_set_text_cb(&parser, term_text_cb, NULL);
+        g_master_fd = master_fd;
+        g_wm = &wm;
+        input_set_key_sink(term_key_sink, NULL);
+    }
 
     /* Main poll loop */
     fds[0].fd = master_fd;
@@ -174,6 +287,7 @@ int main(int argc, char *argv[])
         if (fds[0].revents & POLLIN) {
             ssize_t n = read(master_fd, rbuf, sizeof(rbuf));
             if (n > 0) {
+                raw_dump(rbuf, (int)n);
                 tgs_parser_feed(&parser, rbuf, (int)n);
             } else if (n <= 0) {
                 break;
@@ -206,6 +320,12 @@ int main(int argc, char *argv[])
 
         /* Pump LVGL's refresh timers — without this the draw buffer is never
          * painted and output_present() uploads an all-zero framebuffer. */
+
+        /* Repaint the character base when it changed. */
+        if (tgs_term_take_dirty(g_term)) {
+            tgs_term_view_draw(g_term_view, g_term);
+            term_dump();
+        }
         be->render();
 
         /* Present framebuffer */
@@ -223,6 +343,7 @@ int main(int argc, char *argv[])
         }
     }
     waitpid(child_pid, &status, 0);
+    tgs_term_free(g_term);
     be->deinit();
     output_cleanup(&disp);
 

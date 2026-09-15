@@ -32,6 +32,16 @@ static int mouse_fd = -1;
 static int mods_state;  /* modifier mask, one bit per class (left/right merged) */
 static int btn_state;   /* button held — motion must not fake a release */
 
+/* Compositor-owned sink (input.h) — see input_sdl.c. */
+static tgs_input_key_sink g_key_sink;
+static void *g_key_sink_ud;
+
+void input_set_key_sink(tgs_input_key_sink sink, void *ud)
+{
+    g_key_sink = sink;
+    g_key_sink_ud = ud;
+}
+
 /* Pointer position: relative deltas accumulate, absolute (touch) on SYN.
  * Button events carry it, so a click lands where the pointer actually is. */
 static int ptr_x, ptr_y;
@@ -132,8 +142,10 @@ void input_poll(void)
                                                (mods_state & TGS_MOD_SHIFT) != 0);
                 }
 
-                if (tgs_key > 0)
+                if (tgs_key > 0) {
+                    if (g_key_sink) g_key_sink(tgs_key, mods_state, pressed, g_key_sink_ud);
                     g_backend->inject_key(tgs_key, mods_state, pressed);
+                }
 
             } else if (ev.type == EV_REL) {
                 /* Relative mouse movement */

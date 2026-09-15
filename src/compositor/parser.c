@@ -1,24 +1,40 @@
 /*
- * TGS APC Frame Scanner/Dispatcher
- * APC = ESC _ <payload> ESC \
- * Scans byte stream, extracts payloads, decodes, dispatches.
+ * TGS stream demultiplexer — see parser.h.
  */
 #include "parser.h"
 #include <string.h>
 
+#define ESC 0x1B
+#define APC_INTRO 0x5F   /* '_' — the byte after ESC that opens a TGS frame */
+#define ST_ESC 0x1B      /* first byte of the String Terminator, ESC \ */
+#define ST_BACKSLASH 0x5C
+
 void tgs_parser_init(tgs_parser *p, tgs_frame_callback cb, void *ud)
 {
-    p->buf_len = 0;
+    memset(p, 0, sizeof(*p));
     p->callback = cb;
     p->user_data = ud;
+}
+
+void tgs_parser_set_text_cb(tgs_parser *p, tgs_text_callback cb, void *ud)
+{
+    p->text_cb = cb;
+    p->text_user_data = ud;
+}
+
+/* Hand the first n buffered bytes to the text callback and drop them. */
+static void flush_text(tgs_parser *p, int n)
+{
+    if (n <= 0) return;
+    if (p->text_cb) p->text_cb(p->buf, n, p->text_user_data);
+    memmove(p->buf, p->buf + n, (size_t)(p->buf_len - n));
+    p->buf_len -= n;
 }
 
 void tgs_parser_feed(tgs_parser *p, const uint8_t *data, int len)
 {
     int avail;
-    int i;
 
-    /* Append incoming data */
     avail = (int)sizeof(p->buf) - p->buf_len;
     if (len > avail) len = avail;
     if (len <= 0) return;
@@ -26,61 +42,56 @@ void tgs_parser_feed(tgs_parser *p, const uint8_t *data, int len)
     memcpy(p->buf + p->buf_len, data, (size_t)len);
     p->buf_len += len;
 
-    /* Scan for complete APC frames: ESC _ ... ESC \ */
     for (;;) {
+        int i;
         int frame_start = -1;
         int frame_end = -1;
 
-        /* Find ESC _ */
-        for (i = 0; i < p->buf_len - 1; i++) {
-            if (p->buf[i] == 0x1B && p->buf[i + 1] == 0x5F) {
-                frame_start = i + 2; /* payload starts after ESC _ */
+        for (i = 0; i + 1 < p->buf_len; i++) {
+            if (p->buf[i] == ESC && p->buf[i + 1] == APC_INTRO) {
+                frame_start = i;
                 break;
             }
         }
-        if (frame_start < 0) break;
 
-        /* Find ESC \ after frame_start */
-        for (i = frame_start; i < p->buf_len - 1; i++) {
-            if (p->buf[i] == 0x1B && p->buf[i + 1] == 0x5C) {
-                frame_end = i; /* payload ends before ESC \ */
-                break;
-            }
-        }
-        if (frame_end < 0) {
-            /* Incomplete frame — need more data. Compact if possible,
-             * keeping the ESC _ introducer so the frame can still be
-             * recognised once the remainder arrives. */
-            int keep = frame_start - 2;
-            if (keep > 0) {
-                memmove(p->buf, p->buf + keep,
-                        (size_t)(p->buf_len - keep));
-                p->buf_len -= keep;
-            }
+        if (frame_start < 0) {
+            /* Nothing that could begin a frame: all of it is text. Hold back
+             * a trailing ESC — the next chunk may complete an introducer. */
+            int flush = p->buf_len;
+            if (flush > 0 && p->buf[flush - 1] == ESC) flush--;
+            flush_text(p, flush);
             break;
         }
 
-        /* Complete frame found — decode and dispatch */
-        if (p->callback) {
-            tgs_frame frame;
-            int plen = frame_end - frame_start;
-            if (tgs_frame_decode((const char *)p->buf + frame_start,
-                                 plen, &frame) == 0) {
-                p->callback(&frame, p->user_data);
-            }
+        if (frame_start > 0) {
+            flush_text(p, frame_start);
+            continue;   /* the frame introducer is now at the head */
         }
 
-        /* Remove consumed bytes (ESC _ payload ESC \ = 4 + payload) */
+        /* Buffer starts with ESC _ — find the terminator. */
+        for (i = 2; i + 1 < p->buf_len; i++) {
+            if (p->buf[i] == ST_ESC && p->buf[i + 1] == ST_BACKSLASH) {
+                frame_end = i;
+                break;
+            }
+        }
+        if (frame_end < 0) break;   /* incomplete frame — wait for more bytes */
+
+        if (p->callback) {
+            tgs_frame frame;
+            if (tgs_frame_decode((const char *)p->buf + 2, frame_end - 2, &frame) == 0)
+                p->callback(&frame, p->user_data);
+        }
+
         {
-            int consumed = frame_end + 2; /* past the ESC \ */
+            int consumed = frame_end + 2;   /* past the ESC \ */
             memmove(p->buf, p->buf + consumed,
                     (size_t)(p->buf_len - consumed));
             p->buf_len -= consumed;
         }
     }
 
-    /* If buffer is full and no frame found, discard */
-    if (p->buf_len >= (int)sizeof(p->buf)) {
-        p->buf_len = 0;
-    }
+    /* A frame larger than the whole buffer can never complete — drop it
+     * rather than stall the stream forever. */
+    if (p->buf_len >= (int)sizeof(p->buf)) p->buf_len = 0;
 }
