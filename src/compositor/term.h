@@ -20,6 +20,13 @@
  * "the terminal's default foreground/background". */
 #define TGS_TERM_DEFAULT 0u
 
+/* Cursor shape, as the program last asked for it (DECSCUSR). */
+enum {
+    TGS_CURSOR_BLOCK = 1,
+    TGS_CURSOR_UNDERLINE,
+    TGS_CURSOR_BAR
+};
+
 typedef struct {
     uint32_t cp;    /* Unicode codepoint (0 for an empty cell) */
     uint32_t fg;    /* 0xFFRRGGBB, or TGS_TERM_DEFAULT */
@@ -34,6 +41,11 @@ typedef struct tgs_term tgs_term;
  * (cursor-key application mode, keypad mode, ...) and leave through the reply
  * callback, exactly as a real terminal would send them. */
 void tgs_term_key(tgs_term *t, int key, int mods);
+
+/* Report a mouse action to the program, in cells (0-based). `pressed` is 1 for
+ * a press, 0 for a release, -1 for motion. libvterm drops reports the program
+ * has not asked for, so this is safe to call unconditionally. */
+void tgs_term_mouse(tgs_term *t, int col, int row, int button, int pressed);
 
 /* Bytes the terminal must send back to the program (DSR replies etc.). */
 typedef void (*tgs_term_reply_cb)(const char *bytes, int len, void *ud);
@@ -50,6 +62,7 @@ const tgs_term_cell *tgs_term_cells(const tgs_term *t);
 int tgs_term_cx(const tgs_term *t);
 int tgs_term_cy(const tgs_term *t);
 int tgs_term_cursor_visible(const tgs_term *t);
+int tgs_term_cursor_shape(const tgs_term *t);
 
 /* 1 if the grid changed since the previous call; clears the flag. */
 int tgs_term_take_dirty(tgs_term *t);

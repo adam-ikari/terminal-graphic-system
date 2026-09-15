@@ -252,6 +252,12 @@ add_executable(tgs_tests
 target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main)
 add_test(NAME tgs_tests COMMAND tgs_tests)
 
+# letter_probe — does lv_draw_letter rasterise into a canvas layer?
+add_executable(letter_probe
+    tests/letter_probe.c
+)
+target_link_libraries(letter_probe PRIVATE tgs_lvgl_backend)
+
 # nav_probe — end-to-end navigation probe (records what the app receives)
 add_executable(nav_probe
     tests/nav_probe.c

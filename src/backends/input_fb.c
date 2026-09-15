@@ -42,6 +42,15 @@ void input_set_key_sink(tgs_input_key_sink sink, void *ud)
     g_key_sink_ud = ud;
 }
 
+static tgs_input_mouse_sink g_mouse_sink;
+static void *g_mouse_sink_ud;
+
+void input_set_mouse_sink(tgs_input_mouse_sink sink, void *ud)
+{
+    g_mouse_sink = sink;
+    g_mouse_sink_ud = ud;
+}
+
 /* Pointer position: relative deltas accumulate, absolute (touch) on SYN.
  * Button events carry it, so a click lands where the pointer actually is. */
 static int ptr_x, ptr_y;
@@ -154,6 +163,7 @@ void input_poll(void)
                 if (ev.code == REL_Y) ptr_y += ev.value;
                 if (ptr_x < 0) ptr_x = 0;
                 if (ptr_y < 0) ptr_y = 0;
+                if (g_mouse_sink) g_mouse_sink(ptr_x, ptr_y, 0, -1, g_mouse_sink_ud);
                 g_backend->inject_mouse(ptr_x, ptr_y, 0, btn_state);
 
             } else if (ev.type == EV_ABS) {
@@ -166,6 +176,7 @@ void input_poll(void)
                 if (abs_x != 0 || abs_y != 0) {
                     ptr_x = abs_x;
                     ptr_y = abs_y;
+                    if (g_mouse_sink) g_mouse_sink(ptr_x, ptr_y, 0, -1, g_mouse_sink_ud);
                     if (g_backend && g_backend->inject_mouse)
                         g_backend->inject_mouse(ptr_x, ptr_y, 0, btn_state);
                 }
@@ -178,6 +189,7 @@ void input_poll(void)
                 if (!g_backend || !g_backend->inject_mouse) continue;
                 int btn = ev.code - BTN_MOUSE;
                 btn_state = ev.value ? 1 : 0;
+                if (g_mouse_sink) g_mouse_sink(ptr_x, ptr_y, btn, btn_state, g_mouse_sink_ud);
                 g_backend->inject_mouse(ptr_x, ptr_y, btn, btn_state);
             }
         }

@@ -63,6 +63,23 @@ static void term_key_sink(int key, int mods, int pressed, void *ud)
     tgs_term_key(g_term, key, mods);
 }
 
+/* Mouse reaches the program in cells, not pixels — that is the unit a terminal
+ * program thinks in. libvterm drops the report unless the program asked for
+ * mouse mode, so this needs no mode check of its own. */
+static void term_mouse_sink(int x, int y, int button, int pressed, void *ud)
+{
+    int cw, ch;
+
+    (void)ud;
+    if (!g_wm || g_wm->hello_received || !g_term) return;
+
+    cw = tgs_term_view_cell_w();
+    ch = tgs_term_view_cell_h();
+    if (cw < 1 || ch < 1) return;
+
+    tgs_term_mouse(g_term, x / cw, y / ch, button + 1, pressed);
+}
+
 /* Debug aid: dump the character grid as text (TGS_TERM_DUMP=<path>). When the
  * picture and the bytes disagree, the grid is the arbitration artifact. */
 static void term_dump(void)
@@ -264,6 +281,7 @@ int main(int argc, char *argv[])
         g_master_fd = master_fd;
         g_wm = &wm;
         input_set_key_sink(term_key_sink, NULL);
+        input_set_mouse_sink(term_mouse_sink, NULL);
     }
 
     /* Main poll loop */

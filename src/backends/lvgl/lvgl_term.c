@@ -48,9 +48,11 @@ static uint32_t scale(uint32_t c, int num, int den)
     uint32_t r = (rgb_of(c) >> 16) & 0xFFu;
     uint32_t g = (rgb_of(c) >> 8) & 0xFFu;
     uint32_t b = rgb_of(c) & 0xFFu;
-    r = r * (uint32_t)num / (uint32_t)den;
-    g = g * (uint32_t)num / (uint32_t)den;
-    b = b * (uint32_t)num / (uint32_t)den;
+    /* Brightening must not wrap: 224 * 5 / 4 is 280, and a truncated 24 is
+     * blacker than the colour it was meant to lift. */
+    r = r * (uint32_t)num / (uint32_t)den; if (r > 255u) r = 255u;
+    g = g * (uint32_t)num / (uint32_t)den; if (g > 255u) g = 255u;
+    b = b * (uint32_t)num / (uint32_t)den; if (b > 255u) b = 255u;
     return 0xFF000000u | (r << 16) | (g << 8) | b;
 }
 
@@ -160,6 +162,13 @@ static int draw_block(lv_layer_t *L, int x, int y, uint32_t cp, uint32_t fg, uin
 /* Text                                                                */
 /* ------------------------------------------------------------------ */
 
+/*
+ * lv_draw_letter anchors a glyph on a pivot at
+ * (adv_w / 2, line_height - base_line) and the rasteriser then shifts the glyph
+ * by -pivot. Passing a cell's top-left therefore lands every glyph half a cell
+ * to the left and a whole line up — which is exactly how a terminal covering
+ * the screen ends up one row out of step. Pre-compensate by the same pivot.
+ */
 static void draw_char(lv_layer_t *L, int x, int y, uint32_t cp, uint32_t fg)
 {
     lv_draw_letter_dsc_t d;
@@ -170,9 +179,37 @@ static void draw_char(lv_layer_t *L, int x, int y, uint32_t cp, uint32_t fg)
     d.color = lv_color_hex(rgb_of(fg));
     d.font = &lv_font_unscii_8;
 
-    p.x = x;
-    p.y = y;
+    p.x = x + (int32_t)(lv_font_get_glyph_width(&lv_font_unscii_8, 'M', 'M') / 2);
+    p.y = y + lv_font_get_line_height(&lv_font_unscii_8) - lv_font_unscii_8.base_line;
     lv_draw_letter(L, &d, &p);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cells                                                               */
+/* ------------------------------------------------------------------ */
+
+/* Draw one cell. `invert` paints it reversed — which is exactly what a block
+ * cursor is: the cell itself, swapped, so the character under it stays legible
+ * and a blank cursor cell is still visible. */
+static void draw_cell(lv_layer_t *L, const tgs_term_cell *c, int px, int py, int invert)
+{
+    uint32_t fg = c->fg ? c->fg : DEF_FG;
+    uint32_t bg = c->bg ? c->bg : DEF_BG;
+    int swapped = invert || (c->attr & TGS_ATTR_REVERSE) != 0;
+
+    if (swapped) { uint32_t s = fg; fg = bg; bg = s; }
+    if (c->attr & TGS_ATTR_BOLD) fg = scale(fg, 5, 4);
+    if (c->attr & TGS_ATTR_DIM)  fg = scale(fg, 2, 3);
+
+    if (bg != DEF_BG || swapped)
+        rect(L, px, py, px + g_cell_w - 1, py + g_cell_h - 1, bg);
+
+    if (c->cp == 0 || c->cp == ' ') return;
+
+    if (draw_block(L, px, py, c->cp, fg, bg)) return;
+    if (c->cp >= 0x2500 && c->cp <= 0x256C) { draw_box(L, px, py, c->cp, fg); return; }
+
+    draw_char(L, px, py, c->cp, fg);
 }
 
 /* ------------------------------------------------------------------ */
@@ -231,28 +268,32 @@ void tgs_term_view_draw(lv_obj_t *view, const tgs_term *t)
      * show through. */
     rect(&layer, 0, 0, tv->w - 1, tv->h - 1, DEF_BG);
 
-    for (cy = 0; cy < rows; cy++) {
-        for (cx = 0; cx < cols; cx++) {
-            const tgs_term_cell *c = &cells[(size_t)cy * (size_t)cols + (size_t)cx];
-            int px = cx * g_cell_w;
-            int py = cy * g_cell_h;
-            uint32_t fg = c->fg ? c->fg : DEF_FG;
-            uint32_t bg = c->bg ? c->bg : DEF_BG;
-            int reversed = (c->attr & TGS_ATTR_REVERSE) != 0;
+    for (cy = 0; cy < rows; cy++)
+        for (cx = 0; cx < cols; cx++)
+            draw_cell(&layer, &cells[(size_t)cy * (size_t)cols + (size_t)cx],
+                      cx * g_cell_w, cy * g_cell_h, 0);
 
-            if (reversed) { uint32_t s = fg; fg = bg; bg = s; }
-            if (c->attr & TGS_ATTR_BOLD) fg = scale(fg, 5, 4);
-            if (c->attr & TGS_ATTR_DIM)  fg = scale(fg, 2, 3);
-
-            if (bg != DEF_BG || reversed)
-                rect(&layer, px, py, px + g_cell_w - 1, py + g_cell_h - 1, bg);
-
-            if (c->cp == 0 || c->cp == ' ') continue;
-
-            if (draw_block(&layer, px, py, c->cp, fg, bg)) continue;
-            if (c->cp >= 0x2500 && c->cp <= 0x256C) { draw_box(&layer, px, py, c->cp, fg); continue; }
-
-            draw_char(&layer, px, py, c->cp, fg);
+    /* Cursor, drawn last so it is never overpainted. A block cursor is the cell
+     * painted in reverse — that is what a terminal's cursor actually is, and it
+     * keeps the character under it readable. */
+    if (tgs_term_cursor_visible(t)) {
+        int ccx = tgs_term_cx(t);
+        int ccy = tgs_term_cy(t);
+        if (ccx >= 0 && ccy >= 0 && ccx < cols && ccy < rows) {
+            int px = ccx * g_cell_w;
+            int py = ccy * g_cell_h;
+            switch (tgs_term_cursor_shape(t)) {
+            case TGS_CURSOR_UNDERLINE:
+                rect(&layer, px, py + g_cell_h - 2, px + g_cell_w - 1, py + g_cell_h - 1, DEF_FG);
+                break;
+            case TGS_CURSOR_BAR:
+                rect(&layer, px, py, px + 1, py + g_cell_h - 1, DEF_FG);
+                break;
+            case TGS_CURSOR_BLOCK:
+            default:
+                draw_cell(&layer, &cells[(size_t)ccy * (size_t)cols + (size_t)ccx], px, py, 1);
+                break;
+            }
         }
     }
 

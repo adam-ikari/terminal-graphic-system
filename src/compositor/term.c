@@ -24,6 +24,7 @@ struct tgs_term {
 
     int cx, cy;
     int cursor_visible;
+    int cursor_shape;            /* TGS_CURSOR_* */
 
     int dirty;                   /* repaint wanted */
     int snapshot_dirty;          /* the cell snapshot is stale */
@@ -67,6 +68,14 @@ static int on_settermprop(VTermProp prop, VTermValue *val, void *user)
     tgs_term *t = (tgs_term *)user;
     if (prop == VTERM_PROP_CURSORVISIBLE) {
         t->cursor_visible = val->boolean;
+        t->dirty = 1;
+    } else if (prop == VTERM_PROP_CURSORSHAPE) {
+        switch (val->number) {
+        case VTERM_PROP_CURSORSHAPE_UNDERLINE: t->cursor_shape = TGS_CURSOR_UNDERLINE; break;
+        case VTERM_PROP_CURSORSHAPE_BAR_LEFT:  t->cursor_shape = TGS_CURSOR_BAR;       break;
+        case VTERM_PROP_CURSORSHAPE_BLOCK:
+        default:                               t->cursor_shape = TGS_CURSOR_BLOCK;     break;
+        }
         t->dirty = 1;
     }
     return 1;
@@ -214,6 +223,7 @@ tgs_term *tgs_term_new(int cols, int rows)
     vterm_screen_reset(t->screen, 1);
 
     t->cursor_visible = 1;
+    t->cursor_shape = TGS_CURSOR_BLOCK;
     t->dirty = 1;
     t->snapshot_dirty = 1;
     rebuild_snapshot(t);
@@ -290,8 +300,17 @@ void tgs_term_key(tgs_term *t, int key, int mods)
     default:   break;
     }
 
-    if (key > 0 && key < 0x110000u)
+    if (key > 0 && key < 0x110000)
         vterm_keyboard_unichar(t->vt, (uint32_t)key, m);
+}
+
+void tgs_term_mouse(tgs_term *t, int col, int row, int button, int pressed)
+{
+    if (!t) return;
+    if (pressed < 0)
+        vterm_mouse_move(t->vt, row, col, VTERM_MOD_NONE);
+    else
+        vterm_mouse_button(t->vt, button, pressed ? true : false, VTERM_MOD_NONE);
 }
 
 int tgs_term_cols(const tgs_term *t) { return t ? t->cols : 0; }
@@ -300,6 +319,7 @@ const tgs_term_cell *tgs_term_cells(const tgs_term *t) { return t ? t->cells : N
 int tgs_term_cx(const tgs_term *t) { return t ? t->cx : 0; }
 int tgs_term_cy(const tgs_term *t) { return t ? t->cy : 0; }
 int tgs_term_cursor_visible(const tgs_term *t) { return t ? t->cursor_visible : 0; }
+int tgs_term_cursor_shape(const tgs_term *t) { return t ? t->cursor_shape : TGS_CURSOR_BLOCK; }
 
 int tgs_term_take_dirty(tgs_term *t)
 {

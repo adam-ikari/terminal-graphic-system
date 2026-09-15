@@ -32,6 +32,15 @@ static int g_inited;
 static tgs_input_key_sink g_key_sink;
 static void *g_key_sink_ud;
 
+static tgs_input_mouse_sink g_mouse_sink;
+static void *g_mouse_sink_ud;
+
+void input_set_mouse_sink(tgs_input_mouse_sink sink, void *ud)
+{
+    g_mouse_sink = sink;
+    g_mouse_sink_ud = ud;
+}
+
 void input_set_key_sink(tgs_input_key_sink sink, void *ud)
 {
     g_key_sink = sink;
@@ -96,6 +105,7 @@ void input_poll(void)
             return;
 
         case SDL_MOUSEMOTION:
+            if (g_mouse_sink) g_mouse_sink(ev.motion.x, ev.motion.y, 0, -1, g_mouse_sink_ud);
             g_backend->inject_mouse(ev.motion.x, ev.motion.y, 0,
                                     (ev.motion.state & SDL_BUTTON_LMASK) ? 1 : 0);
             break;
@@ -103,11 +113,12 @@ void input_poll(void)
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP: {
             int btn = 0;
-            if (ev.button.button == SDL_BUTTON_LEFT)   btn = 0;
+            int down = (ev.type == SDL_MOUSEBUTTONDOWN) ? 1 : 0;
+            if (ev.button.button == SDL_BUTTON_LEFT)        btn = 0;
             else if (ev.button.button == SDL_BUTTON_MIDDLE) btn = 1;
             else if (ev.button.button == SDL_BUTTON_RIGHT)  btn = 2;
-            g_backend->inject_mouse(ev.button.x, ev.button.y, btn,
-                                    ev.type == SDL_MOUSEBUTTONDOWN ? 1 : 0);
+            if (g_mouse_sink) g_mouse_sink(ev.button.x, ev.button.y, btn, down, g_mouse_sink_ud);
+            g_backend->inject_mouse(ev.button.x, ev.button.y, btn, down);
             break;
         }
 
