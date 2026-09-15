@@ -6,20 +6,50 @@ critique into concrete edits to the requirements.
 
 ---
 
-## 0. Revised product statement
+## 0. Product statement — the endpoint and the path to it
 
-**TGS is one toolkit with two rendering backends, not two products.**
+**The endpoint is a desktop graphics system.** TGS starts as a terminal-native widget toolkit and
+evolves, rung by rung, into a compositing graphics system with client-shaded surfaces and
+desktop-class window management. The earlier layers are the *path*, not a ceiling.
 
-- **Default path — native widgets.** Apps issue declarative widget-tree commands as small text
-  frames; the compositor renders them with LVGL; the transport stays in the char-grid economy
-  (a form is ≈100 bytes). This is what the demos prove and what the terminal's nature supports.
-- **Opt-in, late path — a pixel surface.** An app that needs video/games/custom drawing gets a
-  **widget-sized drawable region** fed by a **binary DCS frame with an explicit length prefix**;
-  the compositor composites it alongside native widgets. This is the normal text→graphics
-  evolution (Tektronix 4014 → ReGIS → Sixel → kitty/iTerm2), not a second product.
+**The rungs (each reuses the previous):**
 
-TGS is **not** a desktop window manager, and its pixel path is **not** Wayland-over-SSH: the
-terminal owns geometry, the app paints inside a widget it was granted.
+1. **Native-widget toolkit** (now). Declarative widget-tree commands as small text frames; the
+   compositor renders with LVGL. A form is ≈100 bytes. The demos prove this rung.
+2. **Client pixel surfaces.** An app gets a **widget-sized drawable region** — the "client surface"
+   primitive — fed by a binary DCS frame (§5.4). This is where client-shaded pixels enter.
+3. **Surface compositor.** Multiple overlapping surfaces with z-order, alpha, and transforms; LVGL
+   renders the *widget* surfaces, the compositor scenes them together.
+4. **Desktop graphics system.** Local clients share buffers zero-copy (shm / dmabuf, GPU-accelerated)
+   and get full WM semantics (overlap, decorations, layout, workspaces). The terminal transport
+   becomes the *remote* path, not the only one.
+
+**Transport pluggability is the load-bearing requirement.** A *surface* is a buffer + metadata; how
+it reaches the compositor is an implementation detail:
+
+- **Remote client → binary DCS over PTY** (damage-tracked, compressed; the X11-forwarding economics
+  apply — bounded updates, not a raw 60fps river).
+- **Local client → shared memory (shm) or dmabuf (GPU)** — zero-copy, because client and compositor
+  share a host.
+
+**Honest constraint.** A desktop graphics system cannot be reached over PTY/SSH alone — that is
+exactly why X11 forwarding was abandoned for local shm/GPU compositors. The terminal path delivers
+the *toolkit* and the *remote* story; the desktop endpoint needs the compositor to own a local
+display and accept local surfaces. TGS already has a display-owning compositor (`tgs_backend.h`:
+SDL / `/dev/fb0`), so this is an extension, not a new system. Where LVGL stops being enough — scene
+composition of independent surfaces — L4 introduces a light scene layer *beside* LVGL, not a
+replacement for it.
+
+TGS is **not** Wayland-over-SSH, and it is **not** merely a terminal toolkit: it is a toolkit whose
+surface model grows into a desktop graphics system.
+
+**Self-consistency principle: everything above the server is a terminal program.** The compositor
+is a *display server*: it owns the display, renders, routes input, and exposes surface/widget
+primitives — **it holds no window-management policy.** The window manager is itself a TGS program:
+a client that positions surfaces, draws decorations, and manages focus/layout/workspaces through
+the same API every app uses (the X11 model — the WM is a client, not the server). Apps are TGS
+programs. The IME is a TGS program. One primitive set, many programs — that is what keeps the design
+self-consistent at every rung, from terminal toolkit to desktop graphics system.
 
 ---
 
@@ -30,15 +60,15 @@ terminal owns geometry, the app paints inside a widget it was granted.
 | §2 premise | RATIONAL (root ambiguity) | **REWRITE** — state the claim honestly + add char-fallback guarantee |
 | §4.1 terminal-manages / app-lays-out | HIDDEN-FLAW | **KEEP + SPECIFY** the missing resize→relayout loop |
 | §4.2 capability negotiation | OVER-SCOPE | **SOFTEN** — drop "never silent degrade" |
-| §5.1 window management | OVER-SCOPE | **SHRINK** to create + size-notify + focus + z-order + destroy + crash-cleanup |
+| §5.1 window management | OVER-SCOPE *now* | **SERVER: primitives only; POLICY: a WM program.** The server exposes create / size-notify / focus / z-order / destroy / cleanup; decorations / layouts / workspaces are a **separate TGS program** at L4–L5, **deferred, not deleted** |
 | §5.2 widget toolkit | RATIONAL | **KEEP** (this is the product) |
-| §5.3 resources | OVER-SCOPE | **SHRINK** to data/file/theme/builtin + in-memory cache + fallback |
-| §5.4 framebuffer stream | RATIONAL AS EVOLUTION | **REDEFINE** — pixel surface as a widget + binary transport + late layer |
+| §5.3 resources | OVER-SCOPE *now* | **SEQUENCE** — data/file/theme/builtin + in-memory cache at L2; https/remote/proxy/refcount at L4, **deferred, not deleted** |
+| §5.4 framebuffer stream | RATIONAL AS EVOLUTION | **REDEFINE** — client pixel surface (a widget kind at L3, a first-class surface at L4) + binary transport; the first rung toward the endpoint |
 | §5.5 events | RATIONAL (2 over-scope clauses) | **KEEP** kbd/mouse/touch; **CUT** 5 IME protocol commands + ≥10pt multitouch |
 | §6.1 performance | HIDDEN-FLAW | **FIX MEASUREMENT** — add an end-to-end latency budget |
 | §6.2 compat + degrade-to-char | RATIONAL (one-sided) | **KEEP + EXTEND** — add an app-side char fallback |
 | §6.3 security / §6.4 reliability | RATIONAL | **KEEP** |
-| §7 progressive delivery | HIDDEN-FLAW | **RE-LAYER** — prove the toolkit before the WM |
+| §7 progressive delivery | HIDDEN-FLAW | **RE-LAYER** — toolkit → client pixel surface → surface compositor → desktop graphics system (see §3) |
 
 ---
 
@@ -70,13 +100,19 @@ terminal owns geometry, the app paints inside a widget it was granted.
   terminal's 50-year tradition (`TERM=dumb`, unknown-sequence-ignored) — hard rejection fights the
   ecosystem TGS lives in.
 
-### §5.1 — Window management · SHRINK
-- **Keep (rational core):** window create, **size notification**, **focus**, **z-order**,
-  destroy, and crash/disconnect auto-cleanup.
-- **Cut:** window decorations, the four named layout types (tiled/floating/scroll/dock),
-  split, nesting, state persistence, multi-workspace.
-- **Tradeoff.** Loses desktop-WM behavior. A terminal is one surface; demanding a WM's semantics
-  inside it is ported desktop thinking, and none of it is exercised by any demo.
+### §5.1 — Window management · SERVER PRIMITIVES ONLY; POLICY IS A PROGRAM
+- **Server (all rungs):** window create, **size notification**, **focus**, **z-order**, destroy, and
+  crash/disconnect auto-cleanup. These are *mechanisms* — the server performs them, it does not
+  decide them. The irreducible core the toolkit rungs need.
+- **A WM program (L4–L5):** decorations, the four named layout types (tiled/floating/scroll/dock),
+  split, nesting, state persistence, multi-workspace. These are *policy*, and policy belongs to a
+  **window manager that is itself a TGS program**, using the same surface/widget API as any app
+  (the X11 model: the WM is a client). Called "ported desktop thinking" before — the owner's
+  desktop-graphics endpoint makes them the *target*. **Program it, do not bake it into the server;
+  defer it, do not delete it.**
+- **Tradeoff.** The server stays policy-free (consistent at every rung); the WM program is a real
+  deliverable at L4–L5. Baking WM policy into the server would be exactly the desktop thinking the
+  critique warned about — and would make the server non-neutral.
 
 ### §5.2 — Widget toolkit · KEEP
 - Unchanged. This is the product: 20+ widget types, styles, event binding, absolute + % coords,
@@ -109,6 +145,17 @@ terminal owns geometry, the app paints inside a widget it was granted.
   while base64 on an occasional image costs nothing measurable. Bandwidth itself is still managed by
   **dirty-region incremental sends** (spec §5.4) and optional compression — this decision fixes
   *framing*, not *volume*.
+
+### Surface transport pluggability · NEW (required by the desktop endpoint)
+- **Requirement.** A *surface* is a buffer + metadata; the transport is pluggable:
+  - `remote` → binary DCS over PTY (damage-tracked, compressed) — for SSH clients.
+  - `local-shm` → POSIX shared memory (zero-copy) — for same-host clients.
+  - `local-dmabuf` → GPU buffer (zero-copy, accelerated) — L5.
+- **Why.** The desktop endpoint is not viable over PTY/SSH alone; it needs local zero-copy surfaces.
+  Making the transport an interface (not the protocol) lets L3 be remote-only while L4/L5 add local
+  paths without touching the widget model.
+- **Tradeoff.** Introduce a surface-transport abstraction (as `tgs_backend.h` is for displays); the
+  compositor's surface input becomes an interface with ≥2 implementations.
 
 ### §5.5 — Events · KEEP + CUT
 - **Keep:** mouse, keyboard, single/2-point touch, widget events, routing rules, window-id per event.
@@ -150,6 +197,8 @@ terminal owns geometry, the app paints inside a widget it was granted.
 | **L1** | Styles + full 20+ widget library + container widgets + focus/navigation | `container_demo` renders + Tab/arrow/focus work with `NTF_FOCUS` |
 | **L2** | Multi-window + focus/z-order + resources (`data`/`file`/`theme`/`builtin` + in-memory cache) + IME engine (internal, no protocol commands) | Two windows coexist; an image renders; CJK input commits into a textarea |
 | **L3** | Pixel surface (a widget kind) + binary/length-prefixed frame transport + animation | An app opts into a pixel widget and paints into it |
+| **L4** | Multi-surface scene compositor: overlapping client surfaces, z-order, alpha, transforms; **local shm/dmabuf transport** (zero-copy) + the remote DCS path | Two client surfaces overlap correctly — one local (shm), one remote (DCS) |
+| **L5** | Desktop graphics system: a **WM program** — decorations, layouts, workspaces, launch/activate — built on the public surface API, plus a GPU path | A TGS **WM program** decorates and moves a local app's window beside a TGS widget window |
 
 ---
 

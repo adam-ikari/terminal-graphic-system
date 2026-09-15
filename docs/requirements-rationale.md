@@ -59,9 +59,12 @@ rational in spirit; its failure to bound "graphics" is the root ambiguity.
 
 **Verdict: HIDDEN-FLAW.**
 
-The ownership *division* is rational and follows from single-surface: the compositor owns
-the one display, so it must own window geometry — the app cannot position a window it
-cannot see. That much is sound. The flaw is the *responsive loop* the requirement erects on
+The ownership *division* is rational and follows from single-surface: the compositor owns the one
+display, so it must own the window *surface* and expose geometry primitives — the app cannot
+position a surface it cannot see. But the desktop endpoint makes a further distinction explicit:
+the compositor is a **display server** and holds no WM *policy*; geometry policy belongs to a
+**window manager that is itself a TGS program** (the X11 model — the WM is a client). The flaw is
+the *responsive loop* the requirement erects on
 top of it: "app lays out widgets per size (responsive); if app doesn't respond to resize,
 terminal auto-scales widgets (proportional, text wrap/truncate)." This loop is asserted but
 never specified as a protocol contract — there is no defined timeout, no detection of
