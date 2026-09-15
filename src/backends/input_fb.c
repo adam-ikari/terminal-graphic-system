@@ -58,6 +58,13 @@ void input_set_resize_sink(tgs_input_resize_sink sink, void *ud)
     (void)ud;
 }
 
+void input_set_focus_sink(tgs_input_focus_sink sink, void *ud)
+{
+    /* An evdev panel has no window focus to report. */
+    (void)sink;
+    (void)ud;
+}
+
 /* Pointer position: relative deltas accumulate, absolute (touch) on SYN.
  * Button events carry it, so a click lands where the pointer actually is. */
 static int ptr_x, ptr_y;

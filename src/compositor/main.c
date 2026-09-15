@@ -123,6 +123,16 @@ static void term_resize_sink(int w, int h, void *ud)
     term_resize_to(w, h);
 }
 
+static void term_focus_sink(int focused, void *ud)
+{
+    (void)ud;
+    if (!g_term) return;
+    /* A TGS program has its own focus model; this is the character-protocol
+     * report, which libvterm suppresses unless the program asked for it. */
+    if (g_wm && g_wm->hello_received) return;
+    tgs_term_focus(g_term, focused);
+}
+
 /* Debug aid: dump the character grid as text (TGS_TERM_DUMP=<path>). When the
  * picture and the bytes disagree, the grid is the arbitration artifact. */
 static void term_dump(void)
@@ -328,6 +338,7 @@ int main(int argc, char *argv[])
         g_disp = &disp;
         input_set_mouse_sink(term_mouse_sink, NULL);
         input_set_resize_sink(term_resize_sink, NULL);
+        input_set_focus_sink(term_focus_sink, NULL);
     }
 
     /* Main poll loop */

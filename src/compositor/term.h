@@ -47,6 +47,10 @@ void tgs_term_key(tgs_term *t, int key, int mods);
  * has not asked for, so this is safe to call unconditionally. */
 void tgs_term_mouse(tgs_term *t, int col, int row, int button, int pressed);
 
+/* Tell the program the window gained or lost focus. libvterm stays quiet unless
+ * the program asked for focus reporting (CSI ?1004h). */
+void tgs_term_focus(tgs_term *t, int focused);
+
 /* Bytes the terminal must send back to the program (DSR replies etc.). */
 typedef void (*tgs_term_reply_cb)(const char *bytes, int len, void *ud);
 

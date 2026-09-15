@@ -24,6 +24,10 @@ void input_set_mouse_sink(tgs_input_mouse_sink sink, void *ud);
 typedef void (*tgs_input_resize_sink)(int w, int h, void *ud);
 void input_set_resize_sink(tgs_input_resize_sink sink, void *ud);
 
+/* The window gained (1) or lost (0) focus. */
+typedef void (*tgs_input_focus_sink)(int focused, void *ud);
+void input_set_focus_sink(tgs_input_focus_sink sink, void *ud);
+
 int  input_init(tgs_backend *backend);
 void input_poll(void);
 void input_cleanup(void);

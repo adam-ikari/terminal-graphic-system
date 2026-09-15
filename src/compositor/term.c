@@ -18,6 +18,7 @@
 struct tgs_term {
     VTerm       *vt;
     VTermScreen *screen;
+    VTermState  *state;          /* for focus reporting */
 
     int cols, rows;
     tgs_term_cell *cells;        /* snapshot of the screen */
@@ -89,6 +90,9 @@ static int on_moverect(VTermRect dest, VTermRect src, void *user)
 
 static int on_bell(void *user)
 {
+    /* Deliberately silent. A compositor has no beeper, and a flashing screen is
+     * a taste decision rather than a protocol one — this is the default most
+     * terminals ship with. */
     (void)user;
     return 1;
 }
@@ -217,6 +221,7 @@ tgs_term *tgs_term_new(int cols, int rows)
     vterm_output_set_callback(t->vt, output_cb, t);
 
     t->screen = vterm_obtain_screen(t->vt);
+    t->state  = vterm_obtain_state(t->vt);
     vterm_screen_set_callbacks(t->screen, &g_screen_cbs, t);
     vterm_screen_enable_altscreen(t->screen, 1);
     vterm_screen_set_damage_merge(t->screen, VTERM_DAMAGE_SCROLL);
@@ -328,4 +333,14 @@ int tgs_term_take_dirty(tgs_term *t)
     d = t->dirty;
     t->dirty = 0;
     return d;
+}
+
+void tgs_term_focus(tgs_term *t, int focused)
+{
+    if (!t || !t->state) return;
+    /* libvterm emits nothing unless the program turned focus reporting on
+     * (CSI ?1004h), so this is safe to call whenever the window gains or loses
+     * focus. */
+    if (focused) vterm_state_focus_in(t->state);
+    else         vterm_state_focus_out(t->state);
 }

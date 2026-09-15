@@ -56,6 +56,15 @@ void input_set_resize_sink(tgs_input_resize_sink sink, void *ud)
     g_resize_sink_ud = ud;
 }
 
+static tgs_input_focus_sink g_focus_sink;
+static void *g_focus_sink_ud;
+
+void input_set_focus_sink(tgs_input_focus_sink sink, void *ud)
+{
+    g_focus_sink = sink;
+    g_focus_sink_ud = ud;
+}
+
 int input_init(tgs_backend *backend)
 {
     g_backend = backend;
@@ -146,6 +155,10 @@ void input_poll(void)
         case SDL_WINDOWEVENT:
             if (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED && g_resize_sink)
                 g_resize_sink(ev.window.data1, ev.window.data2, g_resize_sink_ud);
+            else if (ev.window.event == SDL_WINDOWEVENT_FOCUS_GAINED && g_focus_sink)
+                g_focus_sink(1, g_focus_sink_ud);
+            else if (ev.window.event == SDL_WINDOWEVENT_FOCUS_LOST && g_focus_sink)
+                g_focus_sink(0, g_focus_sink_ud);
             break;
 
         default:
