@@ -35,8 +35,12 @@ Payload fields:
 | 0  | HANDSHAKE    | bidirectional    | Connection setup, capability negotiation |
 | 1  | COMMAND      | app → compositor | Widget tree commands |
 | 2  | RESOURCE     | app → compositor | Binary resources (images) |
-| 3  | FRAMEBUFFER  | compositor → app | Sixel/pixel data |
+| 3  | FRAMEBUFFER  | app → compositor | Client pixel-surface updates |
 | 4  | EVENT        | compositor → app | User input events |
+
+> Stream 3 carries client pixel-surface data (see [`architecture-v2.md`](architecture-v2.md) §4): the
+> client uploads a buffer for a pixel surface. It uses the **binary DCS + length-prefix** framing,
+> not the APC text frame the other streams use. Stream 2 (RESOURCE) stays APC text with base64.
 
 ## Handshake Sequence
 
