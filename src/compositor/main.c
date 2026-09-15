@@ -80,6 +80,49 @@ static void term_mouse_sink(int x, int y, int button, int pressed, void *ud)
     tgs_term_mouse(g_term, x / cw, y / ch, button + 1, pressed);
 }
 
+/* Resize. The window changed, so the display, the grid and the program all have
+ * to change with it. TIOCSWINSZ is what tells the program — the kernel raises
+ * SIGWINCH on the slave's foreground group itself. */
+static tgs_backend *g_be;
+static tgs_display *g_disp;
+
+static void term_resize_to(int w, int h)
+{
+    struct winsize ws;
+    int cols, rows;
+
+    if (w < 1 || h < 1 || !g_term || !g_be) return;
+
+    g_be->set_size(w, h);                        /* LVGL display + draw buffer */
+    if (output_resize(g_disp, w, h) < 0) return; /* fixed-size surface: leave it */
+
+    cols = w / tgs_term_view_cell_w();
+    rows = h / tgs_term_view_cell_h();
+    if (cols < 1 || rows < 1) return;
+
+    tgs_term_resize(g_term, cols, rows);
+
+    /* The canvas buffer is sized to the grid, so the view is rebuilt. The
+     * terminal is already resized above: a canvas that fails to allocate costs
+     * a repaint, not the program's idea of how big it is. */
+    if (g_term_view) {
+        tgs_term_view_destroy(g_term_view);
+        g_term_view = NULL;
+    }
+    g_term_view = tgs_term_view_create(cols, rows);
+
+    memset(&ws, 0, sizeof(ws));
+    ws.ws_col = (unsigned short)cols;
+    ws.ws_row = (unsigned short)rows;
+    if (g_master_fd >= 0) ioctl(g_master_fd, TIOCSWINSZ, &ws);
+}
+
+static void term_resize_sink(int w, int h, void *ud)
+{
+    (void)ud;
+    term_resize_to(w, h);
+}
+
 /* Debug aid: dump the character grid as text (TGS_TERM_DUMP=<path>). When the
  * picture and the bytes disagree, the grid is the arbitration artifact. */
 static void term_dump(void)
@@ -281,7 +324,10 @@ int main(int argc, char *argv[])
         g_master_fd = master_fd;
         g_wm = &wm;
         input_set_key_sink(term_key_sink, NULL);
+        g_be = be;
+        g_disp = &disp;
         input_set_mouse_sink(term_mouse_sink, NULL);
+        input_set_resize_sink(term_resize_sink, NULL);
     }
 
     /* Main poll loop */

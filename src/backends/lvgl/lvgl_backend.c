@@ -328,8 +328,30 @@ static void backend_render(void)
 
 static void backend_set_size(int w, int h)
 {
-    if (disp)
-        lv_display_set_resolution(disp, w, h);
+    uint8_t *nb;
+
+    if (!disp || w < 1 || h < 1) return;
+    if (g_display && w == g_display->width && h == g_display->height) return;
+
+    /* The draw buffer is published as the framebuffer, so it must be replaced
+     * together with the resolution — LVGL would otherwise paint a w x h screen
+     * through a buffer sized for the old one. */
+    nb = (uint8_t *)malloc((size_t)w * (size_t)h * 4u);
+    if (!nb) return;
+
+    lv_display_set_buffers(disp, nb, NULL, (uint32_t)((size_t)w * (size_t)h * 4u),
+                           LV_DISPLAY_RENDER_MODE_DIRECT);
+    lv_display_set_resolution(disp, w, h);
+
+    free(draw_buf);
+    draw_buf = nb;
+
+    if (g_display) {
+        g_display->width  = w;
+        g_display->height = h;
+        g_display->stride = w * 4;
+        g_display->buffer = nb;
+    }
 }
 
 /* ---- Windows ---- */

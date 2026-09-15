@@ -25,7 +25,7 @@ int output_init(tgs_display *d, int width, int height)
         "TGS",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         width, height,
-        0);
+        SDL_WINDOW_RESIZABLE);
     if (!win) {
         fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError());
         SDL_Quit();
@@ -77,6 +77,27 @@ int output_init(tgs_display *d, int width, int height)
     d->buffer      = NULL; /* LVGL provides the buffer */
     d->backend_priv = priv;
 
+    return 0;
+}
+
+int output_resize(tgs_display *d, int width, int height)
+{
+    sdl_priv *priv = (sdl_priv *)d->backend_priv;
+    SDL_Texture *tex;
+
+    if (!priv || width < 1 || height < 1) return -1;
+    if (width == d->width && height == d->height) return 0;
+
+    tex = SDL_CreateTexture(priv->renderer, SDL_PIXELFORMAT_ARGB8888,
+                            SDL_TEXTUREACCESS_STREAMING, width, height);
+    if (!tex) return -1;
+
+    SDL_DestroyTexture(priv->texture);
+    priv->texture = tex;
+
+    d->width  = width;
+    d->height = height;
+    d->stride = width * 4;
     return 0;
 }
 

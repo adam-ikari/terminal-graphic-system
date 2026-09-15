@@ -19,6 +19,11 @@ void input_set_key_sink(tgs_input_key_sink sink, void *ud);
 typedef void (*tgs_input_mouse_sink)(int x, int y, int button, int pressed, void *ud);
 void input_set_mouse_sink(tgs_input_mouse_sink sink, void *ud);
 
+/* The window changed size. What that means for the grid, the display and the
+ * program is the compositor's call, so the backend only reports it. */
+typedef void (*tgs_input_resize_sink)(int w, int h, void *ud);
+void input_set_resize_sink(tgs_input_resize_sink sink, void *ud);
+
 int  input_init(tgs_backend *backend);
 void input_poll(void);
 void input_cleanup(void);

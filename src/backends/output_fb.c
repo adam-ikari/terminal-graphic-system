@@ -175,6 +175,15 @@ void output_present(tgs_display *d)
     }
 }
 
+int output_resize(tgs_display *d, int width, int height)
+{
+    /* A framebuffer panel has exactly one size; there is nothing to change. */
+    (void)d;
+    (void)width;
+    (void)height;
+    return -1;
+}
+
 void output_cleanup(tgs_display *d)
 {
     fb_priv *priv = d->backend_priv;

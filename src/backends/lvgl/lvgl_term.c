@@ -308,3 +308,16 @@ void tgs_term_view_draw(lv_obj_t *view, const tgs_term *t)
     lv_canvas_finish_layer(view, &layer);
     lv_obj_invalidate(view);
 }
+
+void tgs_term_view_destroy(lv_obj_t *view)
+{
+    term_view *tv;
+
+    if (!view) return;
+    tv = (term_view *)lv_obj_get_user_data(view);
+    if (tv) {
+        lv_free(tv->buf);
+        lv_free(tv);
+    }
+    lv_obj_delete(view);
+}

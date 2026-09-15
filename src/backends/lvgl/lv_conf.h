@@ -11,8 +11,11 @@
 /*============================================================================
  * MEMORY & STDLIB
  *============================================================================*/
-#define LV_USE_STDLIB_MALLOC   LV_STDLIB_BUILTIN
-#define LV_USE_STDLIB_STRING  LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_MALLOC   LV_STDLIB_CLIB  /* a compositor's canvas scales
+                                                * with the window; a fixed pool
+                                                * would cap it and fail the
+                                                * allocation silently. */
+#define LV_USE_STDLIB_STRING   LV_STDLIB_BUILTIN
 #define LV_USE_STDLIB_SPRINTF LV_STDLIB_BUILTIN
 
 #define LV_MEM_SIZE (4 * 1024 * 1024)  /* 4 MB pool */

@@ -19,6 +19,11 @@ typedef struct {
 
 int  output_init(tgs_display *d, int width, int height);
 void output_present(tgs_display *d);
+
+/* Resize the surface the backend presents. A backend whose surface has one
+ * fixed size (an embedded panel) returns -1, and the caller then leaves the
+ * display as it is. */
+int  output_resize(tgs_display *d, int width, int height);
 void output_cleanup(tgs_display *d);
 
 #endif /* TGS_OUTPUT_H */

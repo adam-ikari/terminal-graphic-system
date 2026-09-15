@@ -47,6 +47,15 @@ void input_set_key_sink(tgs_input_key_sink sink, void *ud)
     g_key_sink_ud = ud;
 }
 
+static tgs_input_resize_sink g_resize_sink;
+static void *g_resize_sink_ud;
+
+void input_set_resize_sink(tgs_input_resize_sink sink, void *ud)
+{
+    g_resize_sink = sink;
+    g_resize_sink_ud = ud;
+}
+
 int input_init(tgs_backend *backend)
 {
     g_backend = backend;
@@ -133,6 +142,11 @@ void input_poll(void)
             }
             break;
         }
+
+        case SDL_WINDOWEVENT:
+            if (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED && g_resize_sink)
+                g_resize_sink(ev.window.data1, ev.window.data2, g_resize_sink_ud);
+            break;
 
         default:
             break;
