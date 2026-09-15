@@ -12,6 +12,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+/* The clipboard is the one thing this backend reaches SDL for directly; input
+ * and display go through the input and output backends. */
+#ifdef TGS_USE_SDL
+#include <SDL2/SDL.h>
+#endif
+
 #include "output.h"
 
 /* Display buffer pointer — set via lvgl_backend_set_display(). */
@@ -868,7 +875,27 @@ static void kb_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     }
 }
 
-/* ---- Registration ---- */
+/* The clipboard, where the platform has one. SDL owns the string it hands back,
+ * so this keeps it alive until the next call rather than making every caller
+ * free it. */
+static const char *backend_clipboard_text(void)
+{
+#ifdef TGS_USE_SDL
+    static char *held;
+
+    if (held) {
+        SDL_free(held);
+        held = NULL;
+    }
+    if (!SDL_HasClipboardText()) return NULL;
+
+    held = SDL_GetClipboardText();
+    return (held && held[0]) ? held : NULL;
+#else
+    return NULL;
+#endif
+}
+
 
 static tgs_backend lvgl_backend = {
     .user_data            = NULL,
@@ -895,6 +922,7 @@ static tgs_backend lvgl_backend = {
     .focus_dir            = backend_focus_dir,
     .set_widget_focusable = backend_set_widget_focusable,
     .set_nav_key_cb       = backend_set_nav_key_cb,
+    .clipboard_text       = backend_clipboard_text,
 };
 
 void lvgl_backend_register(void)

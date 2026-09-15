@@ -80,6 +80,10 @@ struct tgs_backend {
     void *(*focus_dir)(void *from, void **candidates, int count, tgs_nav_dir dir);
     void  (*set_widget_focusable)(void *handle, int focusable);
     void  (*set_nav_key_cb)(tgs_nav_key_cb cb, void *user_data);
+
+    /* The clipboard's text, or NULL when there is none. The backend owns the
+     * storage and keeps it valid until the next call, so callers never free it. */
+    const char *(*clipboard_text)(void);
 };
 
 /* Register a backend (replaces previous). */

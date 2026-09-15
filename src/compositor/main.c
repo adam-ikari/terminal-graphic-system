@@ -38,6 +38,8 @@ static tgs_term   *g_term;
 static lv_obj_t   *g_term_view;
 static int         g_master_fd = -1;
 static window_manager *g_wm;
+static tgs_backend *g_be;
+static tgs_display *g_disp;
 
 static void term_text_cb(const uint8_t *data, int len, void *ud)
 {
@@ -68,6 +70,16 @@ static void term_key_sink(int key, int mods, int pressed, void *ud)
         return;
     }
 
+    /* Ctrl+Shift+V pastes: the clipboard belongs to the terminal, and the
+     * program receives it as text — wrapped, if it asked for bracketed paste. */
+    if ((mods & 0x03) == 0x03 && (key == 'v' || key == 'V')) {
+        const char *text = (g_be && g_be->clipboard_text)
+                               ? g_be->clipboard_text()
+                               : NULL;
+        if (text) tgs_term_paste(g_term, text, (int)strlen(text));
+        return;
+    }
+
     tgs_term_key(g_term, key, mods);
 }
 
@@ -91,8 +103,6 @@ static void term_mouse_sink(int x, int y, int button, int pressed, void *ud)
 /* Resize. The window changed, so the display, the grid and the program all have
  * to change with it. TIOCSWINSZ is what tells the program — the kernel raises
  * SIGWINCH on the slave's foreground group itself. */
-static tgs_backend *g_be;
-static tgs_display *g_disp;
 
 static void term_resize_to(int w, int h)
 {

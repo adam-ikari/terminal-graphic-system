@@ -56,6 +56,11 @@ void tgs_term_mouse(tgs_term *t, int col, int row, int button, int pressed);
  * the program asked for focus reporting (CSI ?1004h). */
 void tgs_term_focus(tgs_term *t, int focused);
 
+/* Paste text into the program. It goes through as text rather than keystrokes,
+ * and a program that asked for bracketed paste (CSI ?2004h) receives it wrapped
+ * so it can tell pasted text from typing. */
+void tgs_term_paste(tgs_term *t, const char *text, int len);
+
 /* Scrollback — the lines that have scrolled off the top.
  *
  * The viewport is the live screen at offset 0 and history at any larger offset;

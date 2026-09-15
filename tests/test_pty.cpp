@@ -433,3 +433,43 @@ TEST(Pty, the_terminal_sees_eof_when_the_program_exits)
 
     teardown(p);
 }
+
+/* --- paste is text, and bracketed paste says so ---------------------------- */
+TEST(Pty, paste_reaches_the_program_bracketed_when_it_asked)
+{
+    Pty p;
+    /* cat -v echoes what actually arrived, escapes and all. */
+    spawn(p, "printf '\\033[?2004h'; printf READY; cat -v", 24, 4);
+    ASSERT_TRUE(pump_until(p, "READY", 2000));
+
+    tgs_term_paste(p.term, "hello", 5);
+
+    EXPECT_TRUE(pump_until(p, "hello", 2000));
+    /* The markers are the contract: they are what lets a program tell pasted
+     * text from typing. */
+    EXPECT_NE(p.sent.find("\x1b[200~"), std::string::npos)
+        << "no bracketed-paste start";
+    EXPECT_NE(p.sent.find("\x1b[201~"), std::string::npos)
+        << "no bracketed-paste end";
+    EXPECT_NE(p.sent.find("hello"), std::string::npos);
+    /* Nothing precedes the start marker: the payload is not encoded as keys. */
+    EXPECT_EQ(p.sent.find('\x1b'), p.sent.find("\x1b[200~"));
+
+    teardown(p);
+}
+
+TEST(Pty, paste_is_unwrapped_when_the_program_did_not_ask)
+{
+    Pty p;
+    spawn(p, "printf READY; cat -v", 24, 4);
+    ASSERT_TRUE(pump_until(p, "READY", 2000));
+
+    tgs_term_paste(p.term, "hello", 5);
+
+    EXPECT_TRUE(pump_until(p, "hello", 2000));
+    EXPECT_EQ(p.sent.find("\x1b[200~"), std::string::npos)
+        << "wrapped a paste the program never asked to have wrapped";
+    EXPECT_EQ(p.sent, "hello");
+
+    teardown(p);
+}

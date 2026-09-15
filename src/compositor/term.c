@@ -448,3 +448,17 @@ const tgs_term_cell *tgs_term_view_line(const tgs_term *t, int row)
     if (idx >= t->rows) return NULL;
     return &t->cells[(size_t)idx * (size_t)t->cols];
 }
+
+void tgs_term_paste(tgs_term *t, const char *text, int len)
+{
+    if (!t || !text || len <= 0) return;
+
+    /* Paste is text, not keystrokes: no key encoding, and a newline inside the
+     * payload stays a newline rather than becoming Enter. A program that asked
+     * for bracketed paste receives it wrapped so it can tell pasting from
+     * typing — libvterm emits the markers, and emits nothing when the program
+     * never asked. */
+    vterm_keyboard_start_paste(t->vt);
+    if (t->reply_cb) t->reply_cb(text, len, t->reply_ud);
+    vterm_keyboard_end_paste(t->vt);
+}
