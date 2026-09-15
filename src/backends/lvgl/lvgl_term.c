@@ -235,6 +235,15 @@ lv_obj_t *tgs_term_view_create(int cols, int rows)
     if (!tv->buf) { lv_free(tv); return NULL; }
     memset(tv->buf, 0, (size_t)w * (size_t)h * 4u);
 
+    /* A whole number of cells rarely fills the window, and the margin left over
+     * belongs to the terminal, not to the theme (which would show as a bright
+     * band under the last row). */
+    {
+        lv_obj_t *scr = lv_screen_active();
+        lv_obj_set_style_bg_color(scr, lv_color_hex(DEF_BG & 0x00FFFFFFu), 0);
+        lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+    }
+
     canvas = lv_canvas_create(lv_screen_active());
     if (!canvas) { lv_free(tv->buf); lv_free(tv); return NULL; }
 
