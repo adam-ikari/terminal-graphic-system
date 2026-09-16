@@ -103,7 +103,13 @@ static int find_apc_frame(char *payload, int payload_size)
 }
 
 
-/* Read data from stdin with timeout */
+/* Read more of the frame stream from stdin.
+ *
+ * Returns the number of bytes read (>0) when data arrived; 0 when the poll
+ * expired with nothing to read; -1 on a real failure or EOF (the compositor
+ * closed the stream). The previous version folded HUP into "timeout" (return
+ * 0), which made a finite-timeout poll_event unable to tell a quiet period
+ * from a broken connection and report both as -1. */
 static int read_stdin_timeout(int timeout_ms)
 {
     struct pollfd pfd;
@@ -113,8 +119,10 @@ static int read_stdin_timeout(int timeout_ms)
     pfd.events = POLLIN;
     pfd.revents = 0;
 
-    if (poll(&pfd, 1, timeout_ms) <= 0) return 0;
-    if (!(pfd.revents & POLLIN)) return 0;
+    n = poll(&pfd, 1, timeout_ms);
+    if (n < 0) return -1;                 /* poll error */
+    if (n == 0) return 0;                 /* timed out: nothing to read */
+    if (!(pfd.revents & POLLIN)) return -1;  /* HUP/ERR/NVAL: the stream is over */
 
     n = (int)read(STDIN_FILENO, input_buf + input_len,
                   (size_t)(INPUT_BUF_SIZE - input_len));
@@ -501,10 +509,11 @@ int tgs_client_poll_event(tgs_event *ev, int timeout_ms)
             }
         }
 
-        /* No complete frame; read more data */
-        if (read_stdin_timeout(timeout_ms) < 0) return -1;
-        /* Timeout with no data */
-        if (input_len == 0) return -1;
+        /* No complete frame yet; read more. */
+        int r = read_stdin_timeout(timeout_ms);
+        if (r < 0) return -1;          /* the stream ended or failed */
+        if (r == 0) return 1;          /* nothing arrived within the timeout: no event */
+        /* data arrived; loop to scan it for a frame */
     }
 }
 

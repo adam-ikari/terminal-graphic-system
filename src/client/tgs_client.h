@@ -47,6 +47,10 @@ int  tgs_client_destroy_widget(int id);
 int  tgs_client_bind_event(int widget_id, tgs_event_type event);
 int  tgs_client_destroy_window(int win_id);
 void tgs_client_shutdown(void);
+/* Wait for an event. With a blocking timeout (-1) this returns 0 once *ev is
+ * filled and -1 when the compositor connection ends. With a finite timeout:
+ * 0 = an event arrived (ev filled), 1 = the timeout expired with no event,
+ * -1 = the connection ended or failed. */
 int  tgs_client_poll_event(tgs_event *ev, int timeout_ms);
 const char *tgs_client_get_widget_text(int widget_id);
 

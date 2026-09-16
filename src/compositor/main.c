@@ -396,6 +396,7 @@ int main(int argc, char *argv[])
 
         if (fds[0].revents & (POLLHUP | POLLERR)) break;
 
+
         /* IME app output */
         if (ime_master_fd >= 0 && (fds[1].revents & POLLIN)) {
             ssize_t n = read(ime_master_fd, rbuf, sizeof(rbuf));

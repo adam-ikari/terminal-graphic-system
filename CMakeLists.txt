@@ -233,6 +233,12 @@ add_executable(render_demo
 )
 target_link_libraries(render_demo PRIVATE tgs_lvgl_backend tgs_common)
 
+# char_and_graphics — L1: one program printing characters and opening widgets
+add_executable(char_and_graphics
+    examples/char_and_graphics.c
+)
+target_link_libraries(char_and_graphics PRIVATE tgs_client)
+
 # ime_app — IME engine (separate TGS app)
 add_executable(ime_app
     examples/ime_app.c
