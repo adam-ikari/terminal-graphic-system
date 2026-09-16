@@ -44,7 +44,18 @@ int read_frame(int fd, std::string &payload, int timeout_ms)
             if (n <= 0) return -1;
             buf.append(tmp, (size_t)n);
             size_t start = buf.find("\x1b_");
-            if (start == std::string::npos) { buf.clear(); continue; }
+            if (start == std::string::npos) {
+                /* No frame header yet. Drop everything except a lone trailing
+                 * ESC (0x1b): a read() can split the 2-byte ESC_ header across
+                 * calls, and discarding that byte would orphan the next read's
+                 * '_' and lose the frame. */
+                size_t esc = buf.rfind('\x1b');
+                if (esc != std::string::npos && esc + 1 == buf.size())
+                    buf.erase(0, esc);
+                else
+                    buf.clear();
+                continue;
+            }
             size_t end = buf.find("\x1b\\", start + 2);
             if (end == std::string::npos) continue;
             payload = buf.substr(start + 2, end - start - 2);
@@ -133,4 +144,41 @@ TEST(L1Client, stays_alive_during_a_quiet_poll)
 
     EXPECT_TRUE(alive) << "client exited during a quiet poll — "
                           "tgs_client_poll_event treated a timeout as a failure";
+}
+
+/* read_frame must not lose a frame when the 2-byte ESC_ header is split across
+ * reads. The naive "clear the buffer if no header found" drops a trailing lone
+ * ESC, orphaning the next read's '_' and losing the frame forever — a silent
+ * byte-loss bug in the harness itself, not the code under test. */
+TEST(L1Client, read_frame_reassembles_a_split_ESC_header)
+{
+    int pfd[2];
+    ASSERT_EQ(pipe(pfd), 0);
+
+    /* Feed the frame one byte at a time so every read() sees a partial frame,
+     * including the moment the buffer ends on a lone '\x1b' (start of ESC_). */
+    std::string frame = "\x1b_TGS;1;0;10;HELLO\x1b\\";
+
+    pid_t wpid = fork();
+    ASSERT_GE(wpid, 0);
+    if (wpid == 0) {
+        close(pfd[0]);
+        for (char c : frame) {
+            ssize_t n = write(pfd[1], &c, 1);  /* deliberately split */
+            (void)n;
+            usleep(5000);
+        }
+        close(pfd[1]);
+        _exit(0);
+    }
+    close(pfd[1]);
+
+    std::string payload;
+    int len = read_frame(pfd[0], payload, 2000);
+    close(pfd[0]);
+    int st;
+    waitpid(wpid, &st, 0);
+
+    EXPECT_GT(len, 0) << "read_frame lost a frame whose ESC_ header was split";
+    EXPECT_EQ(payload, "TGS;1;0;10;HELLO");
 }
