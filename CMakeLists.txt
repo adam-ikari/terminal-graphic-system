@@ -248,19 +248,21 @@ target_link_libraries(ime_app PRIVATE tgs_client)
 # Google Test
 add_subdirectory(deps/googletest)
 
-# Tests
 add_executable(tgs_tests
     tests/test_frame.cpp
-    tests/test_protocol.cpp
     tests/test_nav.cpp
+    tests/test_protocol.cpp
     tests/test_term.cpp
     tests/test_pty.cpp
     tests/test_snapshot.cpp
+    tests/test_l1.cpp
 )
 target_compile_definitions(tgs_tests PRIVATE
     TGS_SNAPSHOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/snapshots")
 target_link_libraries(tgs_tests PRIVATE tgs_common tgs_compositor gtest gtest_main util)
 add_test(NAME tgs_tests COMMAND tgs_tests)
+set_tests_properties(tgs_tests PROPERTIES
+    ENVIRONMENT "CHAR_AND_GRAPHICS=$<TARGET_FILE:char_and_graphics>")
 
 # letter_probe — does lv_draw_letter rasterise into a canvas layer?
 add_executable(letter_probe
