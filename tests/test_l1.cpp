@@ -103,16 +103,27 @@ TEST(L1Client, stays_alive_during_a_quiet_poll)
     ASSERT_GT(read_frame(from_child[0], payload, 3000), 0)
         << "no CREATE_WIDGET from the client";
 
-    /* The client is now in its poll loop: `poll_event(&ev, 500)` in a loop,
-     * breaking when it returns < 0. The fake compositor sends nothing. A
-     * correct client stays alive — a quiet timeout is "no event", not a broken
-     * connection. The buggy client turned the timeout into -1, broke the loop
-     * and exited. Wait past one poll timeout, then reap-probe: kill(pid,0)
-     * cannot tell a running child from a zombie, so use waitpid(WNOHANG). */
+    /* The client is now in its poll loop: `poll_event(&ev, 500)` in a `for(;;)`
+     * that breaks when the call returns < 0. The fake compositor sends nothing
+     * further. A correct client stays alive — a quiet timeout is "no event"
+     * (returns 1), not a broken connection. The buggy client folded the quiet
+     * timeout into -1, broke the loop and exited.
+     *
+     * Poll for the child's death rather than sleeping a fixed span: the poll
+     * timeout inside the client is 500 ms, so a buggy exit lands ~500 ms after
+     * the handshake. A deadline-driven probe catches the exit whenever it
+     * happens within the window; a fixed sleep could be too short on a loaded
+     * box (false green) or just barely long enough (flaky). */
     int status = 0;
-    sleep(1);
-    pid_t reaped = waitpid(pid, &status, WNOHANG);
-    bool alive = (reaped == 0);           /* 0 = still running, not yet changed */
+    bool alive = true;
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+    while (std::chrono::steady_clock::now() < deadline) {
+        pid_t reaped = waitpid(pid, &status, WNOHANG);  /* reap-probe: kill(pid,0)
+                                                         * cannot tell a running
+                                                         * child from a zombie */
+        if (reaped == pid) { alive = false; break; }    /* child exited in the window */
+        usleep(50 * 1000);
+    }
 
     if (alive)
         kill(pid, SIGTERM);
