@@ -114,6 +114,11 @@ static void term_resize_to(int w, int h)
     g_be->set_size(w, h);                        /* LVGL display + draw buffer */
     if (output_resize(g_disp, w, h) < 0) return; /* fixed-size surface: leave it */
 
+    /* The display really is w×h now — keep the compositor's cached size in
+     * sync so a later WIN_CREATE's NTF_RESIZE reports the live dimensions,
+     * not the init-time ones (D1). */
+    wm_set_display_size(g_wm, w, h);
+
     cols = w / tgs_term_view_cell_w();
     rows = h / tgs_term_view_cell_h();
     if (cols < 1 || rows < 1) return;
@@ -325,8 +330,7 @@ int main(int argc, char *argv[])
     }
 
     wm_init(&wm, be, master_fd, ime_master_fd);
-    wm.disp_w = disp.width;
-    wm.disp_h = disp.height;
+    wm_set_display_size(&wm, disp.width, disp.height);
 
     be->set_event_callback(wm_backend_event, &wm);
 

@@ -14,16 +14,19 @@ The design below is a delta against this reality. Facts verified against the wor
 
 | Fact | Evidence |
 |---|---|
-| The LVGL backend creates **one** group for the whole compositor; every non-container widget is added to it, focusable or not | `src/backends/lvgl/lvgl_backend.c:206`, `:280` |
+| Each window owns a **distinct LVGL root and group** (ring wrap on); ring membership is installed by the compositor, widgets are never silently enrolled | `src/backends/lvgl/lvgl_backend.c:379-409`, `:607` |
 | `lv_group_set_default()` is never called | no occurrence in `src/` |
-| That group is attached to the single KEYPAD indev | `src/backends/lvgl/lvgl_backend.c:207-210` |
-| `TGS_CMD_NTF_FOCUS` (65) is declared but **never emitted** | `grep -rn TGS_CMD_NTF_FOCUS src/` → header only |
-| Focus reaches the app only as `EVT_FOCUS` (83) with payload `[win_id, widget_id, focused]`, `reason` does not exist | `src/compositor/window_manager.c:388-399`, `src/client/tgs_client.c:421-430` |
-| The compositor does not track focus at all; `win_id` for every event is hardcoded to `window_map[0]` | `src/compositor/window_manager.c:360-364` |
+| The single KEYPAD indev is pointed at the **active** window's group; `set_active_window()` swaps it | `src/backends/lvgl/lvgl_backend.c:631-637` |
+| `TGS_CMD_NTF_FOCUS` (65) is **emitted** by `emit_focus()` with `[win_id, widget_id, focused, reason]` | `src/compositor/window_manager.c:35-54` |
+| Focus reaches the app as `NTF_FOCUS` (65) `[win_id, widget_id, focused, reason]`; `EVT_FOCUS` (83) is retired and never sent | `src/common/tgs_protocol.h:48`, `:60`, `src/client/tgs_client.c:498-513` |
+| The compositor tracks focus per window and every event carries the real `win_id` and `reason` | `src/compositor/window_manager.c:108-114` |
 | Key codes arriving from SDL: TAB=9, ESC=27, arrows=**1000-1003**, HOME=1004, END=1005, PAGEUP=1006, PAGEDOWN=1007 | `src/backends/input_sdl.c` |
-| `map_tgs_key()` maps arrows from **1-4**, so SDL arrow codes 1000-1003 fall through to `default` and reach LVGL unmatched | `src/backends/lvgl/lvgl_backend.c:43-57` |
-| Modifiers are dropped: `input_sdl.c` always injects `mods = 0`, so Shift+Tab cannot be distinguished | `src/backends/input_sdl.c:73-74`, `src/common/tgs_backend.h` (`inject_key(key, mods, pressed)`) |
-| `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:153` |
+| `map_tgs_key()` maps arrows **1000-1003** (Home/End/PgUp/PgDn likewise) to LVGL key codes, and Tab/Shift+Tab to NEXT/PREV | `src/backends/lvgl/lvgl_backend.c:108-111`, `:121-137` |
+| Modifiers are carried: `input_sdl.c` computes SHIFT/CTRL/ALT via `sdl_mods()` and passes them to `inject_key()` | `src/backends/input_sdl.c:78-85`, `:150-155`, `src/common/tgs_backend.h` |
+| `EVT_BIND` (36) is a real per-widget subscription gate for the notification events: CLICK/VALUE reach the app only for a widget that bound them (all-off default); KEY is input transport and always reaches the focused app, bound or not; binding one widget does not affect others; focus (`NTF_FOCUS`) is never gated | `src/compositor/window_manager.c:704-727`, `:814-827`, `:225-228` |
+| `wm->disp_w/h` track the live display size (set at init and on every resize); `NTF_RESIZE` reports them at `WIN_CREATE` | `src/compositor/window_manager.c:343-352`, `src/compositor/main.c:114-120`, `:332-333` |
+| The LVGL window root sits at 0,0 with zero padding and border, so compositor pixels == widget coordinates for hit-testing | `src/backends/lvgl/lvgl_backend.c:393-402` |
+| `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:156` |
 | LVGL version 9.6.0 | `deps/lvgl/include/lvgl/lv_version.h:9-11` |
 
 Two consequences drive the design: (1) focus needs an **authority** (today nobody has one), and (2) the key-code space and the Shift modifier must be fixed before any navigation binding can work.

@@ -342,7 +342,8 @@ TEST_F(L2Focus, ArrowPrecedence) {
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 (button) */
 
     /* Button does not consume arrows → nav_dir_move; fake focus_dir = NULL →
-     * residual forward_key → EVT_KEY with the raw arrow code. */
+     * residual forward_key → EVT_KEY with the raw arrow code. KEY is input
+     * transport: it arrives without any EVT_BIND (D6). */
     EXPECT_EQ(nav(KEY_LEFT, 0, 1), TGS_NAV_CONSUMED);
     tgs_frame ek = expect_cmd(TGS_CMD_EVT_KEY);
     ASSERT_EQ(ek.num_args, 4);
@@ -364,11 +365,18 @@ TEST_F(L2Focus, ArrowPrecedence) {
     EXPECT_LT(read_frame(pty_rd, p, 120), 0);
 }
 
-/* 5. EVT_KEY / EVT_CLICK delivered to the client as EVT_* frames. */
+/* 5. EVT_KEY / EVT_CLICK delivered to the client as EVT_* frames. KEY needs
+ *    no binding (input transport); CLICK is gated by EVT_BIND (D6). */
 TEST_F(L2Focus, BackendEventsDelivered) {
     void *h10 = mk_widget(10, 1, "button");
     ASSERT_NE(h10, nullptr);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
+
+    /* Subscribe the widget to CLICK (all-off default for the subscription
+     * notifications). KEY needs no bind — it is input transport. */
+    tgs_frame bf;
+    mkframe(bf, TGS_CMD_EVT_BIND, {"10", std::to_string(TGS_EVENT_CLICK)});
+    wm_handle_frame(&bf, &wm);
 
     /* Simulate LVGL reporting a key event on the focused widget. */
     g_event_cb(h10, TGS_EVENT_KEY, "97;0", g_event_ud);
@@ -385,6 +393,70 @@ TEST_F(L2Focus, BackendEventsDelivered) {
     ASSERT_EQ(ec.num_args, 2);
     EXPECT_EQ(atoi(ec.args[0]), 1);
     EXPECT_EQ(atoi(ec.args[1]), 10);
+}
+
+/* 5a. D1: wm->disp_w/h track the live display size, so NTF_RESIZE (sent at
+ * WIN_CREATE) reports the current dimensions — not the init-time ones. */
+TEST_F(L2Focus, ResizeReportsLiveDisplaySize) {
+    /* SetUp wired 800x600; simulate the terminal resizing to 1024x768. */
+    wm_set_display_size(&wm, 1024, 768);
+
+    tgs_frame f;
+    mkframe(f, TGS_CMD_WIN_CREATE, {"2", "0", "T2"});
+    wm_handle_frame(&f, &wm);
+    tgs_frame nr = expect_cmd(TGS_CMD_NTF_RESIZE);
+    ASSERT_EQ(nr.num_args, 5);
+    EXPECT_EQ(atoi(nr.args[0]), 2);            /* win */
+    EXPECT_EQ(atoi(nr.args[1]), 0);            /* x */
+    EXPECT_EQ(atoi(nr.args[2]), 0);            /* y */
+    EXPECT_EQ(atoi(nr.args[3]), 1024);         /* w */
+    EXPECT_EQ(atoi(nr.args[4]), 768);          /* h */
+}
+
+/* 5b. D6: EVT_BIND is a real per-widget subscription — CLICK/VALUE are
+ * delivered only to a widget that bound them (all-off default), and a binding
+ * gates only its own widget. KEY is input transport: it always arrives, bound
+ * or not. Focus (NTF_FOCUS) is never gated. */
+TEST_F(L2Focus, EventBindingGatesDelivery) {
+    void *h10 = mk_widget(10, 1, "button");
+    ASSERT_NE(h10, nullptr);
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
+    std::string p;
+
+    /* All-off default for subscriptions: unbound CLICK/VALUE are silent,
+     * while KEY — input transport — is delivered regardless of binding. */
+    g_event_cb(h10, TGS_EVENT_CLICK, nullptr, g_event_ud);
+    g_event_cb(h10, TGS_EVENT_VALUE_CHANGED, "42", g_event_ud);
+    EXPECT_LT(read_frame(pty_rd, p, 120), 0);
+    g_event_cb(h10, TGS_EVENT_KEY, "97;0", g_event_ud);
+    tgs_frame ek = expect_cmd(TGS_CMD_EVT_KEY);
+    EXPECT_EQ(atoi(ek.args[1]), 10);
+    EXPECT_EQ(atoi(ek.args[2]), 97);
+
+    /* Bind CLICK: the click now flows; VALUE stays silent. */
+    tgs_frame bf;
+    mkframe(bf, TGS_CMD_EVT_BIND, {"10", std::to_string(TGS_EVENT_CLICK)});
+    wm_handle_frame(&bf, &wm);
+    g_event_cb(h10, TGS_EVENT_CLICK, nullptr, g_event_ud);
+    tgs_frame ec = expect_cmd(TGS_CMD_EVT_CLICK);
+    EXPECT_EQ(atoi(ec.args[1]), 10);
+
+    /* VALUE is gated the same way. */
+    g_event_cb(h10, TGS_EVENT_VALUE_CHANGED, "42", g_event_ud);
+    EXPECT_LT(read_frame(pty_rd, p, 120), 0);
+    mkframe(bf, TGS_CMD_EVT_BIND,
+            {"10", std::to_string(TGS_EVENT_VALUE_CHANGED)});
+    wm_handle_frame(&bf, &wm);
+    g_event_cb(h10, TGS_EVENT_VALUE_CHANGED, "42", g_event_ud);
+    tgs_frame ev = expect_cmd(TGS_CMD_EVT_VALUE);
+    EXPECT_EQ(atoi(ev.args[1]), 10);
+    EXPECT_STREQ(ev.args[2], "42");
+
+    /* Binding widget 10 does not open widget 20's events. */
+    void *h20 = mk_widget(20, 1, "button");
+    ASSERT_NE(h20, nullptr);
+    g_event_cb(h20, TGS_EVENT_CLICK, nullptr, g_event_ud);
+    EXPECT_LT(read_frame(pty_rd, p, 120), 0);
 }
 
 /* 6. Character output is not lost when a window exists: the stream demuxer

@@ -393,6 +393,13 @@ static void *backend_create_window(tgs_window_type type, const char *title)
         root = lv_obj_create(lv_screen_active());
         lv_obj_set_pos(root, 0, 0);
         lv_obj_set_size(root, LV_PCT(100), LV_PCT(100));
+        /* The root is the coordinate origin the compositor's pixel space maps
+         * 1:1 onto: children's rects (set_widget_rect) are absolute screen
+         * pixels. The default theme's card style insets the content area by
+         * PAD_DEF plus a border, which would shift every child by that inset
+         * and skew both rendering and hit-testing — zero both (D4). */
+        lv_obj_set_style_pad_all(root, 0, 0);
+        lv_obj_set_style_border_width(root, 0, 0);
         lv_obj_set_style_bg_color(root, lv_color_hex(0x222222), 0);
         /* Default theme text is near-black, which is invisible on the dark
          * window background used above — force a light default so labels

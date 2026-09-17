@@ -32,6 +32,10 @@ typedef struct {
 } window_manager;
 
 void wm_init(window_manager *wm, tgs_backend *backend, int pty_fd, int ime_pty_fd);
+
+/* Update the cached display size (disp_w/disp_h) — call at init and on every
+ * resize; NTF_RESIZE (sent at WIN_CREATE) reports these dimensions. */
+void wm_set_display_size(window_manager *wm, int w, int h);
 void wm_handle_frame(const tgs_frame *frame, void *user_data);
 
 void wm_backend_event(void *widget_handle, tgs_event_type type,

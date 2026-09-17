@@ -222,6 +222,9 @@ static int nav_dir_move(window_manager *wm, nav_window *win, tgs_nav_dir dir)
  * own key handling can swallow it before any app-visible event exists. */
 static void forward_key(window_manager *wm, nav_widget *w, int key, int mods)
 {
+    /* KEY is input transport, not a subscription notification: residual keys
+     * always reach the app, never gated by EVT_BIND (D6). */
+    if (!w) return;
     int target_fd = wm->ime_connected && wm->ime_pty_fd >= 0 &&
                     w->type == TGS_WIDGET_INPUT
                         ? wm->ime_pty_fd
@@ -338,6 +341,17 @@ void wm_init(window_manager *wm, tgs_backend *backend, int pty_fd, int ime_pty_f
 
     nav_init(&wm->nav);
     if (backend->set_nav_key_cb) backend->set_nav_key_cb(wm_nav_key, wm);
+}
+
+/* Keep the compositor's cached display size in sync with the real surface.
+ * Called at init (so NTF_RESIZE at the first WIN_CREATE is correct) and on
+ * every resize (main.c term_resize_to). NTF_RESIZE reports these dimensions
+ * to the app — a stale cache makes every later window report wrong w/h. */
+void wm_set_display_size(window_manager *wm, int w, int h)
+{
+    if (!wm) return;
+    wm->disp_w = w;
+    wm->disp_h = h;
 }
 
 static void send_resize(window_manager *wm, int win_id)
@@ -687,9 +701,31 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         break;
     }
 
-    case TGS_CMD_EVT_BIND:
-        /* Layer 0: all events forwarded, no-op */
+    case TGS_CMD_EVT_BIND: {
+        /* args: [widget_id, event_type] — subscribe one event type on one
+         * widget. The mask gates app delivery of CLICK/VALUE_CHANGED (the
+         * subscription notifications); KEY is input transport and always
+         * reaches the focused app; binding one widget does not affect others.
+         * Focus is NOT gated: NTF_FOCUS (65) is the single focus channel and
+         * never requires a binding (§F.2 — the retired EVT_FOCUS (83) was
+         * the one that "requires EVT_BIND"). */
+        nav_widget *w;
+        int wid, ev;
+
+        if (frame->num_args < 2) break;
+        wid = atoi(frame->args[0]);
+        ev = atoi(frame->args[1]);
+        w = nav_widget_find(&wm->nav, wid);
+        if (!w) {
+            fprintf(stderr, "wm: EVT_BIND ignored — unknown widget %d\n", wid);
+            break;
+        }
+        /* tgs_event_type is a contiguous 0..N enum; anything outside it is
+         * a protocol error, not a bit to set. */
+        if (ev < 0 || ev > (int)TGS_EVENT_IME_COMMIT) break;
+        w->event_mask |= (uint32_t)(1u << ev);
         break;
+    }
 
     case TGS_CMD_SET_FOCUS: {
         /* args: [window_id, widget_id]; 0 clears (§E) */
@@ -773,9 +809,23 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
     window_manager *wm = (window_manager *)user_data;
     nav_widget *w = nav_widget_by_handle(&wm->nav, widget_handle);
     char wid_str[16];
-    char win_str[16];
 
     if (!w) return;
+    /* Subscription gate (D6): CLICK and VALUE_CHANGED are subscription
+     * notifications — they reach the app only when the widget has bound that
+     * event type via EVT_BIND. KEY is input transport and always reaches the
+     * focused app (an input widget must receive keystrokes regardless of
+     * bindings). FOCUS/BLUR are exempt too: they drive NTF_FOCUS, the single
+     * focus channel, which never requires a binding (§F.2). */
+    switch (type) {
+    case TGS_EVENT_CLICK:
+    case TGS_EVENT_VALUE_CHANGED:
+        if (!(w->event_mask & (1u << (unsigned)type))) return;
+        break;
+    default:
+        break;
+    }
+    char win_str[16];
 
     snprintf(wid_str, sizeof(wid_str), "%d", w->id);
     snprintf(win_str, sizeof(win_str), "%d", w->win_id);

@@ -36,6 +36,8 @@ typedef struct {
                                        * the two id spaces can collide */
     void           *handle;         /* backend handle, opaque here */
     tgs_widget_type type;
+    uint32_t        event_mask;    /* EVT_BIND subscriptions: bit i = tgs_event_type i
+                                    * (CLICK/KEY/VALUE gate app delivery; D6) */
     int8_t          attr_focusable; /* -1 = type default (§J.4) */
     int8_t          attr_arrows;    /* -1 = type default */
     int8_t          attr_tab;       /* 0/1 */
