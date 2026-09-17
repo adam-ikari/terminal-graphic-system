@@ -428,6 +428,9 @@ int main(int argc, char *argv[])
             term_dump();
         }
         be->render();
+        /* After the tick has applied LVGL's flex/grid layout, report the real
+         * geometry of any changed layout containers to the app. */
+        wm_flush_geometry(&wm);
 
         /* Present framebuffer */
         output_present(&disp);
