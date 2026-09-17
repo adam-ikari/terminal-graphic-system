@@ -26,12 +26,21 @@ typedef struct {
     int pending_focus;   /* widget the compositor just focused; 0 = none */
     int pending_reason;  /* its reason, echoed by the backend's focus report */
     int consumed_key;    /* key whose press navigation consumed; release to drop */
+    int geom_pending;    /* layout containers changed since last flush: emit
+                          * NTF_GEOMETRY on the next wm_flush_geometry call */
     int consumed_mods;
 } window_manager;
 
 void wm_init(window_manager *wm, tgs_backend *backend, int pty_fd, int ime_pty_fd);
 void wm_handle_frame(const tgs_frame *frame, void *user_data);
+
 void wm_backend_event(void *widget_handle, tgs_event_type type,
                       const char *event_data, void *user_data);
+
+/* Emit NTF_GEOMETRY for every layout container and its direct children, using
+ * the backend's real (post-layout) geometry. No-op unless geometry is pending.
+ * The caller runs it after the backend has ticked, when LVGL has applied
+ * flex/grid layout. */
+void wm_flush_geometry(window_manager *wm);
 
 #endif /* TGS_WINDOW_MANAGER_H */

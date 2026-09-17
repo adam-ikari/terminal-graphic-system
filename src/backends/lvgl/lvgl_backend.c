@@ -901,6 +901,31 @@ static const char *backend_clipboard_text(void)
 #endif
 }
 
+/* Absolute (screen-space) geometry of a widget: walk the parent chain summing
+ * each ancestor's position (a window root sits at 0,0), then read the leaf's
+ * resolved size. Flex/grid positions are applied by lv_timer_handler, so this
+ * is only accurate after a tick — the compositor flushes geometry then. */
+static int backend_widget_geometry(void *handle, int *x, int *y, int *w, int *h)
+{
+    lv_obj_t *obj;
+    lv_obj_t *p;
+    int ax = 0, ay = 0;
+
+    if (!handle) return -1;
+    obj = (lv_obj_t *)handle;
+    p = obj;
+    while (p) {
+        ax += lv_obj_get_x(p);
+        ay += lv_obj_get_y(p);
+        p = lv_obj_get_parent(p);
+    }
+    if (x) *x = ax;
+    if (y) *y = ay;
+    if (w) *w = lv_obj_get_width(obj);
+    if (h) *h = lv_obj_get_height(obj);
+    return 0;
+}
+
 
 static tgs_backend lvgl_backend = {
     .user_data            = NULL,
@@ -928,6 +953,7 @@ static tgs_backend lvgl_backend = {
     .set_widget_focusable = backend_set_widget_focusable,
     .set_nav_key_cb       = backend_set_nav_key_cb,
     .clipboard_text       = backend_clipboard_text,
+    .widget_geometry      = backend_widget_geometry,
 };
 
 void lvgl_backend_register(void)

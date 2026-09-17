@@ -334,6 +334,7 @@ void wm_init(window_manager *wm, tgs_backend *backend, int pty_fd, int ime_pty_f
     wm->pending_reason = TGS_REASON_NONE;
     wm->consumed_key = -1;
     wm->consumed_mods = 0;
+    wm->geom_pending = 0;
 
     nav_init(&wm->nav);
     if (backend->set_nav_key_cb) backend->set_nav_key_cb(wm_nav_key, wm);
@@ -358,6 +359,74 @@ static void send_resize(window_manager *wm, int win_id)
     tgs_frame_write(wm->pty_fd, TGS_STREAM_COMMAND,
                     wm->frame_counter, TGS_CMD_NTF_RESIZE,
                     resize_args, 5);
+}
+
+/* Emit one NTF_GEOMETRY for `w` using the backend's actual geometry. The
+ * frame format mirrors NTF_RESIZE (5 int args) but carries a widget id. */
+static void emit_widget_geometry(window_manager *wm, nav_widget *w)
+{
+    char id_str[16], x_str[16], y_str[16], w_str[16], h_str[16];
+    const char *args[5];
+    int x, y, gw, gh;
+
+    if (!wm->backend->widget_geometry ||
+        wm->backend->widget_geometry(w->handle, &x, &y, &gw, &gh) != 0)
+        return;
+
+    snprintf(id_str, sizeof(id_str), "%d", w->id);
+    snprintf(x_str, sizeof(x_str), "%d", x);
+    snprintf(y_str, sizeof(y_str), "%d", y);
+    snprintf(w_str, sizeof(w_str), "%d", gw);
+    snprintf(h_str, sizeof(h_str), "%d", gh);
+    args[0] = id_str;
+    args[1] = x_str;
+    args[2] = y_str;
+    args[3] = w_str;
+    args[4] = h_str;
+    wm->frame_counter++;
+    tgs_frame_write(wm->pty_fd, TGS_STREAM_COMMAND,
+                    wm->frame_counter, TGS_CMD_NTF_GEOMETRY, args, 5);
+}
+
+/* Emit NTF_GEOMETRY for every layout container and its directly-laid-out
+ * children. Called by the main loop after the backend tick, so flex/grid
+ * positions are the settled ones. Only runs when geom_pending is set, so a
+ * program that never touches layout containers sees no new traffic. */
+void wm_flush_geometry(window_manager *wm)
+{
+    nav_model *m = &wm->nav;
+    int wi, i;
+
+    if (!wm->geom_pending) return;
+    if (!wm->backend->widget_geometry) {
+        wm->geom_pending = 0;
+        return;
+    }
+
+    for (wi = 0; wi < m->window_count; wi++) {
+        int win_id = m->windows[wi].win_id;
+
+        /* 1st pass: each container reports its own real geometry. */
+        for (i = 0; i < m->widget_count; i++) {
+            nav_widget *w = &m->widgets[i];
+
+            if (w->used && w->win_id == win_id &&
+                nav_type_is_container(w->type))
+                emit_widget_geometry(wm, w);
+        }
+        /* 2nd pass: children placed by a container report theirs. */
+        for (i = 0; i < m->widget_count; i++) {
+            nav_widget *w = &m->widgets[i];
+            nav_widget *parent;
+
+            if (!w->used || w->win_id != win_id || w->parent_is_window)
+                continue;
+            parent = nav_widget_find(m, w->parent);
+            if (parent && nav_type_is_container(parent->type))
+                emit_widget_geometry(wm, w);
+        }
+    }
+    wm->geom_pending = 0;
 }
 
 static tgs_widget_type str_to_widget_type(const char *s)
@@ -538,6 +607,10 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
             if (win && win->focus == 0 && nav_widget_focusable(nw))
                 focus_commit(wm, win_id, wid, TGS_REASON_INIT);
         }
+        /* A new container — or anything parented to one — changes the layout;
+         * emit real geometry once LVGL has settled it (next flush). */
+        if (nav_type_is_container(wtype) || pw)
+            wm->geom_pending = 1;
         break;
     }
 
@@ -559,6 +632,22 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         w = nav_widget_find(&wm->nav, atoi(frame->args[0]));
         if (w) be->set_widget_style(w->handle, (tgs_style_prop)atoi(frame->args[1]),
                                     (int32_t)atoi(frame->args[2]));
+        break;
+    }
+
+    case TGS_CMD_WGT_LAYOUT: {
+        /* args: [widget_id, layout_type] — runtime relayout of a container. */
+        nav_widget *w;
+
+        if (frame->num_args < 2) break;
+        w = nav_widget_find(&wm->nav, atoi(frame->args[0]));
+        if (w) {
+            if (be->set_widget_layout)
+                be->set_widget_layout(w->handle,
+                                      (tgs_layout_type)atoi(frame->args[1]));
+            if (nav_type_is_container(w->type))
+                wm->geom_pending = 1;
+        }
         break;
     }
 

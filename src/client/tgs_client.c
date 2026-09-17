@@ -24,6 +24,16 @@ static char widget_text_cache[MAX_WIDGETS][256];
 #define MAX_FOCUS_WINDOWS 64
 static int focus_cache[MAX_FOCUS_WINDOWS];
 
+/* Widget geometry cache, filled from NTF_GEOMETRY (69) on the command stream.
+ * Geometry arrives asynchronously: the compositor emits it after it lays the
+ * widget out, so it is learned during poll_event, not at create time. */
+#define MAX_GEOM_WIDGETS 256
+typedef struct {
+    int x, y, w, h;
+    int known;
+} widget_geom;
+static widget_geom geom_cache[MAX_GEOM_WIDGETS];
+
 /* Window ID counter */
 static int next_window_id = 1;
 
@@ -430,6 +440,23 @@ int tgs_client_poll_event(tgs_event *ev, int timeout_ms)
         if (payload_len > 0) {
             if (tgs_frame_decode(payload, payload_len, &frame) != 0)
                 continue;
+            /* Geometry notifies ride the COMMAND stream (like NTF_RESIZE) —
+             * absorb them into the cache and keep polling for events. */
+            if (frame.command == TGS_CMD_NTF_GEOMETRY) {
+                int gid;
+
+                if (frame.num_args >= 5) {
+                    gid = atoi(frame.args[0]);
+                    if (gid >= 0 && gid < MAX_GEOM_WIDGETS) {
+                        geom_cache[gid].x = atoi(frame.args[1]);
+                        geom_cache[gid].y = atoi(frame.args[2]);
+                        geom_cache[gid].w = atoi(frame.args[3]);
+                        geom_cache[gid].h = atoi(frame.args[4]);
+                        geom_cache[gid].known = 1;
+                    }
+                }
+                continue;
+            }
             if (frame.stream_id != TGS_STREAM_EVENT) continue;
 
             /* Map command to event */
@@ -508,13 +535,30 @@ int tgs_client_poll_event(tgs_event *ev, int timeout_ms)
                 continue;
             }
         }
-
         /* No complete frame yet; read more. */
         int r = read_stdin_timeout(timeout_ms);
         if (r < 0) return -1;          /* the stream ended or failed */
         if (r == 0) return 1;          /* nothing arrived within the timeout: no event */
         /* data arrived; loop to scan it for a frame */
     }
+}
+
+/* Real widget geometry, cached from NTF_GEOMETRY (69). Geometry is learned
+ * asynchronously — the compositor emits it after laying the widget out, so
+ * the caller should poll for events first. Returns 0 on hit, nonzero if the
+ * geometry is not yet known (widget id unknown or no notify received). */
+int tgs_client_get_widget_geometry(int widget_id, int *x, int *y, int *w, int *h)
+{
+    widget_geom *g;
+
+    if (widget_id < 0 || widget_id >= MAX_GEOM_WIDGETS) return -1;
+    g = &geom_cache[widget_id];
+    if (!g->known) return -1;
+    if (x) *x = g->x;
+    if (y) *y = g->y;
+    if (w) *w = g->w;
+    if (h) *h = g->h;
+    return 0;
 }
 
 const char *tgs_client_get_widget_text(int widget_id)

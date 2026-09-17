@@ -54,6 +54,12 @@ void tgs_client_shutdown(void);
 int  tgs_client_poll_event(tgs_event *ev, int timeout_ms);
 const char *tgs_client_get_widget_text(int widget_id);
 
+/* Real widget geometry (x, y, w, h in compositor screen/absolute pixels),
+ * cached from NTF_GEOMETRY (69). The compositor emits it asynchronously after
+ * laying the widget out, so poll for events first. Returns 0 on hit, nonzero
+ * if the geometry is not yet known. Any of x/y/w/h may be NULL. */
+int tgs_client_get_widget_geometry(int widget_id, int *x, int *y, int *w, int *h);
+
 /* Send IME_COMMIT event from IME app to compositor */
 int tgs_client_send_ime_commit(int win_id, int widget_id, const char *text);
 

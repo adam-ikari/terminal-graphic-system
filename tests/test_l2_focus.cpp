@@ -67,6 +67,8 @@ static int            g_set_focus_calls;
 static void          *g_ring_widgets[256];
 static int            g_ring_count;
 static int            g_focusable_calls;
+static int            g_geom_x[64], g_geom_y[64], g_geom_w[64], g_geom_h[64];
+static int            g_geom_known[64];
 
 static int   fb_init(int, int) { return 0; }
 static void  fb_tick(uint32_t) {}
@@ -97,6 +99,24 @@ static void  fb_set_active_window(void *) {}
 static void  fb_set_focus(void *handle) { g_focus_handle = handle; g_set_focus_calls++; }
 static void *fb_focus_dir(void *, void **, int, tgs_nav_dir) { return NULL; }
 static void  fb_set_widget_focusable(void *, int) { g_focusable_calls++; }
+
+/* The fake's geometry answers come from a per-test table keyed by the handle
+ * offset (handle 0x1000 + creation seq), seeded by set_fake_geom() to
+ * whatever the "real" layout would have produced. */
+static void set_fake_geom(int idx, int x, int y, int w, int h) {
+    g_geom_x[idx] = x; g_geom_y[idx] = y;
+    g_geom_w[idx] = w; g_geom_h[idx] = h;
+    g_geom_known[idx] = 1;
+}
+static int fb_widget_geometry(void *handle, int *x, int *y, int *w, int *h) {
+    int idx = (int)((intptr_t)handle - 0x1000);
+    if (idx < 0 || idx >= 64 || !g_geom_known[idx]) return -1;
+    if (x) *x = g_geom_x[idx];
+    if (y) *y = g_geom_y[idx];
+    if (w) *w = g_geom_w[idx];
+    if (h) *h = g_geom_h[idx];
+    return 0;
+}
 static void  fb_set_nav_key_cb(tgs_nav_key_cb cb, void *ud) { g_nav_cb = cb; g_nav_cb_ud = ud; }
 static const char *fb_clipboard_text(void) { return NULL; }
 
@@ -109,6 +129,7 @@ static void install_fake(fake_be *fb) {
     g_focus_handle = nullptr; g_set_focus_calls = 0;
     g_ring_count = 0; g_focusable_calls = 0;
     memset(g_ring_widgets, 0, sizeof(g_ring_widgets));
+    memset(g_geom_known, 0, sizeof(g_geom_known));
 
     tgs_backend &b = fb->base;
     b.init = fb_init; b.tick = fb_tick; b.deinit = fb_deinit;
@@ -129,6 +150,7 @@ static void install_fake(fake_be *fb) {
     b.set_widget_focusable = fb_set_widget_focusable;
     b.set_nav_key_cb = fb_set_nav_key_cb;
     b.clipboard_text = fb_clipboard_text;
+    b.widget_geometry = fb_widget_geometry;
 }
 
 /* ---- Pipe transport for compositor→client frames -------------------------
@@ -380,6 +402,8 @@ TEST_F(L2Focus, CharacterDemuxSurvivesWindow) {
     char win_payload[128];
     int wl = tgs_frame_encode(TGS_STREAM_COMMAND, 0, TGS_CMD_WIN_CREATE,
                               wa, 3, win_payload, (int)sizeof(win_payload));
+
+
     const char *ga[] = {"30", "2", "button", "0", "0", "10", "10", ""};
     char wgt_payload[128];
     int gl = tgs_frame_encode(TGS_STREAM_COMMAND, 0, TGS_CMD_WGT_CREATE,
@@ -401,6 +425,58 @@ TEST_F(L2Focus, CharacterDemuxSurvivesWindow) {
     /* And the frame path still emitted NTF_RESIZE + NTF_FOCUS(INIT). */
     expect_cmd(TGS_CMD_NTF_RESIZE);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on widget 30 */
+}
+/* Layout containers report real geometry: after a vlayout + two children are
+ * created, the flush emits NTF_GEOMETRY for the container and its laid-out
+ * children with the BACKEND's values (distinct, non-negative) — not the
+ * explicit WGT_CREATE rect args. A non-dirty flush emits nothing. */
+TEST_F(L2Focus, LayoutContainerEmitsGeometry) {
+    void *h10 = mk_widget(10, 1, "vlayout");
+    void *h11 = mk_widget(11, 10, "button");
+    void *h12 = mk_widget(12, 10, "button");
+    ASSERT_NE(h10, nullptr);
+    ASSERT_NE(h11, nullptr);
+    ASSERT_NE(h12, nullptr);
+
+    /* 11 wins INIT focus on creation — drain that frame before the flush. */
+    expect_cmd(TGS_CMD_NTF_FOCUS);
+
+    /* Where the layout actually landed: children stacked inside a 200x300
+     * container, distinct and non-negative, and different from the WGT_CREATE
+     * rect args ("0","0","100","40") the test passed in. */
+    set_fake_geom(0, 0, 0, 200, 300);   /* container 10 */
+    set_fake_geom(1, 0, 0, 200, 20);    /* child 11    */
+    set_fake_geom(2, 0, 20, 200, 20);   /* child 12    */
+
+    wm_flush_geometry(&wm);
+
+    tgs_frame f = expect_cmd(TGS_CMD_NTF_GEOMETRY);
+    ASSERT_EQ(f.num_args, 5);
+    ASSERT_EQ(atoi(f.args[0]), 10);
+    EXPECT_EQ(atoi(f.args[1]), 0);
+    EXPECT_EQ(atoi(f.args[2]), 0);
+    EXPECT_EQ(atoi(f.args[3]), 200);
+    EXPECT_EQ(atoi(f.args[4]), 300);
+
+    f = expect_cmd(TGS_CMD_NTF_GEOMETRY);
+    ASSERT_EQ(atoi(f.args[0]), 11);
+    EXPECT_EQ(atoi(f.args[1]), 0);
+    EXPECT_EQ(atoi(f.args[2]), 0);
+    EXPECT_EQ(atoi(f.args[3]), 200);
+    EXPECT_EQ(atoi(f.args[4]), 20);
+
+    f = expect_cmd(TGS_CMD_NTF_GEOMETRY);
+    ASSERT_EQ(atoi(f.args[0]), 12);
+    EXPECT_EQ(atoi(f.args[1]), 0);
+    EXPECT_EQ(atoi(f.args[2]), 20);
+    EXPECT_EQ(atoi(f.args[3]), 200);
+    EXPECT_EQ(atoi(f.args[4]), 20);
+
+    /* Flush again with nothing changed: no new frames. */
+    wm_flush_geometry(&wm);
+    std::string p;
+    EXPECT_LT(read_frame(pty_rd, p, 100), 0)
+        << "no geometry frame expected after a non-dirty flush";
 }
 
 }  // namespace

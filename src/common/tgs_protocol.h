@@ -49,6 +49,9 @@
 #define TGS_CMD_NTF_DESTROY  66
 #define TGS_CMD_NTF_STATE    67  /* [win_id, state] — state: tgs_window_state */
 /* 68 reserved: NTF_FOCUS_PRE (Layer 2 bounded veto window) */
+#define TGS_CMD_NTF_GEOMETRY 69  /* [widget_id, x, y, w, h] — widget's real
+                                  * screen/absolute geometry after layout
+                                  * (compositor → app) */
 
 /* Events */
 #define TGS_CMD_EVT_CLICK    80

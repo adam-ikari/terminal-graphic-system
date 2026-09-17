@@ -84,6 +84,11 @@ struct tgs_backend {
     /* The clipboard's text, or NULL when there is none. The backend owns the
      * storage and keeps it valid until the next call, so callers never free it. */
     const char *(*clipboard_text)(void);
+
+    /* Query a widget's actual geometry in screen/absolute coordinates
+     * (parent offsets accumulated; a window root sits at 0,0). Returns 0
+     * on success, nonzero if the handle is unknown/not yet laid out. */
+    int (*widget_geometry)(void *handle, int *x, int *y, int *w, int *h);
 };
 
 /* Register a backend (replaces previous). */
