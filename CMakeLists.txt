@@ -256,6 +256,7 @@ add_executable(tgs_tests
     tests/test_pty.cpp
     tests/test_snapshot.cpp
     tests/test_l1.cpp
+    tests/test_l2_focus.cpp
 )
 target_compile_definitions(tgs_tests PRIVATE
     TGS_SNAPSHOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/snapshots")
@@ -286,4 +287,8 @@ add_executable(font_probe
     tests/font_probe.c
 )
 target_link_libraries(font_probe PRIVATE tgs_lvgl_backend)
+
+# d2_repro — headless proof that the TGS_NAV_WIDGET hand-off reports the real key
+add_executable(d2_repro tests/d2_repro.c)
+target_link_libraries(d2_repro PRIVATE tgs_lvgl_backend tgs_common)
 target_link_libraries(term_probe PRIVATE tgs_compositor)

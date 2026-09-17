@@ -818,9 +818,14 @@ static void backend_inject_key(int key, int mods, int pressed)
         if (action == TGS_NAV_CONSUMED) return;
         if (action == TGS_NAV_WIDGET) {
             /* Rule 2 hand-off: straight to the focused widget, bypassing the
-             * indev's own Tab/Enter/ESC group handling. */
-            if (pressed && kb_group)
+             * indev's own Tab/Enter/ESC group handling. The queue path sets
+             * key_ev_code/_mods in kb_read_cb; this synchronous delivery skips
+             * it, so record the edge here too — LV_EVENT_KEY reads these. */
+            if (pressed && kb_group) {
+                key_ev_code = key;
+                key_ev_mods = mods;
                 lv_group_send_data(kb_group, map_tgs_key(key, mods));
+            }
             return;
         }
     }
