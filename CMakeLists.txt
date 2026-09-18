@@ -239,6 +239,12 @@ add_executable(char_and_graphics
 )
 target_link_libraries(char_and_graphics PRIVATE tgs_client)
 
+# mixed_demo — L1: character text and widgets interleaved (transparent window)
+add_executable(mixed_demo
+    examples/mixed_demo.c
+)
+target_link_libraries(mixed_demo PRIVATE tgs_client)
+
 # ime_app — IME engine (separate TGS app)
 add_executable(ime_app
     examples/ime_app.c

@@ -31,6 +31,7 @@ The design below is a delta against this reality. Facts verified against the wor
 | `Alt+Tab` / `Alt+Shift+Tab` cycles windows in the compositor's key hook, restoring each window's remembered focus (`TGS_REASON_WINDOW_RESTORE`); with one window the key passes through | `src/compositor/window_manager.c:289-300` |
 | Runtime `TGS_LAYOUT_GRID` (via `WGT_LAYOUT` 37, optional `[cols, rows]` args; defaults 2 cols, 4 auto rows) is a real LVGL grid, not a flex stub; grid templates are heap-allocated and freed on widget delete (LVGL references, not copies) | `src/backends/lvgl/lvgl_backend.c:597-633` |
 | `WGT_UPDATE` (33) is `[widget_id, value]` — replaces the widget's text content (the spec's vague `property` dimension was removed; there is no defined property set) | `src/compositor/window_manager.c:672-680`, `src/client/tgs_client.c:312-322` |
+| `TGS_WINDOW_TRANSPARENT` (4) window type: the root paints no background (`bg_opa` TRANSP), so the character base shows through and widgets float on the text — char + control interleaving (L1, `examples/mixed_demo.c`); other types keep the opaque dark root | `src/backends/lvgl/lvgl_backend.c:403-409`, `src/compositor/window_manager.c:512` |
 | `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:156` |
 | LVGL version 9.6.0 | `deps/lvgl/include/lvgl/lv_version.h:9-11` |
 

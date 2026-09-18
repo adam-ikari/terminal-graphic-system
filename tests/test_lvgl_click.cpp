@@ -19,7 +19,9 @@ extern "C" {
 #include "output.h"
 extern void lvgl_backend_register(void);
 extern void lvgl_backend_set_display(tgs_display *display);
+extern int32_t lv_obj_get_style_bg_opa(const void *obj, int part); /* LV_OPA_TRANSP */
 }
+#define LV_OPA_TRANSP 0
 
 #include <cstring>
 #include <vector>
@@ -162,4 +164,23 @@ TEST_F(LvglBackend, GridLayoutPlacesChildrenInDistinctCells)
     EXPECT_NE(x0, x1) << "c0 and c1 are in different columns";
     EXPECT_GT(y2, y0) << "c2 wraps to the second row (grid, not row flex)";
     be->destroy_window(win);
+}
+
+/* L1 mixed mode: a TRANSPARENT window's root has a fully transparent
+ * background so the character base shows through while widgets float on it.
+ * A NORMAL window's root stays opaque. */
+TEST_F(LvglBackend, TransparentWindowRootIsTransparent)
+{
+    void *norm = be->create_window(TGS_WINDOW_NORMAL, "T");
+    ASSERT_NE(norm, nullptr);
+    EXPECT_NE(lv_obj_get_style_bg_opa(norm, 0), LV_OPA_TRANSP)
+        << "NORMAL window root must be opaque";
+
+    void *trans = be->create_window(TGS_WINDOW_TRANSPARENT, "T");
+    ASSERT_NE(trans, nullptr);
+    EXPECT_EQ(lv_obj_get_style_bg_opa(trans, 0), LV_OPA_TRANSP)
+        << "TRANSPARENT window root must not paint a background";
+
+    be->destroy_window(norm);
+    be->destroy_window(trans);
 }

@@ -102,6 +102,9 @@ typedef enum {
     TGS_WINDOW_DIALOG,
     TGS_WINDOW_FULLSCREEN,
     TGS_WINDOW_TOOL,
+    TGS_WINDOW_TRANSPARENT,   /* root background transparent: the character
+                               * base shows through, widgets float on it —
+                               * char + control interleaving (L1) */
 } tgs_window_type;
 
 

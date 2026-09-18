@@ -147,10 +147,12 @@
   <div class="shot"><img src="screenshots/library.png" alt="library 截图"></div>
   <p class="shot-cap"><code>library</code> 场景：20 种 widget 类型逐一渲染（label / button / input / checkbox / radio / slider / progress / switch / list / table / menu / tab / dropdown / image / timepick / datepick / vlayout / hlayout / glayout / scroll）。</p>
 
-  <div class="note">截图由 <code>tools/render_demo.c</code> 生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲，输出 PNG，无需显示服务器。</div>
-</section>
+  <h3>3.4 字符 + 控件混排（L1）</h3>
+  <div class="shot"><img src="screenshots/mixed.png" alt="mixed 混排截图"></div>
+  <p class="shot-cap"><code>mixed_demo</code> 场景：程序打印 40 行字符，开<strong>透明窗口</strong>（<code>TGS_WINDOW_TRANSPARENT</code>）——窗口 root 无背景，字符 base 透过显示，控件浮在文本上；同一 stdout 流中字符与 TGS 帧交错。截图来自真实合成器 + Xvfb。</p>
 
-<section class="card">
+  <div class="note">控件截图由 <code>tools/render_demo.c</code> 生成：驱动真实 LVGL 后端到内存帧缓冲输出 PNG；混排截图由合成器（<code>tgs-compositor</code>）+ <code>mixed_demo</code> 在 Xvfb 下实拍。</div>
+</section>
   <h2><span class="no">4</span>已交付能力</h2>
 
   <h3>4.1 字符终端（L0）</h3>

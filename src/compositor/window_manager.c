@@ -509,12 +509,13 @@ static tgs_window_type str_to_window_type(const char *s)
     if (strcmp(s, "dialog") == 0)      return TGS_WINDOW_DIALOG;
     if (strcmp(s, "fullscreen") == 0)  return TGS_WINDOW_FULLSCREEN;
     if (strcmp(s, "tool") == 0)        return TGS_WINDOW_TOOL;
+    if (strcmp(s, "transparent") == 0) return TGS_WINDOW_TRANSPARENT;
     /* Same numeric encoding as str_to_widget_type: the client sends
      * int_to_str((int)type), so digits must decode too. */
     if (s[0] >= '0' && s[0] <= '9') {
         int v = atoi(s);
 
-        if (v >= 0 && v <= (int)TGS_WINDOW_TOOL)
+        if (v >= 0 && v <= (int)TGS_WINDOW_TRANSPARENT)
             return (tgs_window_type)v;
     }
     return TGS_WINDOW_NORMAL;

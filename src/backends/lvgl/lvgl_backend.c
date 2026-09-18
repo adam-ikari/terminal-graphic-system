@@ -380,7 +380,6 @@ static void *backend_create_window(tgs_window_type type, const char *title)
 {
     int i;
 
-    (void)type;
     (void)title;
 
     for (i = 0; i < BACKEND_MAX_WINDOWS; i++) {
@@ -400,7 +399,13 @@ static void *backend_create_window(tgs_window_type type, const char *title)
          * and skew both rendering and hit-testing — zero both (D4). */
         lv_obj_set_style_pad_all(root, 0, 0);
         lv_obj_set_style_border_width(root, 0, 0);
-        lv_obj_set_style_bg_color(root, lv_color_hex(0x222222), 0);
+        if (type == TGS_WINDOW_TRANSPARENT) {
+            /* Char + control interleaving: the character base stays visible
+             * through the root, widgets float on top of it. */
+            lv_obj_set_style_bg_opa(root, LV_OPA_TRANSP, 0);
+        } else {
+            lv_obj_set_style_bg_color(root, lv_color_hex(0x222222), 0);
+        }
         /* Default theme text is near-black, which is invisible on the dark
          * window background used above — force a light default so labels
          * inherit it. */

@@ -49,6 +49,20 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ![widget 库](screenshots/library.png)
 
+### 3.4 字符 + 控件混排（L1）
+
+`mixed_demo` 场景：程序打印 40 行字符，开**透明窗口**（`TGS_WINDOW_TRANSPARENT`）——窗口 root 无背景，字符 base 透过显示，控件浮在文本上；同一 stdout 流中字符与 TGS 帧交错。
+
+![字符+控件混排](screenshots/mixed.png)
+
+> 截图由 `tools/render_demo.c` 生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲，输出 PNG，无需显示服务器；混排截图来自真实合成器 + Xvfb 实拍。
+
+### 3.3 全 widget 库（L3 P2 基础）
+
+`library` 场景：20 种 widget 类型逐一渲染（label/button/input/checkbox/radio/slider/progress/switch/list/table/menu/tab/dropdown/image/timepick/datepick/vlayout/hlayout/glayout/scroll）。
+
+![widget 库](screenshots/library.png)
+
 > 截图由 `tools/render_demo.c` 生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲，输出 PNG，无需显示服务器。
 
 ---
