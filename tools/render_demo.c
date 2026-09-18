@@ -197,11 +197,12 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     char path[256];
     int i;
 
+
     /* normal */
     snprintf(path, sizeof(path), "%s_normal.png", base);
     if (dump_png(disp, be, path) < 0) return -1;
 
-    /* hover the Button (center 90,48) — the callback paints a blue border */
+    /* hover the Button (center 90,48) - the callback paints a blue border */
     be->inject_mouse(90, 48, 0, -1);
     for (i = 0; i < 5; i++) {
         be->tick(16);
@@ -210,7 +211,7 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     snprintf(path, sizeof(path), "%s_hover.png", base);
     if (dump_png(disp, be, path) < 0) return -1;
 
-    /* press it (pressed look) then release (clicked + focused) */
+    /* press then release: pressed look, then clicked + focused */
     be->inject_mouse(90, 48, 0, 1);
     for (i = 0; i < 3; i++) {
         be->tick(16);
@@ -226,7 +227,7 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     snprintf(path, sizeof(path), "%s_clicked.png", base);
     if (dump_png(disp, be, path) < 0) return -1;
 
-    /* hover the Slider (center 90,316) after moving off the button */
+    /* hover the Slider (center 90,316) */
     be->inject_mouse(90, 316, 0, -1);
     for (i = 0; i < 5; i++) {
         be->tick(16);
@@ -235,6 +236,133 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     snprintf(path, sizeof(path), "%s_slider_hover.png", base);
     if (dump_png(disp, be, path) < 0) return -1;
 
+    return 0;
+}
+
+/* singles: one widget per screenshot, rendered alone and centered, in
+ * normal / hover / pressed states. Layout containers get children so their
+ * arrangement is visible. */
+static const struct { tgs_widget_type type; const char *name; const char *t; } singles[] = {
+    { TGS_WIDGET_BUTTON,    "button",    "Button" },
+    { TGS_WIDGET_LABEL,     "label",     "Label text" },
+    { TGS_WIDGET_INPUT,     "input",     "" },
+    { TGS_WIDGET_CHECKBOX,  "checkbox",  "Checkbox" },
+    { TGS_WIDGET_RADIO,     "radio",     "Radio" },
+    { TGS_WIDGET_SLIDER,    "slider",    "" },
+    { TGS_WIDGET_PROGRESS,  "progress",  "60" },
+    { TGS_WIDGET_SWITCH,    "switch",    "" },
+    { TGS_WIDGET_LIST,      "list",      "item one" },
+    { TGS_WIDGET_TABLE,     "table",     "cell" },
+    { TGS_WIDGET_MENU,      "menu",      "File\nEdit\nView\nHelp" },
+    { TGS_WIDGET_TAB,       "tab",       "tab one" },
+    { TGS_WIDGET_DROPDOWN,  "dropdown",  "one\ntwo\nthree" },
+    { TGS_WIDGET_IMAGE,     "image",     "" },
+    { TGS_WIDGET_TIMEPICK,  "timepick",  "10\n11\n12\n13\n14" },
+    { TGS_WIDGET_DATEPICK,  "datepick",  "2026-09-18" },
+    { TGS_WIDGET_VLAYOUT,   "vlayout",   "" },
+    { TGS_WIDGET_HLAYOUT,   "hlayout",   "" },
+    { TGS_WIDGET_GLAYOUT,   "glayout",   "" },
+    { TGS_WIDGET_SCROLL,    "scroll",    "" },
+};
+
+/* Give containers children so their arrangement is visible. */
+static void populate_single(tgs_backend *be, void *w, tgs_widget_type type)
+{
+    switch (type) {
+    case TGS_WIDGET_VLAYOUT: {
+        void *a = be->create_widget(w, TGS_WIDGET_LABEL);
+        void *b = be->create_widget(w, TGS_WIDGET_BUTTON);
+        be->set_widget_rect(a, 0, 0, 100, 30);
+        be->set_widget_content(a, "row one");
+        be->set_widget_rect(b, 0, 0, 100, 36);
+        be->set_widget_content(b, "row two");
+        break;
+    }
+    case TGS_WIDGET_HLAYOUT: {
+        void *a = be->create_widget(w, TGS_WIDGET_BUTTON);
+        void *b = be->create_widget(w, TGS_WIDGET_INPUT);
+        be->set_widget_rect(a, 0, 0, 100, 40);
+        be->set_widget_content(a, "left");
+        be->set_widget_rect(b, 0, 0, 120, 40);
+        break;
+    }
+    case TGS_WIDGET_GLAYOUT: {
+        void *g1 = be->create_widget(w, TGS_WIDGET_BUTTON);
+        void *g2 = be->create_widget(w, TGS_WIDGET_BUTTON);
+        void *g3 = be->create_widget(w, TGS_WIDGET_BUTTON);
+        be->set_widget_rect(g1, 0, 0, 100, 36);
+        be->set_widget_content(g1, "g1");
+        be->set_widget_rect(g2, 0, 0, 100, 36);
+        be->set_widget_content(g2, "g2");
+        be->set_widget_rect(g3, 0, 0, 100, 36);
+        be->set_widget_content(g3, "g3");
+        break;
+    }
+    case TGS_WIDGET_SCROLL: {
+        void *c = be->create_widget(w, TGS_WIDGET_LABEL);
+        be->set_widget_rect(c, 0, 0, 220, 120);
+        be->set_widget_content(c, "scrollable long content line");
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+static int run_singles(tgs_backend *be, tgs_display *disp, const char *dir)
+{
+    size_t k;
+    size_t n = sizeof(singles) / sizeof(singles[0]);
+
+    be->set_event_callback(states_hover, be);
+    for (k = 0; k < n; k++) {
+        void *win = be->create_window(TGS_WINDOW_NORMAL, singles[k].name);
+        void *w;
+        char path[300];
+        int i;
+
+        if (!win) return -1;
+        w = be->create_widget(win, singles[k].type);
+        if (!w) return -1;
+        /* rollers and pickers need more height to show several options */
+        int h = (singles[k].type == TGS_WIDGET_TIMEPICK ||
+                 singles[k].type == TGS_WIDGET_DATEPICK) ? 150 : 90;
+        be->set_widget_rect(w, 270, 250, 260, h);
+        be->set_widget_content(w, singles[k].t);
+        populate_single(be, w, singles[k].type);
+
+        for (i = 0; i < 10; i++) {
+            be->tick(16);
+            be->render();
+        }
+        snprintf(path, sizeof(path), "%s/%s_normal.png", dir, singles[k].name);
+        if (dump_png(disp, be, path) < 0) return -1;
+
+        /* hover the widget's center (400,300) */
+        be->inject_mouse(400, 300, 0, -1);
+        for (i = 0; i < 5; i++) {
+            be->tick(16);
+            be->render();
+        }
+        snprintf(path, sizeof(path), "%s/%s_hover.png", dir, singles[k].name);
+        if (dump_png(disp, be, path) < 0) return -1;
+
+        /* pressed */
+        be->inject_mouse(400, 300, 0, 1);
+        for (i = 0; i < 3; i++) {
+            be->tick(16);
+            be->render();
+        }
+        snprintf(path, sizeof(path), "%s/%s_pressed.png", dir, singles[k].name);
+        if (dump_png(disp, be, path) < 0) return -1;
+
+        be->inject_mouse(400, 300, 0, 0);
+        for (i = 0; i < 5; i++) {
+            be->tick(16);
+            be->render();
+        }
+        be->destroy_window(win);
+    }
     return 0;
 }
 
@@ -260,6 +388,13 @@ int main(int argc, char *argv[])
     if (be->init(WIDTH, HEIGHT) < 0) {
         fprintf(stderr, "render_demo: backend init failed\n");
         return 1;
+    }
+
+    /* --- singles mode: one widget per screenshot, its own windows --- */
+    if (strcmp(demo, "singles") == 0) {
+        int rc = run_singles(be, &disp, "docs/screenshots/singles");
+        be->deinit();
+        return rc < 0 ? 1 : 0;
     }
 
     /* --- Build the widget tree of the selected demo --- */

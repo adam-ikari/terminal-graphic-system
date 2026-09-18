@@ -183,9 +183,12 @@ static lv_obj_t *create_lvgl_widget(tgs_widget_type type, lv_obj_t *parent)
     case TGS_WIDGET_SLIDER:   return lv_slider_create(parent);
     case TGS_WIDGET_SWITCH:   return lv_switch_create(parent);
     case TGS_WIDGET_RADIO:
-        /* LVGL has no dedicated radio: a checkbox with a round indicator. */
+        /* LVGL has no dedicated radio: a checkbox with a round indicator.
+         * The square box is drawn by the INDICATOR part, so the radius has
+         * to go there — setting it on the main part changes nothing visible
+         * and a radio renders indistinguishable from a checkbox. */
         obj = lv_checkbox_create(parent);
-        lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
         return obj;
     case TGS_WIDGET_PROGRESS:
         obj = lv_bar_create(parent);
