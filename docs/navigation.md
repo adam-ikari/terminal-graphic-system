@@ -14,6 +14,7 @@ The design below is a delta against this reality. Facts verified against the wor
 
 | Fact | Evidence |
 |---|---|
+| The character base is the **bottom** LVGL layer; widgets/windows composite above it, so a full-screen opaque window occludes the terminal — expected z-order, not a defect; the compositor never forces char-on-top nor auto-transparent/shrink | `src/compositor/main.c:346`, `src/backends/lvgl/lvgl_backend.c:393-402` |
 | Each window owns a **distinct LVGL root and group** (ring wrap on); ring membership is installed by the compositor, widgets are never silently enrolled | `src/backends/lvgl/lvgl_backend.c:379-409`, `:607` |
 | `lv_group_set_default()` is never called | no occurrence in `src/` |
 | The single KEYPAD indev is pointed at the **active** window's group; `set_active_window()` swaps it | `src/backends/lvgl/lvgl_backend.c:631-637` |
