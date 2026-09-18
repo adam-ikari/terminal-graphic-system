@@ -55,15 +55,31 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ![字符+控件混排](screenshots/mixed.png)
 
-> 截图由 `tools/render_demo.c` 生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲，输出 PNG，无需显示服务器；混排截图来自真实合成器 + Xvfb 实拍。
+### 3.5 控件交互状态（hover / 按下 / 点击 / 焦点）
 
-### 3.3 全 widget 库（L3 P2 基础）
+`states` 场景（`examples/states_demo.c`）：14 种交互控件铺满屏幕，程序通过 `EVT_BIND` 订阅 `HOVER_ENTER` / `HOVER_LEAVE` / `CLICK`，对悬停做出**程序侧策略响应**（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。
 
-`library` 场景：20 种 widget 类型逐一渲染（label/button/input/checkbox/radio/slider/progress/switch/list/table/menu/tab/dropdown/image/timepick/datepick/vlayout/hlayout/glayout/scroll）。
+**正常态**（无悬停、无按下）：
 
-![widget 库](screenshots/library.png)
+![正常态](screenshots/states_normal.png)
 
-> 截图由 `tools/render_demo.c` 生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲，输出 PNG，无需显示服务器。
+**悬停 Button**——程序收到 `HOVER_ENTER`，为该控件画蓝色边框（悬停别的控件只高亮它自己；移开即 `HOVER_LEAVE` 清除）：
+
+![悬停态](screenshots/states_hover.png)
+
+**按下 Button**——LVGL 按压态外观（按下瞬间）：
+
+![按下态](screenshots/states_pressed.png)
+
+**点击后**——按钮获得焦点（合成器画焦点轮廓），且程序收到 `CLICK`：
+
+![点击态](screenshots/states_clicked.png)
+
+**悬停 Slider**——高亮跟随指针切换控件：
+
+![Slider 悬停](screenshots/states_slider_hover.png)
+
+> 控件/状态截图由 `tools/render_demo.c`（`states` 模式）生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲输出 PNG，交互状态由真实的 hover 命中测试与 LVGL 按压/焦点状态驱动，非摆拍；字符混排截图来自真实合成器 + Xvfb 实拍。
 
 ---
 

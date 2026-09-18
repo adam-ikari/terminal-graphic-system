@@ -150,11 +150,29 @@
   <h3>3.4 字符 + 控件混排（L1）</h3>
   <div class="shot"><img src="screenshots/mixed.png" alt="mixed 混排截图"></div>
   <p class="shot-cap"><code>mixed_demo</code> 场景：程序打印 40 行字符，开<strong>透明窗口</strong>（<code>TGS_WINDOW_TRANSPARENT</code>）——窗口 root 无背景，字符 base 透过显示，控件浮在文本上；同一 stdout 流中字符与 TGS 帧交错。截图来自真实合成器 + Xvfb。</p>
+  <h3>3.5 控件交互状态（hover / 按下 / 点击 / 焦点）</h3>
+  <p><code>states</code> 场景：14 种交互控件铺满屏幕。程序通过 <code>EVT_BIND</code> 订阅 <code>HOVER_ENTER</code> / <code>HOVER_LEAVE</code> / <code>CLICK</code>，对悬停做出<strong>程序侧策略响应</strong>（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。</p>
 
-  <div class="note">控件截图由 <code>tools/render_demo.c</code> 生成：驱动真实 LVGL 后端到内存帧缓冲输出 PNG；混排截图由合成器（<code>tgs-compositor</code>）+ <code>mixed_demo</code> 在 Xvfb 下实拍。</div>
+  <h4>正常态</h4>
+  <div class="shot"><img src="screenshots/states_normal.png" alt="正常态"></div>
+
+  <h4>悬停 Button（程序收到 HOVER_ENTER，画蓝色边框）</h4>
+  <div class="shot"><img src="screenshots/states_hover.png" alt="悬停态"></div>
+
+  <h4>按下 Button（LVGL 按压态）</h4>
+  <div class="shot"><img src="screenshots/states_pressed.png" alt="按下态"></div>
+
+  <h4>点击后（焦点轮廓 + CLICK 事件）</h4>
+  <div class="shot"><img src="screenshots/states_clicked.png" alt="点击态"></div>
+
+  <h4>悬停 Slider（高亮跟随指针切换控件）</h4>
+  <div class="shot"><img src="screenshots/states_slider_hover.png" alt="Slider 悬停"></div>
+
+  <div class="note">状态截图由 <code>tools/render_demo.c</code>（<code>states</code> 模式）生成：交互状态由真实的 hover 命中测试与 LVGL 按压/焦点状态驱动，非摆拍。</div>
 </section>
-  <h2><span class="no">4</span>已交付能力</h2>
 
+<section class="card">
+  <h2><span class="no">4</span>已交付能力</h2>
   <h3>4.1 字符终端（L0）</h3>
   <ul>
     <li>PTY 子进程 + forkpty winsize 设置 → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。</li>
