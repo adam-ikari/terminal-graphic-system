@@ -103,6 +103,12 @@ static void focus_commit(window_manager *wm, int win_id, int widget_id,
     }
 
     if (old) ime_cancel(wm, win_id, old);
+    /* §H.2 disarm order: cancel → overlay cleared → focus pair, so an app
+     * reading widget text in its focus handler never sees stale preedit. */
+    if (old && wm->backend->set_widget_preedit) {
+        nav_widget *pw = nav_widget_find(&wm->nav, old);
+        if (pw) wm->backend->set_widget_preedit(pw->handle, "", 0);
+    }
     nav_set_focus(&wm->nav, win_id, widget_id);
 
     if (old) emit_focus(wm, win_id, old, 0, reason);
@@ -772,11 +778,10 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         }
         /* tgs_event_type is a contiguous 0..N enum; anything outside it is
          * a protocol error, not a bit to set. */
-        if (ev < 0 || ev > (int)TGS_EVENT_IME_COMMIT) break;
+        if (ev < 0 || ev > (int)TGS_EVENT_HOVER_LEAVE) break;
         w->event_mask |= (uint32_t)(1u << ev);
         break;
     }
-
     case TGS_CMD_SET_FOCUS: {
         /* args: [window_id, widget_id]; 0 clears (§E) */
         nav_window *win;
@@ -843,10 +848,20 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         break;
     }
 
-    case TGS_CMD_IME_PREEDIT:
-        /* args: [win_id, widget_id, text, cursor] — the preedit overlay is
-         * rendered by the backend (deferred, docs/navigation.md §H.2). */
+    case TGS_CMD_IME_PREEDIT: {
+        /* args: [win_id, widget_id, text, cursor] — §H.2: preedit is an
+         * overlay rendered by the backend, never widget text. An empty text
+         * clears it. No focus guard: the last armed widget's overlay must be
+         * clearable even after focus moved away. */
+        nav_widget *pw = nav_widget_find(&wm->nav, atoi(frame->args[1]));
+
+        if (frame->num_args < 4) break;
+        if (!pw) break;
+        if (be->set_widget_preedit)
+            be->set_widget_preedit(pw->handle, frame->args[2],
+                                   atoi(frame->args[3]));
         break;
+    }
 
     default:
         break;
@@ -861,15 +876,18 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
     char wid_str[16];
 
     if (!w) return;
-    /* Subscription gate (D6): CLICK and VALUE_CHANGED are subscription
-     * notifications — they reach the app only when the widget has bound that
-     * event type via EVT_BIND. KEY is input transport and always reaches the
-     * focused app (an input widget must receive keystrokes regardless of
-     * bindings). FOCUS/BLUR are exempt too: they drive NTF_FOCUS, the single
-     * focus channel, which never requires a binding (§F.2). */
+    /* Subscription gate (D6): CLICK, VALUE_CHANGED and HOVER_* are
+     * subscription notifications — they reach the app only when the widget
+     * has bound that event type via EVT_BIND. KEY is input transport and
+     * always reaches the focused app (an input widget must receive keystrokes
+     * regardless of bindings). FOCUS/BLUR are exempt too: they drive
+     * NTF_FOCUS, the single focus channel, which never requires a binding
+     * (§F.2). */
     switch (type) {
     case TGS_EVENT_CLICK:
     case TGS_EVENT_VALUE_CHANGED:
+    case TGS_EVENT_HOVER_ENTER:
+    case TGS_EVENT_HOVER_LEAVE:
         if (!(w->event_mask & (1u << (unsigned)type))) return;
         break;
     default:
@@ -887,6 +905,20 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
 
         tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
                         TGS_CMD_EVT_CLICK, args, 2);
+        break;
+    }
+    case TGS_EVENT_HOVER_ENTER: {
+        const char *args[2] = {win_str, wid_str};
+
+        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                        TGS_CMD_EVT_HOVER_ENTER, args, 2);
+        break;
+    }
+    case TGS_EVENT_HOVER_LEAVE: {
+        const char *args[2] = {win_str, wid_str};
+
+        tgs_frame_write(wm->pty_fd, TGS_STREAM_EVENT, wm->frame_counter,
+                        TGS_CMD_EVT_HOVER_LEAVE, args, 2);
         break;
     }
     case TGS_EVENT_VALUE_CHANGED: {

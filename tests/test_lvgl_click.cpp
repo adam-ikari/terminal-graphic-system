@@ -184,3 +184,89 @@ TEST_F(LvglBackend, TransparentWindowRootIsTransparent)
     be->destroy_window(norm);
     be->destroy_window(trans);
 }
+
+/* Hover: a mouse motion onto a widget's rect emits HOVER_ENTER for that
+ * widget and HOVER_LEAVE when the pointer moves off — through the same
+ * event callback the compositor subscribes to. Only widgets hover (a hit on
+ * the window root is "no widget"). */
+TEST_F(LvglBackend, MouseMotionEmitsHoverEnterLeave)
+{
+    void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
+    ASSERT_NE(win, nullptr);
+
+    std::vector<ClickRec> events;
+    be->set_event_callback(record_event, &events);
+
+    void *btn = be->create_widget(win, TGS_WIDGET_BUTTON);
+    ASSERT_NE(btn, nullptr);
+    be->set_widget_rect(btn, 20, 20, 120, 40);
+    be->set_widget_content(btn, "Hover me");
+
+    /* Settle layout first: LVGL resolves object coords from style sizes on
+     * the next tick, and the hit test reads those coords. */
+    for (int i = 0; i < 5; i++) {
+        be->tick(16);
+        be->render();
+    }
+
+    /* Motion onto the button: HOVER_ENTER(btn). */
+    be->inject_mouse(60, 40, 0, -1);
+    be->tick(16);
+    be->render();
+
+
+    /* LVGL's pointer indev also focuses clickable objects under the cursor,
+     * so the callback sees FOCUS events alongside hover — count only the
+     * hover types. */
+    auto hovers = [&]() {
+        size_t n = 0;
+        for (const ClickRec &e : events)
+            if (e.type == TGS_EVENT_HOVER_ENTER ||
+                e.type == TGS_EVENT_HOVER_LEAVE)
+                n++;
+        return n;
+    };
+    EXPECT_EQ(hovers(), 1u);
+    ASSERT_GT(events.size(), 0u);
+    EXPECT_EQ(events[0].type, TGS_EVENT_HOVER_ENTER);
+    EXPECT_EQ(events[0].handle, btn);
+
+    /* Still inside: no repeat. */
+    be->inject_mouse(70, 40, 0, -1);
+    be->tick(16);
+    EXPECT_EQ(hovers(), 1u);
+
+    /* Motion off the button onto the (non-widget) root: HOVER_LEAVE. */
+    be->inject_mouse(400, 300, 0, -1);
+    be->tick(16);
+    EXPECT_EQ(hovers(), 2u);
+    /* The second hover event in the stream is the LEAVE for btn. */
+    size_t seen = 0;
+    for (const ClickRec &e : events) {
+        if (e.type != TGS_EVENT_HOVER_ENTER &&
+            e.type != TGS_EVENT_HOVER_LEAVE)
+            continue;
+        seen++;
+        if (seen == 2) {
+            EXPECT_EQ(e.type, TGS_EVENT_HOVER_LEAVE);
+            EXPECT_EQ(e.handle, btn);
+        }
+    }
+
+    /* Motion back onto another widget: fresh ENTER for it. */
+    void *btn2 = be->create_widget(win, TGS_WIDGET_BUTTON);
+    ASSERT_NE(btn2, nullptr);
+    be->set_widget_rect(btn2, 200, 20, 100, 40);
+    for (int i = 0; i < 5; i++) {
+        be->tick(16);
+        be->render();
+    }
+    be->inject_mouse(240, 40, 0, -1);
+    be->tick(16);
+    EXPECT_EQ(hovers(), 3u);
+    EXPECT_EQ(events.back().type, TGS_EVENT_HOVER_ENTER);
+    EXPECT_EQ(events.back().handle, btn2);
+
+    be->set_event_callback(nullptr, nullptr);
+    be->destroy_window(win);
+}

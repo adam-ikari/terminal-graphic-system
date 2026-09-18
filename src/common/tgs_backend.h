@@ -60,6 +60,7 @@ struct tgs_backend {
     void  (*set_widget_rect)(void *handle, int x, int y, int w, int h);
     void  (*set_widget_content)(void *handle, const char *text);
     void  (*insert_widget_text)(void *handle, const char *text);  /* Insert text at cursor position (for IME commit) */
+    void  (*set_widget_preedit)(void *handle, const char *text, int cursor); /* Render IME preedit as an overlay; empty text clears it (§H.2) */
     void  (*set_widget_style)(void *handle, tgs_style_prop prop, int32_t value);
     void  (*set_widget_layout)(void *handle, tgs_layout_type layout,
                                int cols, int rows);  /* cols/rows used for GRID; rows 0 = auto */

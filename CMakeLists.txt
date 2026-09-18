@@ -245,6 +245,12 @@ add_executable(mixed_demo
 )
 target_link_libraries(mixed_demo PRIVATE tgs_client)
 
+# states_demo — widget interaction-state demo (hover/click/focus)
+add_executable(states_demo
+    examples/states_demo.c
+)
+target_link_libraries(states_demo PRIVATE tgs_client)
+
 # ime_app — IME engine (separate TGS app)
 add_executable(ime_app
     examples/ime_app.c

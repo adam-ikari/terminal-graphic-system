@@ -58,6 +58,8 @@
 #define TGS_CMD_EVT_KEY      81
 #define TGS_CMD_EVT_VALUE    82
 #define TGS_CMD_EVT_FOCUS    83  /* retired: MUST NOT be emitted; NTF_FOCUS (65) is the focus channel */
+#define TGS_CMD_EVT_HOVER_ENTER 84 /* [win_id, widget_id] — pointer entered the widget (mouse only) */
+#define TGS_CMD_EVT_HOVER_LEAVE 85 /* [win_id, widget_id] — pointer left the widget (mouse only) */
 
 /* IME */
 #define TGS_CMD_IME_PREEDIT  96
@@ -132,7 +134,6 @@ typedef enum {
     TGS_WIDGET_DATEPICK,
     TGS_WIDGET_COUNT,
 } tgs_widget_type;
-
 /* Event types */
 typedef enum {
     TGS_EVENT_CLICK = 0,
@@ -142,8 +143,10 @@ typedef enum {
     TGS_EVENT_VALUE_CHANGED,
     TGS_EVENT_IME_PREEDIT,
     TGS_EVENT_IME_COMMIT,
+    TGS_EVENT_HOVER_ENTER,   /* pointer (mouse) entered the widget's rect —
+                              * not produced for touch (no hover) */
+    TGS_EVENT_HOVER_LEAVE,
 } tgs_event_type;
-
 /* Style properties */
 typedef enum {
     TGS_STYLE_BG_COLOR = 0,

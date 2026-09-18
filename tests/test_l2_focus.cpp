@@ -83,6 +83,7 @@ static void *fb_create_widget(void *, tgs_widget_type) {
 static void  fb_set_widget_rect(void *, int, int, int, int) {}
 static void  fb_set_widget_content(void *, const char *) {}
 static void  fb_insert_widget_text(void *, const char *) {}
+static void  fb_set_widget_preedit(void *, const char *, int) {}
 static void  fb_set_widget_style(void *, tgs_style_prop, int32_t) {}
 static void  fb_set_widget_layout(void *, tgs_layout_type, int, int) {}
 static void  fb_destroy_widget(void *) {}
@@ -138,8 +139,8 @@ static void install_fake(fake_be *fb) {
     b.create_widget = fb_create_widget; b.set_widget_rect = fb_set_widget_rect;
     b.set_widget_content = fb_set_widget_content;
     b.insert_widget_text = fb_insert_widget_text;
+    b.set_widget_preedit = fb_set_widget_preedit;
     b.set_widget_style = fb_set_widget_style;
-    b.set_widget_layout = fb_set_widget_layout;
     b.destroy_widget = fb_destroy_widget;
     b.set_event_callback = fb_set_event_callback;
     b.inject_mouse = fb_inject_mouse; b.inject_key = fb_inject_key;
@@ -467,6 +468,18 @@ TEST_F(L2Focus, EventBindingGatesDelivery) {
     tgs_frame ev = expect_cmd(TGS_CMD_EVT_VALUE);
     EXPECT_EQ(atoi(ev.args[1]), 10);
     EXPECT_STREQ(ev.args[2], "42");
+
+    /* HOVER_* are subscription notifications too: unbound hover is silent,
+     * binding CLICK alone does not open it, binding HOVER_ENTER does. */
+    g_event_cb(h10, TGS_EVENT_HOVER_ENTER, nullptr, g_event_ud);
+    EXPECT_LT(read_frame(pty_rd, p, 120), 0);
+    g_event_cb(h10, TGS_EVENT_HOVER_LEAVE, nullptr, g_event_ud);
+    EXPECT_LT(read_frame(pty_rd, p, 120), 0);
+    mkframe(bf, TGS_CMD_EVT_BIND,
+            {"10", std::to_string(TGS_EVENT_HOVER_ENTER)});
+    wm_handle_frame(&bf, &wm);
+    g_event_cb(h10, TGS_EVENT_HOVER_ENTER, nullptr, g_event_ud);
+    expect_cmd(TGS_CMD_EVT_HOVER_ENTER);
 
     /* Binding widget 10 does not open widget 20's events. */
     void *h20 = mk_widget(20, 1, "button");

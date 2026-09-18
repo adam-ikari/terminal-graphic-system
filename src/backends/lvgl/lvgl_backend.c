@@ -62,6 +62,7 @@ static void          *g_nav_key_ud;
 static int     mouse_x, mouse_y;
 static int     mouse_pressed;                /* steady state of the button */
 static uint8_t mouse_queue[INDEV_QUEUE_LEN]; /* 1 = press, 0 = release */
+static lv_obj_t *g_hover_obj;                /* current pointer hover target */
 static int     mouse_qhead, mouse_qtail;
 static int     mouse_qedged;                 /* last state queued — edges only */
 
@@ -304,7 +305,7 @@ static int backend_init(int width, int height)
 
     memset(g_windows, 0, sizeof(g_windows));
     g_focus_vis = NULL;
-    g_nav_key_cb = NULL;
+    g_hover_obj = NULL;
     g_nav_key_ud = NULL;
 
     mouse_x = mouse_y = mouse_pressed = 0;
@@ -429,6 +430,8 @@ static void backend_destroy_window(void *handle)
     window_slot *slot = root ? window_slot_find(root) : NULL;
 
     if (!slot) return;
+    /* The root's subtree (any hovered widget) is going away. */
+    g_hover_obj = NULL;
     if (kb_group == slot->group) {
         kb_group = NULL;
         lv_indev_set_group(kb_indev, NULL);
@@ -447,8 +450,11 @@ static void *backend_create_widget(void *parent, tgs_widget_type type)
     lv_obj_t *obj = create_lvgl_widget(type, p);
     if (!obj) return NULL;
 
-    /* Store widget type in user_data for event mapping */
-    lv_obj_set_user_data(obj, (void *)(intptr_t)type);
+    /* Store widget type in user_data for event mapping. Encoded as type+1
+     * so 0 stays reserved for non-widget objects (labels created by
+     * set_widget_content carry no tag) — otherwise a hover hit on such a
+     * child would decode as TGS_WIDGET_BUTTON (type 0). */
+    lv_obj_set_user_data(obj, (void *)(intptr_t)(type + 1));
 
     /* Grid containers place each new child into the next free cell. */
     if (lv_obj_get_style_layout(p, LV_PART_MAIN) == LV_LAYOUT_GRID)
@@ -475,14 +481,18 @@ static void backend_set_widget_content(void *handle, const char *text)
 {
     if (!handle || !text) return;
     lv_obj_t *obj = (lv_obj_t *)handle;
-    intptr_t type = (intptr_t)lv_obj_get_user_data(obj);
+    intptr_t type = (intptr_t)lv_obj_get_user_data(obj) - 1;
 
     switch (type) {
     case TGS_WIDGET_BUTTON: {
-        /* LVGL buttons need a child label for text */
+        /* LVGL buttons need a child label for text. The label must not
+         * intercept pointer input (labels inherit the default CLICKABLE
+         * flag): hover hit-testing and clicks would otherwise land on the
+         * label instead of the button. */
         lv_obj_t *label = lv_obj_get_child(obj, 0);
         if (!label) {
             label = lv_label_create(obj);
+            lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_center(label);
         }
         lv_label_set_text(label, text);
@@ -540,7 +550,7 @@ static void backend_insert_widget_text(void *handle, const char *text)
 {
     if (!handle || !text) return;
     lv_obj_t *obj = (lv_obj_t *)handle;
-    intptr_t type = (intptr_t)lv_obj_get_user_data(obj);
+    intptr_t type = (intptr_t)lv_obj_get_user_data(obj) - 1;
 
     if (type == TGS_WIDGET_INPUT) {
         lv_textarea_add_text(obj, text);
@@ -548,6 +558,67 @@ static void backend_insert_widget_text(void *handle, const char *text)
         /* Fallback: replace content */
         backend_set_widget_content(handle, text);
     }
+}
+
+/* §H.2: preedit is an overlay, never widget text. A dedicated label child on
+ * the INPUT shows the composition; an empty text deletes it. The overlay is
+ * tagged via user_data so it can be found and replaced on each update. */
+#define PREEDIT_TAG ((void *)(intptr_t)0x50E0D17)
+
+static lv_obj_t *preedit_overlay_find(lv_obj_t *obj)
+{
+    uint32_t i, n = lv_obj_get_child_count(obj);
+
+    for (i = 0; i < n; i++) {
+        lv_obj_t *c = lv_obj_get_child(obj, i);
+        if (lv_obj_get_user_data(c) == PREEDIT_TAG) return c;
+    }
+    return NULL;
+}
+
+static void backend_set_widget_preedit(void *handle, const char *text, int cursor)
+{
+    lv_obj_t *obj, *ov;
+    intptr_t type;
+    size_t len;
+    char *buf;
+    size_t n, k;
+
+    if (!handle) return;
+    obj = (lv_obj_t *)handle;
+    type = (intptr_t)lv_obj_get_user_data(obj) - 1;
+    if (type != TGS_WIDGET_INPUT) return;
+
+    ov = preedit_overlay_find(obj);
+    if (!text || !text[0]) {
+        if (ov) lv_obj_delete(ov);
+        return;
+    }
+
+    len = strlen(text);
+    if (!ov) {
+        ov = lv_label_create(obj);
+        lv_obj_set_user_data(ov, PREEDIT_TAG);
+        /* Floating chip: readable over whatever the textarea shows. */
+        lv_obj_set_style_bg_color(ov, lv_color_hex(0x222222), 0);
+        lv_obj_set_style_bg_opa(ov, LV_OPA_80, 0);
+        lv_obj_set_style_text_color(ov, lv_color_hex(0xEEEEEE), 0);
+        lv_obj_set_style_pad_all(ov, 2, 0);
+    }
+
+    /* Show the composition with a `|` cursor marker. */
+    n = len + 2;
+    buf = (char *)malloc(n);
+    if (!buf) return;
+    k = 0;
+    for (size_t i = 0; i < len; i++) {
+        if ((int)i == cursor && cursor >= 0 && cursor <= (int)len) buf[k++] = '|';
+        buf[k++] = text[i];
+    }
+    if (cursor == (int)len) buf[k++] = '|';
+    buf[k] = '\0';
+    lv_label_set_text(ov, buf);
+    free(buf);
 }
 
 static void backend_set_widget_style(void *handle, tgs_style_prop prop, int32_t value)
@@ -584,6 +655,13 @@ static void backend_set_widget_style(void *handle, tgs_style_prop prop, int32_t 
         /* LVGL font size is fixed at compile time; skip */
         break;
     }
+}
+
+static void backend_destroy_widget(void *handle)
+{
+    if (!handle) return;
+    if (g_hover_obj == (lv_obj_t *)handle) g_hover_obj = NULL;
+    lv_obj_delete((lv_obj_t *)handle);
 }
 
 /* LVGL grid templates are referenced, not copied, by the object's style — the
@@ -639,11 +717,6 @@ static void backend_set_widget_layout(void *handle, tgs_layout_type layout,
     }
 }
 
-static void backend_destroy_widget(void *handle)
-{
-    if (!handle) return;
-    lv_obj_delete((lv_obj_t *)handle);
-}
 
 /* ---- Focus & navigation (§I.1, §D.3) ---- */
 
@@ -783,7 +856,7 @@ static void lvgl_event_handler(lv_event_t *e)
     lv_obj_t *obj = lv_event_get_current_target(e);
     if (!obj) return;
 
-    intptr_t type = (intptr_t)lv_obj_get_user_data(obj);
+    intptr_t type = (intptr_t)lv_obj_get_user_data(obj) - 1;
     tgs_event_type etype;
     const char *event_data = NULL;
     static char value_buf[256];
@@ -829,7 +902,68 @@ static void lvgl_event_handler(lv_event_t *e)
         g_event_cb((void *)obj, etype, event_data, g_event_user_data);
 }
 
-/* ---- Input Injection ---- */
+/* ---- Hover (§D.3 / input model) ----
+ *
+ * The pointer's hover target is the topmost clickable widget under the
+ * cursor. LVGL has no hover event in this version, so the backend does the
+ * hit test on every mouse motion and reports enter/leave through the normal
+ * event callback. Touch produces no hover (a finger cannot hover). */
+static lv_obj_t *hit_test_recursive(lv_obj_t *obj, const lv_point_t *pt)
+{
+    uint32_t i, n = lv_obj_get_child_count(obj);
+
+    /* Later siblings draw on top — test from the topmost down. */
+    for (i = n; i > 0; i--) {
+        lv_obj_t *c = lv_obj_get_child(obj, i - 1);
+        lv_obj_t *hit = hit_test_recursive(c, pt);
+        if (hit) return hit;
+    }
+    if (lv_obj_hit_test(obj, pt)) return obj;
+    return NULL;
+}
+
+static void hover_update(int x, int y)
+{
+    lv_point_t pt = {x, y};
+    lv_obj_t *hit = NULL;
+    lv_obj_t *target = NULL;
+    int i;
+
+    /* Hit-test only window roots — the screen may hold other objects (LVGL
+     * internals) that must not intercept pointer hover. Scan roots in
+     * reverse creation order so the topmost (latest) window wins. */
+    for (i = BACKEND_MAX_WINDOWS - 1; i >= 0; i--) {
+        if (!g_windows[i].root) continue;
+        hit = hit_test_recursive(g_windows[i].root, &pt);
+        if (hit) break;
+    }
+
+    /* Only widgets hover. Exclude the screen (no parent), window roots and
+     * any non-widget object: a hit on those is "no widget". (A widget's
+     * user_data carries its type; BUTTON is type 0, so NULL and BUTTON both
+     * encode as 0 — the root/screen checks disambiguate.) */
+    if (hit && lv_obj_get_parent(hit)) {
+        for (i = 0; i < BACKEND_MAX_WINDOWS; i++)
+            if (g_windows[i].root == hit) break;
+        if (i == BACKEND_MAX_WINDOWS) {
+            intptr_t t = (intptr_t)lv_obj_get_user_data(hit);
+            if (t > 0 && t <= (intptr_t)TGS_WIDGET_COUNT)
+                target = hit;
+        }
+    }
+
+    {
+    }
+    if (target != g_hover_obj) {
+        if (g_hover_obj && g_event_cb)
+            g_event_cb(g_hover_obj, TGS_EVENT_HOVER_LEAVE, NULL,
+                       g_event_user_data);
+        g_hover_obj = target;
+        if (target && g_event_cb)
+            g_event_cb(target, TGS_EVENT_HOVER_ENTER, NULL,
+                       g_event_user_data);
+    }
+}
 
 static void backend_inject_mouse(int x, int y, int button, int pressed)
 {
@@ -837,6 +971,8 @@ static void backend_inject_mouse(int x, int y, int button, int pressed)
     mouse_x = x;
     mouse_y = y;
     mouse_pressed = pressed ? 1 : 0;
+
+    hover_update(x, y);
 
     /* Queue edges only (a drag's repeated pressed=1 motion is not an edge), so
      * LVGL reads the press before the release that follows in the same batch. */
@@ -984,6 +1120,7 @@ static tgs_backend lvgl_backend = {
     .set_widget_rect      = backend_set_widget_rect,
     .set_widget_content   = backend_set_widget_content,
     .insert_widget_text   = backend_insert_widget_text,
+    .set_widget_preedit   = backend_set_widget_preedit,
     .set_widget_style     = backend_set_widget_style,
     .set_widget_layout    = backend_set_widget_layout,
     .destroy_widget       = backend_destroy_widget,
