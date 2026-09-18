@@ -31,7 +31,7 @@
 
 /* Widget */
 #define TGS_CMD_WGT_CREATE   32
-#define TGS_CMD_WGT_UPDATE   33
+#define TGS_CMD_WGT_UPDATE   33  /* [widget_id, value] — replace the widget's text content */
 #define TGS_CMD_WGT_STYLE    34
 #define TGS_CMD_WGT_DESTROY  35
 #define TGS_CMD_EVT_BIND     36

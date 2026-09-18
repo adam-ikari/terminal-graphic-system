@@ -670,7 +670,7 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
     }
 
     case TGS_CMD_WGT_UPDATE: {
-        /* args: [widget_id, content] */
+        /* args: [widget_id, value] — replace the widget's text content. */
         nav_widget *w;
 
         if (frame->num_args < 2) break;

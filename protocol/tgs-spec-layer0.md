@@ -82,7 +82,7 @@ Each stream has its own `frame_id` counter. Frame IDs start at 0 and increment p
 | ID | Name       | Direction  | Args                                          |
 |----|------------|------------|-----------------------------------------------|
 | 32 | WGT_CREATE | app → comp | `widget_id`, `parent_id`, `widget_type`, `x`, `y`, `w`, `h`, `content` |
-| 33 | WGT_UPDATE | app → comp | `widget_id`, `property`, `value`              |
+| 33 | WGT_UPDATE | app → comp | `widget_id`, `value` (replaces the widget text content) |
 | 34 | WGT_STYLE  | app → comp | `widget_id`, `prop`, `value`                  |
 | 35 | WGT_DESTROY| app → comp | `widget_id`                                   |
 | 36 | EVT_BIND   | app → comp | `widget_id`, `event_type`                     |
