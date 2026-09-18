@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TGS 终端图形系统 — 进度汇报</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --border: #e5e7eb;
+    --code: #111827;
+    --code-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.7;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.hero {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #fff;
+    border-radius: 14px;
+    padding: 36px 40px;
+    margin-bottom: 28px;
+  }
+  header.hero h1 { font-size: 30px; font-weight: 700; margin-bottom: 10px; }
+  header.hero p { opacity: .9; font-size: 15px; }
+  .meta {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px;
+    font-size: 13px;
+  }
+  .meta span {
+    background: rgba(255,255,255,.15);
+    padding: 4px 12px; border-radius: 999px;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 30px;
+    margin-bottom: 22px;
+  }
+  h2 {
+    font-size: 21px; font-weight: 700;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 18px 0 8px; }
+  p { margin-bottom: 10px; }
+  ul, ol { padding-left: 24px; margin-bottom: 12px; }
+  li { margin-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border: 1px solid var(--border); }
+  th { background: var(--code-bg); font-weight: 600; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    background: var(--code-bg);
+    color: var(--code);
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+  .shot {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 14px 0 8px;
+    background: #000;
+  }
+  .shot img { width: 100%; display: block; }
+  .shot-cap { font-size: 13px; color: var(--muted); margin: 4px 0 18px; }
+  .tag {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 2px 10px; border-radius: 999px; margin-right: 6px;
+  }
+  .tag.done { background: #dcfce7; color: #166534; }
+  .tag.wip  { background: #fef9c3; color: #854d0e; }
+  .tag.todo { background: #fee2e2; color: #991b1b; }
+  .note {
+    background: #eff6ff; border-left: 4px solid var(--accent);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px;
+    margin: 14px 0;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 28px; }
+  strong { color: var(--code); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>TGS 终端图形系统 — 进度汇报</h1>
+  <p>从字符终端逐层长出的图形窗口系统（display server + 程序）</p>
+  <div class="meta">
+    <span>汇报日期 2026-09-18</span>
+    <span>代码基线 9407940</span>
+    <span>测试 72/72 通过</span>
+  </div>
+</header>
+
+<section class="card">
+  <h2><span class="no">1</span>项目定位</h2>
+  <p>TGS 是一套<strong>显示服务器</strong>（display server）：首先是一个 xterm 级终端（PTY + VT 模拟 + 渲染），在此之上叠加图形能力——widget、窗口、焦点、事件。设计遵循 X11 模型：<strong>服务器持有机制，策略归程序</strong>（WM 是一个客户端，不是服务器的一部分）。</p>
+  <ul>
+    <li><strong>字符优先</strong>：纯字符程序（<code>bash</code>、<code>vim</code>、<code>htop</code>）零改动直接运行，图形是叠加层。</li>
+    <li><strong>一条流</strong>：程序的标准输出既是字符流又是 TGS 控制帧流（APC 帧交错），同一程序可同时打印字符和驱动控件。</li>
+    <li><strong>机制/策略分离</strong>：z-order、焦点、布局是策略，属于程序；表面存在、缓冲、resize 通知是机制，属于服务器。</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2><span class="no">2</span>分层进度</h2>
+  <table>
+    <tr><th>层</th><th>内容</th><th>状态</th></tr>
+    <tr><td><strong>L0</strong></td><td>字符终端：PTY、VT 模拟、字符渲染</td><td><span class="tag done">完成</span></td></tr>
+    <tr><td><strong>L1</strong></td><td>字符 + 图形同一程序（文本与 TGS 帧交错）</td><td><span class="tag done">完成</span></td></tr>
+    <tr><td><strong>L2</strong></td><td>单窗口 + size-notify + widget 集 + 事件 + resize→relayout + 焦点/键盘导航 + 容器几何回传</td><td><span class="tag done">完成</span></td></tr>
+    <tr><td><strong>L3</strong></td><td>styles + 全 widget 库 + 容器 + 多窗口 + resources + IME</td><td><span class="tag wip">进行中</span><br><small>structure 切片已完成（GRID / 多窗口 / 协议收敛）</small></td></tr>
+    <tr><td><strong>L4+</strong></td><td>客户端像素表面、场景合成、WM 程序、嵌套</td><td><span class="tag todo">未开始</span></td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2><span class="no">3</span>功能截图</h2>
+
+  <h3>3.1 基础表单（L0/L1 控件）</h3>
+  <div class="shot"><img src="screenshots/simple_form.png" alt="simple_form 截图"></div>
+  <p class="shot-cap"><code>simple_form</code> 场景：label + input + button，即 L0 验收程序的渲染结果。</p>
+
+  <h3>3.2 容器布局（L3 P3）</h3>
+  <div class="shot"><img src="screenshots/container.png" alt="container 截图"></div>
+  <p class="shot-cap"><code>container</code> 场景：VLAYOUT 纵向堆叠 + HLAYOUT 横向排列 + 嵌套容器。布局后合成器通过 <code>NTF_GEOMETRY</code> 把每个子控件的<strong>实际坐标和大小</strong>回传给程序。</p>
+
+  <h3>3.3 全 widget 库（L3 P2 基础）</h3>
+  <div class="shot"><img src="screenshots/library.png" alt="library 截图"></div>
+  <p class="shot-cap"><code>library</code> 场景：20 种 widget 类型逐一渲染（label / button / input / checkbox / radio / slider / progress / switch / list / table / menu / tab / dropdown / image / timepick / datepick / vlayout / hlayout / glayout / scroll）。</p>
+
+  <div class="note">截图由 <code>tools/render_demo.c</code> 生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲，输出 PNG，无需显示服务器。</div>
+</section>
+
+<section class="card">
+  <h2><span class="no">4</span>已交付能力</h2>
+
+  <h3>4.1 字符终端（L0）</h3>
+  <ul>
+    <li>PTY 子进程 + forkpty winsize 设置 → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。</li>
+    <li>验证：<code>htop</code>、<code>ls</code> 以零 TGS 代码运行；<code>test_term.cpp</code> 覆盖模拟器与解复用。</li>
+  </ul>
+
+  <h3>4.2 图形控件与布局（L0–L3）</h3>
+  <ul>
+    <li><strong>widget 集</strong>：20/20 类型映射到真实 LVGL 对象；事件（CLICK/VALUE/KEY）经 <code>wm_backend_event</code> 单一门控转发。</li>
+    <li><strong>焦点/键盘导航</strong>（L2）：合成器持有焦点权（<code>NTF_FOCUS</code> + reason）；Tab/Shift+Tab 前后移动、箭头方向移动、<code>SET_FOCUS</code> 程序化聚焦、窗口激活/失活焦点对。</li>
+    <li><strong>容器布局</strong>（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>，3 子项在 2 列网格中正确换行。</li>
+    <li><strong>容器几何回传</strong>（L2）：<code>NTF_GEOMETRY</code>(69) 布局后把每个容器/控件的屏幕绝对坐标回传，客户端 <code>tgs_client_get_widget_geometry</code> 查询。</li>
+  </ul>
+
+  <h3>4.3 多窗口（L3 P4）</h3>
+  <ul>
+    <li>每窗口独立 LVGL root + 焦点组；指针点击后台窗口激活。</li>
+    <li><strong>Alt+Tab / Alt+Shift+Tab</strong> 循环窗口，恢复各窗口记住的焦点（<code>WINDOW_RESTORE</code>）。</li>
+    <li><code>NTF_DESTROY</code>(66)、<code>NTF_STATE</code>(67)（激活切换成对通知）落地发射。</li>
+  </ul>
+
+  <h3>4.4 事件订阅模型（L2 D6，第一性原理决策）</h3>
+  <p><code>EVT_BIND</code> 从 no-op 变为真实订阅门控：</p>
+  <ul>
+    <li><strong>CLICK / VALUE_CHANGED</strong>：opt-in 订阅，未绑定不送达。</li>
+    <li><strong>KEY</strong>：输入传输，始终送达焦点程序（避免"忘绑定打字静默丢"）。</li>
+    <li><strong>焦点</strong>：<code>NTF_FOCUS</code> 永不门控。</li>
+  </ul>
+  <p>依据：设计文档 §F.2 记录 EVT_FOCUS 因 <em>"requires EVT_BIND"</em> 被退休——证明 bind 即门控是既定意图；KEY 按 §D.1 流图保持无条件。</p>
+
+  <h3>4.5 协议契约收敛</h3>
+  <ul>
+    <li><code>WGT_UPDATE</code> 对齐为 content-only <code>[widget_id, value]</code>（spec 的 <code>property</code> 维度从未定义）。</li>
+    <li><code>TGS_LAYOUT_GRID</code> 修复（原 flex 桩）；<code>TGS_STYLE_FONT_SIZE</code> 仍为 no-op（待 resources 字体机制）。</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2><span class="no">5</span>质量</h2>
+  <table>
+    <tr><th>项</th><th>值</th></tr>
+    <tr><td>自动化测试</td><td><strong>72/72 通过</strong>（gtest，11 套件），ctest 1/1</td></tr>
+    <tr><td>覆盖</td><td>帧编解码、PTY、VT 模拟、导航/焦点、事件门控、容器几何、多窗口激活、LVGL 点击命中、GRID 布局</td></tr>
+    <tr><td>证据链</td><td>每个修复都做红→绿（stash 前失败 / 恢复后通过）</td></tr>
+    <tr><td>工作树</td><td>干净（提交 <code>28b1918</code>、<code>d8faf76</code>、<code>9407940</code> 等）</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2><span class="no">6</span>下一步</h2>
+  <div class="grid2">
+    <div>
+      <h3>P5 resources（最大缺口，greenfield）</h3>
+      <p><code>TGS_STREAM_RESOURCE</code> 资源上传/缓存，gate IMAGE widget 与 FONT_SIZE。</p>
+    </div>
+    <div>
+      <h3>P1 styles</h3>
+      <p><code>TGS_STYLE_FONT_SIZE</code> 生效（需字体机制）+ 样式查询通道。</p>
+    </div>
+    <div>
+      <h3>P6 IME</h3>
+      <p>preedit 覆盖层（§H.2）+ 候选条（<code>IME_CANDIDATES</code>/<code>IME_SELECT</code> 目前静默丢弃）。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  完整设计：docs/architecture-v2.md · docs/navigation.md · docs/ime.md<br>
+  逐层验收：protocol/tgs-spec-layer0.md · .spec/l3-survey-report.md
+</footer>
+
+</div>
+</body>
+</html>
