@@ -1,6 +1,6 @@
 # TGS 终端图形系统 — 进度汇报
 
-> 汇报日期：2026-09-18 · 代码基线：`9407940`
+> 汇报日期：2026-09-18 · 代码基线：`b8eca9c`
 > 项目：终端图形系统（Terminal Graphic System）——一个从字符终端逐层长出的图形窗口系统
 
 ---
@@ -22,9 +22,9 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 | 层 | 内容 | 状态 |
 |---|---|---|
 | L0 | 字符终端：PTY、VT 模拟、字符渲染 | **完成** |
-| L1 | 字符 + 图形同一程序（文本与 TGS 帧交错） | **完成** |
+| L1 | 字符 + 图形同一程序（文本与 TGS 帧交错） | **完成**（含透明窗口混排） |
 | L2 | 单窗口 + size-notify + widget 集 + 事件 + resize→relayout + 焦点/键盘导航 + 容器几何回传 | **完成** |
-| L3 | styles + 全 widget 库 + 容器 + 多窗口 + resources + IME | **进行中**（structure 切片已完成） |
+| L3 | styles + 全 widget 库 + 容器 + 多窗口 + resources + IME | **进行中**（structure 切片 + hover 完成） |
 | L4+ | 客户端像素表面、场景合成、WM 程序、嵌套 | 未开始 |
 
 ---
@@ -45,7 +45,7 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ### 3.3 全 widget 库（L3 P2 基础）
 
-`library` 场景：20 种 widget 类型逐一渲染（label/button/input/checkbox/radio/slider/progress/switch/list/table/menu/tab/dropdown/image/timepick/datepick/vlayout/hlayout/glayout/scroll）。
+`library` 场景：20 种 widget 类型逐一渲染。
 
 ![widget 库](screenshots/library.png)
 
@@ -57,17 +57,17 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ### 3.5 控件交互状态（hover / 按下 / 点击 / 焦点）
 
-`states` 场景（`examples/states_demo.c`）：14 种交互控件铺满屏幕，程序通过 `EVT_BIND` 订阅 `HOVER_ENTER` / `HOVER_LEAVE` / `CLICK`，对悬停做出**程序侧策略响应**（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。
+`states` 场景：14 种交互控件铺满屏幕。程序通过 `EVT_BIND` 订阅 `HOVER_ENTER` / `HOVER_LEAVE` / `CLICK`，对悬停做出**程序侧策略响应**（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。
 
-**正常态**（无悬停、无按下）：
+**正常态**：
 
 ![正常态](screenshots/states_normal.png)
 
-**悬停 Button**——程序收到 `HOVER_ENTER`，为该控件画蓝色边框（悬停别的控件只高亮它自己；移开即 `HOVER_LEAVE` 清除）：
+**悬停 Button**——程序收到 `HOVER_ENTER`，为该控件画蓝色边框：
 
 ![悬停态](screenshots/states_hover.png)
 
-**按下 Button**——LVGL 按压态外观（按下瞬间）：
+**按下 Button**——LVGL 按压态外观：
 
 ![按下态](screenshots/states_pressed.png)
 
@@ -79,62 +79,115 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ![Slider 悬停](screenshots/states_slider_hover.png)
 
-> 控件/状态截图由 `tools/render_demo.c`（`states` 模式）生成：驱动真实 LVGL 后端（合成器同款代码路径）到内存帧缓冲输出 PNG，交互状态由真实的 hover 命中测试与 LVGL 按压/焦点状态驱动，非摆拍；字符混排截图来自真实合成器 + Xvfb 实拍。
+### 3.6 控件分列展示（每控件独立渲染）
+
+每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 60 张（20 控件 × 3 状态）经**视觉模型逐张验收**。
+
+| 控件 | 正常 | 悬停 | 按下 |
+|---|---|---|---|
+| Button 按钮 | ![b](screenshots/singles/button_normal.png) | ![bh](screenshots/singles/button_hover.png) | ![bp](screenshots/singles/button_pressed.png) |
+| Input 输入框 | ![i](screenshots/singles/input_normal.png) | ![ih](screenshots/singles/input_hover.png) | ![ip](screenshots/singles/input_pressed.png) |
+| Checkbox 复选框 | ![c](screenshots/singles/checkbox_normal.png) | ![ch](screenshots/singles/checkbox_hover.png) | ![cp](screenshots/singles/checkbox_pressed.png) |
+| Radio 单选钮 | ![r](screenshots/singles/radio_normal.png) | ![rh](screenshots/singles/radio_hover.png) | ![rp](screenshots/singles/radio_pressed.png) |
+| Slider 滑块 | ![s](screenshots/singles/slider_normal.png) | ![sh](screenshots/singles/slider_hover.png) | ![sp](screenshots/singles/slider_pressed.png) |
+| Switch 开关 | ![sw](screenshots/singles/switch_normal.png) | ![swh](screenshots/singles/switch_hover.png) | ![swp](screenshots/singles/switch_pressed.png) |
+| Progress 进度条 | ![p](screenshots/singles/progress_normal.png) | ![ph](screenshots/singles/progress_hover.png) | ![pp](screenshots/singles/progress_pressed.png) |
+| List 列表 | ![l](screenshots/singles/list_normal.png) | ![lh](screenshots/singles/list_hover.png) | ![lp](screenshots/singles/list_pressed.png) |
+| Dropdown 下拉框 | ![d](screenshots/singles/dropdown_normal.png) | ![dh](screenshots/singles/dropdown_hover.png) | ![dp](screenshots/singles/dropdown_pressed.png) |
+| Tab 标签页 | ![t](screenshots/singles/tab_normal.png) | ![th](screenshots/singles/tab_hover.png) | ![tp](screenshots/singles/tab_pressed.png) |
+| Timepick 时间滚轮 | ![ti](screenshots/singles/timepick_normal.png) | ![tih](screenshots/singles/timepick_hover.png) | ![tip](screenshots/singles/timepick_pressed.png) |
+| Datepick 日历 | ![da](screenshots/singles/datepick_normal.png) | ![dah](screenshots/singles/datepick_hover.png) | ![dap](screenshots/singles/datepick_pressed.png) |
+| VLayout 纵向布局 | ![vl](screenshots/singles/vlayout_normal.png) | ![vlh](screenshots/singles/vlayout_hover.png) | ![vlp](screenshots/singles/vlayout_pressed.png) |
+| HLayout 横向布局 | ![hl](screenshots/singles/hlayout_normal.png) | ![hlh](screenshots/singles/hlayout_hover.png) | ![hlp](screenshots/singles/hlayout_pressed.png) |
+| GLayout 网格布局 | ![gl](screenshots/singles/glayout_normal.png) | ![glh](screenshots/singles/glayout_hover.png) | ![glp](screenshots/singles/glayout_pressed.png) |
+| Scroll 滚动容器 | ![sc](screenshots/singles/scroll_normal.png) | ![sch](screenshots/singles/scroll_hover.png) | ![scp](screenshots/singles/scroll_pressed.png) |
+
+> 图片由 `render_demo singles` 模式生成：每控件独立窗口、居中渲染，驱动真实 LVGL 后端到内存帧缓冲输出 PNG。
 
 ---
 
-## 4. 已交付能力
+## 4. 视觉模型逐张验收
 
-### 4.1 字符终端（L0）
+所有 singles 截图（60 张）+ 交互状态图经**视觉模型逐张评审**，维度：对比度可读性、对齐间距、视觉一致性、产品文档可用性。结论：
 
-- PTY 子进程 + forkpty winsize 设置 → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。
+### 4.1 验收通过（15/20 控件）
+
+button、input、checkbox、slider（含悬停蓝描边）、switch（修复后 9/10）、progress、list、dropdown、tab（选中高亮+下划线）、datepick（日历完整、当日蓝框）、vlayout/hlayout/glayout（子控件排布正确）、scroll。客观度量：20 张 normal 图控件**居中偏差 (0,0)**，对比度 142-661（全部远超可读阈值）；14 个交互控件悬停蓝框 880-2346 像素/张。
+
+### 4.2 评审抓出并修复的渲染缺陷
+
+| 缺陷 | 视觉评分 | 根因 | 修复 | 复验 |
+|---|---|---|---|---|
+| switch 滑块溢出轨道 | 3-5/10（"像渲染错误"） | LVGL 把 knob 画在开关全高，小圆角轨道挡不住四角 | 轨道改胶囊形（radius=高度/2） | **9/10** "全在轨道内，垂直居中" |
+| radio 方框与 checkbox 不可区分 | 外观重复 | 圆角设在 main part，方块画在 `LV_PART_INDICATOR` | 圆角移到 INDICATOR part | ✅ "圆钮白心蓝环，可区分" |
+| button hover/press 无反馈 | 交互缺失 | 内容 label 继承 CLICKABLE 拦截指针 + user_data 编码冲突 | label 去 CLICKABLE + `type+1` 编码 | ✅ hover 蓝框 1067px、按下 diff 8404px |
+
+### 4.3 确认非 bug
+
+- **timepick** 只露 2-3 个选项：roller 可视范围语义（singles 已加高到 150px，可见 3 项）。
+- **label 无悬停响应**：非交互控件，正常。
+- **image 空白**：resources 子系统未做（L3 P5 已排期）。
+- **menu 只有返回箭头**：已知 stub（L3 P2 范围）。
+
+---
+
+## 5. 已交付能力
+
+### 5.1 字符终端（L0）
+
+- PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。
 - 验证：`htop`、`ls` 以零 TGS 代码运行；`test_term.cpp` 覆盖模拟器与解复用。
 
-### 4.2 图形控件与布局（L0–L3）
+### 5.2 图形控件与布局（L0–L3）
 
-- **widget 集**：20/20 类型映射到真实 LVGL 对象；事件（CLICK/VALUE/KEY）经 `wm_backend_event` 单一门控转发。
-- **焦点/键盘导航**（L2）：合成器持有焦点权（`NTF_FOCUS` + reason）；Tab/Shift+Tab 前后移动、箭头方向移动、`SET_FOCUS` 程序化聚焦、窗口激活/失活焦点对。
-- **容器布局**（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；**运行时 GRID 真布局**——`WGT_LAYOUT` 支持 `[cols, rows]`，3 子项在 2 列网格中正确换行。
-- **容器几何回传**（L2 缺陷修复）：`NTF_GEOMETRY`(69) 布局后把每个容器/控件的屏幕绝对坐标回传，客户端 `tgs_client_get_widget_geometry` 查询。
+- **widget 集**：20/20 类型映射到真实 LVGL 对象；事件经 `wm_backend_event` 单一门控转发。
+- **焦点/键盘导航**（L2）：合成器持有焦点权（`NTF_FOCUS` + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。
+- **容器布局**（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；**运行时 GRID 真布局**——`WGT_LAYOUT` 支持 `[cols, rows]`。
+- **容器几何回传**（L2）：`NTF_GEOMETRY`(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。
 
-### 4.3 多窗口（L3 P4）
+### 5.3 多窗口（L3 P4）
 
 - 每窗口独立 LVGL root + 焦点组；指针点击后台窗口激活。
 - **Alt+Tab / Alt+Shift+Tab** 循环窗口，恢复各窗口记住的焦点（`WINDOW_RESTORE`）。
 - `NTF_DESTROY`(66)、`NTF_STATE`(67)（激活切换成对通知）落地发射。
 
-### 4.4 事件订阅模型（L2 D6，第一性原理决策）
+### 5.4 指针交互全模型（新增）
 
-`EVT_BIND` 从 no-op 变为真实订阅门控：
+- **鼠标悬停**：`TGS_EVENT_HOVER_ENTER/LEAVE`（7/8）——backend 递归 hit-test 窗口 root，只报状态变化；订阅门控（同 CLICK）；触摸不产生悬停（无 hover 语义）。
+- **点击/按压**：CLICK 事件 + LVGL 原生按压/聚焦视觉。
+- **事件订阅模型**（L2 D6）：CLICK/VALUE/HOVER 走 opt-in 订阅；KEY 是输入传输始终送达；焦点永不门控。
 
-- **CLICK / VALUE_CHANGED**：opt-in 订阅，未绑定不送达。
-- **KEY**：输入传输，始终送达焦点程序（避免"忘绑定打字静默丢"）。
-- **焦点**：`NTF_FOCUS` 永不门控。
+### 5.5 字符 + 控件混排（L1）
 
-依据：设计文档 §F.2 记录 EVT_FOCUS 因 *"requires EVT_BIND"* 被退休——证明 bind 即门控是既定意图；KEY 按 §D.1 流图保持无条件。
+`TGS_WINDOW_TRANSPARENT` 窗口类型：root 背景透明，字符 base 透过显示，控件浮在文本上。
 
-### 4.5 协议契约收敛
+### 5.6 协议契约收敛
 
-- `WGT_UPDATE` 对齐为 content-only `[widget_id, value]`（spec 的 `property` 维度从未定义）。
+- `WGT_UPDATE` 对齐为 content-only `[widget_id, value]`。
 - `TGS_LAYOUT_GRID` 修复（原 flex 桩）；`TGS_STYLE_FONT_SIZE` 仍为 no-op（待 resources 字体机制）。
 
 ---
 
-## 5. 质量
+## 6. 质量
 
 | 项 | 值 |
 |---|---|
-| 自动化测试 | **72/72 通过**（gtest，11 套件），ctest 1/1 |
-| 覆盖 | 帧编解码、PTY、VT 模拟、导航/焦点、事件门控、容器几何、多窗口激活、LVGL 点击命中、GRID 布局 |
-| 证据链 | 每个修复都做红→绿（stash 前失败/恢复后通过） |
-| 工作树 | 干净（提交 `28b1918`、`d8faf76`、`9407940` 等） |
-
-## 6. 下一步
-
-- **P5 resources**（L3 最大缺口，greenfield）：`TGS_STREAM_RESOURCE` 资源上传/缓存，gate IMAGE widget 与 FONT_SIZE。
-- **P1 styles**：`TGS_STYLE_FONT_SIZE` 生效（需字体机制）+ 样式查询通道。
-- **P6 IME**：preedit 覆盖层（§H.2）+ 候选条（`IME_CANDIDATES`/`IME_SELECT` 目前静默丢弃）。
+| 自动化测试 | **74/74 通过**（gtest，11 套件），ctest 1/1 |
+| 覆盖 | 帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、LVGL 点击命中、GRID 布局 |
+| 证据链 | 每个修复红→绿（stash 前失败/恢复后通过） |
+| 视觉验收 | 60 张控件截图 + 5 张交互状态图，视觉模型逐张评审，缺陷闭环 |
+| 工作树 | 干净 |
 
 ---
 
-*完整设计：`docs/architecture-v2.md`、`docs/navigation.md`、`docs/ime.md`；逐层验收见 `protocol/tgs-spec-layer0.md` 与 `.spec/l3-survey-report.md`。*
+## 7. 下一步
+
+1. **P5 resources**（L3 最大缺口，greenfield）：`TGS_STREAM_RESOURCE` 资源上传/缓存，gate IMAGE widget 与 FONT_SIZE。
+2. **P6 IME**：候选条（`IME_CANDIDATES`/`IME_SELECT` 静默丢弃）——preedit overlay 已实现一半。
+3. **P1 styles**：`TGS_STYLE_FONT_SIZE` 生效（依赖 resources 字体机制）+ 样式查询通道。
+4. **触摸接入**：复用鼠标管道（`input_sdl.c` 加 `SDL_FINGER*` 分支，触摸=指针）。
+5. **menu 渲染**（P2 stub）：需要菜单项结构 API。
+
+---
+
+*完整设计：`docs/architecture-v2.md`、`docs/navigation.md`、`docs/ime.md`；逐层验收：`protocol/tgs-spec-layer0.md` 与 `.spec/l3-survey-report.md`。*

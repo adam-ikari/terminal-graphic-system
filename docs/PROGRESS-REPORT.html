@@ -6,102 +6,67 @@
 <title>TGS 终端图形系统 — 进度汇报</title>
 <style>
   :root {
-    --bg: #f5f6f8;
-    --card: #ffffff;
-    --ink: #1f2937;
-    --muted: #6b7280;
-    --accent: #2563eb;
-    --border: #e5e7eb;
-    --code: #111827;
-    --code-bg: #f3f4f6;
+    --bg: #f5f6f8; --card: #ffffff; --ink: #1f2937; --muted: #6b7280;
+    --accent: #2563eb; --border: #e5e7eb; --code: #111827; --code-bg: #f3f4f6;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
                  "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    line-height: 1.7;
+    background: var(--bg); color: var(--ink); line-height: 1.7;
   }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
   header.hero {
     background: linear-gradient(135deg, #1e3a8a, #2563eb);
-    color: #fff;
-    border-radius: 14px;
-    padding: 36px 40px;
-    margin-bottom: 28px;
+    color: #fff; border-radius: 14px; padding: 36px 40px; margin-bottom: 28px;
   }
   header.hero h1 { font-size: 30px; font-weight: 700; margin-bottom: 10px; }
   header.hero p { opacity: .9; font-size: 15px; }
-  .meta {
-    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px;
-    font-size: 13px;
-  }
-  .meta span {
-    background: rgba(255,255,255,.15);
-    padding: 4px 12px; border-radius: 999px;
-  }
+  .meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; font-size: 13px; }
+  .meta span { background: rgba(255,255,255,.15); padding: 4px 12px; border-radius: 999px; }
   section.card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 26px 30px;
-    margin-bottom: 22px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 26px 30px; margin-bottom: 22px;
   }
-  h2 {
-    font-size: 21px; font-weight: 700;
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid var(--border);
-  }
+  h2 { font-size: 21px; font-weight: 700; margin-bottom: 16px; padding-bottom: 10px;
+       border-bottom: 2px solid var(--border); }
   h2 .no { color: var(--accent); margin-right: 8px; }
   h3 { font-size: 17px; font-weight: 600; margin: 18px 0 8px; }
+  h4 { font-size: 15px; font-weight: 600; margin: 14px 0 6px; }
   p { margin-bottom: 10px; }
   ul, ol { padding-left: 24px; margin-bottom: 12px; }
   li { margin-bottom: 5px; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
   th, td { text-align: left; padding: 9px 12px; border: 1px solid var(--border); }
   th { background: var(--code-bg); font-weight: 600; }
-  code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 13px;
-    background: var(--code-bg);
-    color: var(--code);
-    padding: 1px 6px;
-    border-radius: 5px;
-  }
-  .shot {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin: 14px 0 8px;
-    background: #000;
-  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         font-size: 13px; background: var(--code-bg); color: var(--code);
+         padding: 1px 6px; border-radius: 5px; }
+  .shot { border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+          margin: 14px 0 8px; background: #000; }
   .shot img { width: 100%; display: block; }
   .shot-cap { font-size: 13px; color: var(--muted); margin: 4px 0 18px; }
-  .tag {
-    display: inline-block; font-size: 12px; font-weight: 600;
-    padding: 2px 10px; border-radius: 999px; margin-right: 6px;
-  }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600;
+         padding: 2px 10px; border-radius: 999px; margin-right: 6px; }
   .tag.done { background: #dcfce7; color: #166534; }
   .tag.wip  { background: #fef9c3; color: #854d0e; }
   .tag.todo { background: #fee2e2; color: #991b1b; }
-  .note {
-    background: #eff6ff; border-left: 4px solid var(--accent);
-    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px;
-    margin: 14px 0;
-  }
-  .singles { display: flex; flex-direction: column; gap: 10px; }
-  .srow { display: grid; grid-template-columns: 110px 1fr 1fr 1fr; gap: 10px; align-items: center;
-          border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  .note { background: #eff6ff; border-left: 4px solid var(--accent);
+          padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; margin: 14px 0; }
+  .singles { display: flex; flex-direction: column; gap: 8px; }
+  .srow { display: grid; grid-template-columns: 110px 1fr 1fr 1fr; gap: 10px;
+          align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
   .srow .sname { font-size: 14px; }
   .srow figure { margin: 0; }
   .srow img { width: 100%; border: 1px solid var(--border); border-radius: 6px; display: block; }
   .srow figcaption { font-size: 12px; color: var(--muted); text-align: center; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; }
+    .srow { grid-template-columns: 90px 1fr 1fr 1fr; } }
   footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 28px; }
   strong { color: var(--code); }
+  .verdict-pass { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px 14px;
+                  border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -112,14 +77,15 @@
   <p>从字符终端逐层长出的图形窗口系统（display server + 程序）</p>
   <div class="meta">
     <span>汇报日期 2026-09-18</span>
-    <span>代码基线 9407940</span>
-    <span>测试 72/72 通过</span>
+    <span>代码基线 b8eca9c</span>
+    <span>测试 74/74 通过</span>
+    <span>截图 65 张 · 视觉模型逐张验收</span>
   </div>
 </header>
 
 <section class="card">
   <h2><span class="no">1</span>项目定位</h2>
-  <p>TGS 是一套<strong>显示服务器</strong>（display server）：首先是一个 xterm 级终端（PTY + VT 模拟 + 渲染），在此之上叠加图形能力——widget、窗口、焦点、事件。设计遵循 X11 模型：<strong>服务器持有机制，策略归程序</strong>（WM 是一个客户端，不是服务器的一部分）。</p>
+  <p>TGS 是一套<strong>显示服务器</strong>：首先是一个 xterm 级终端（PTY + VT 模拟 + 渲染），在此之上叠加图形能力——widget、窗口、焦点、事件。设计遵循 X11 模型：<strong>服务器持有机制，策略归程序</strong>（WM 是一个客户端，不是服务器的一部分）。</p>
   <ul>
     <li><strong>字符优先</strong>：纯字符程序（<code>bash</code>、<code>vim</code>、<code>htop</code>）零改动直接运行，图形是叠加层。</li>
     <li><strong>一条流</strong>：程序的标准输出既是字符流又是 TGS 控制帧流（APC 帧交错），同一程序可同时打印字符和驱动控件。</li>
@@ -132,9 +98,9 @@
   <table>
     <tr><th>层</th><th>内容</th><th>状态</th></tr>
     <tr><td><strong>L0</strong></td><td>字符终端：PTY、VT 模拟、字符渲染</td><td><span class="tag done">完成</span></td></tr>
-    <tr><td><strong>L1</strong></td><td>字符 + 图形同一程序（文本与 TGS 帧交错）</td><td><span class="tag done">完成</span></td></tr>
+    <tr><td><strong>L1</strong></td><td>字符 + 图形同一程序（文本与 TGS 帧交错）</td><td><span class="tag done">完成</span><br><small>含透明窗口混排</small></td></tr>
     <tr><td><strong>L2</strong></td><td>单窗口 + size-notify + widget 集 + 事件 + resize→relayout + 焦点/键盘导航 + 容器几何回传</td><td><span class="tag done">完成</span></td></tr>
-    <tr><td><strong>L3</strong></td><td>styles + 全 widget 库 + 容器 + 多窗口 + resources + IME</td><td><span class="tag wip">进行中</span><br><small>structure 切片已完成（GRID / 多窗口 / 协议收敛）</small></td></tr>
+    <tr><td><strong>L3</strong></td><td>styles + 全 widget 库 + 容器 + 多窗口 + resources + IME</td><td><span class="tag wip">进行中</span><br><small>structure 切片 + hover 完成</small></td></tr>
     <tr><td><strong>L4+</strong></td><td>客户端像素表面、场景合成、WM 程序、嵌套</td><td><span class="tag todo">未开始</span></td></tr>
   </table>
 </section>
@@ -143,23 +109,36 @@
   <h2><span class="no">3</span>功能截图</h2>
 
   <h3>3.1 基础表单（L0/L1 控件）</h3>
-  <div class="shot"><img src="screenshots/simple_form.png" alt="simple_form 截图"></div>
-  <p class="shot-cap"><code>simple_form</code> 场景：label + input + button，即 L0 验收程序的渲染结果。</p>
+  <div class="shot"><img src="screenshots/simple_form.png" alt="simple_form"></div>
+  <p class="shot-cap"><code>simple_form</code>：label + input + button，即 L0 验收程序的渲染结果。</p>
 
   <h3>3.2 容器布局（L3 P3）</h3>
-  <div class="shot"><img src="screenshots/container.png" alt="container 截图"></div>
-  <p class="shot-cap"><code>container</code> 场景：VLAYOUT 纵向堆叠 + HLAYOUT 横向排列 + 嵌套容器。布局后合成器通过 <code>NTF_GEOMETRY</code> 把每个子控件的<strong>实际坐标和大小</strong>回传给程序。</p>
+  <div class="shot"><img src="screenshots/container.png" alt="container"></div>
+  <p class="shot-cap">VLAYOUT 纵向堆叠 + HLAYOUT 横向排列 + 嵌套容器。布局后合成器通过 <code>NTF_GEOMETRY</code> 把每个子控件的<strong>实际坐标和大小</strong>回传给程序。</p>
 
   <h3>3.3 全 widget 库（L3 P2 基础）</h3>
-  <div class="shot"><img src="screenshots/library.png" alt="library 截图"></div>
-  <p class="shot-cap"><code>library</code> 场景：20 种 widget 类型逐一渲染（label / button / input / checkbox / radio / slider / progress / switch / list / table / menu / tab / dropdown / image / timepick / datepick / vlayout / hlayout / glayout / scroll）。</p>
+  <div class="shot"><img src="screenshots/library.png" alt="library"></div>
+  <p class="shot-cap">20 种 widget 类型逐一渲染。</p>
 
   <h3>3.4 字符 + 控件混排（L1）</h3>
-  <div class="shot"><img src="screenshots/mixed.png" alt="mixed 混排截图"></div>
-  <p class="shot-cap"><code>mixed_demo</code> 场景：程序打印 40 行字符，开<strong>透明窗口</strong>（<code>TGS_WINDOW_TRANSPARENT</code>）——窗口 root 无背景，字符 base 透过显示，控件浮在文本上；同一 stdout 流中字符与 TGS 帧交错。截图来自真实合成器 + Xvfb。</p>
+  <div class="shot"><img src="screenshots/mixed.png" alt="mixed"></div>
+  <p class="shot-cap">程序打印 40 行字符，开<strong>透明窗口</strong>（<code>TGS_WINDOW_TRANSPARENT</code>）——窗口 root 无背景，字符 base 透过显示，控件浮在文本上；同一 stdout 流中字符与 TGS 帧交错。</p>
 
-  <h3>3.6 控件分列展示（每控件独立渲染）</h3>
-  <p>每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部经视觉模型逐张验收。</p>
+  <h3>3.5 控件交互状态（hover / 按下 / 点击 / 焦点）</h3>
+  <p><code>states</code> 场景：14 种交互控件铺满屏幕。程序通过 <code>EVT_BIND</code> 订阅 <code>HOVER_ENTER</code> / <code>HOVER_LEAVE</code> / <code>CLICK</code>，对悬停做出<strong>程序侧策略响应</strong>（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。</p>
+  <h4>正常态</h4>
+  <div class="shot"><img src="screenshots/states_normal.png" alt="正常态"></div>
+  <h4>悬停 Button（程序收到 HOVER_ENTER，画蓝色边框）</h4>
+  <div class="shot"><img src="screenshots/states_hover.png" alt="悬停态"></div>
+  <h4>按下 Button（LVGL 按压态）</h4>
+  <div class="shot"><img src="screenshots/states_pressed.png" alt="按下态"></div>
+  <h4>点击后（焦点轮廓 + CLICK 事件）</h4>
+  <div class="shot"><img src="screenshots/states_clicked.png" alt="点击态"></div>
+  <h4>悬停 Slider（高亮跟随指针切换控件）</h4>
+  <div class="shot"><img src="screenshots/states_slider_hover.png" alt="Slider 悬停"></div>
+
+  <h3>3.6 控件分列展示（每控件独立渲染 × 三状态）</h3>
+  <p>每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 60 张（20 控件 × 3 状态）经<strong>视觉模型逐张验收</strong>。</p>
   <div class="singles">
     <div class="srow">
       <div class="sname"><strong>Button</strong><br><small>按钮</small></div>
@@ -258,95 +237,85 @@
       <figure><img src="screenshots/singles/scroll_pressed.png" alt="Scroll pressed"><figcaption>按下</figcaption></figure>
     </div>
   </div>
-  <div class="note">每张截图：800×600 深色背景，控件居中（270,250），由 <code>render_demo singles</code> 模式驱动真实 LVGL 后端渲染。悬停 = 程序响应 HOVER_ENTER 画的蓝色边框；按下 = LVGL 原生按压态。全部 60 张（20 控件 × 3 状态）经视觉模型逐张验收：label/button/input/checkbox/slider/switch/progress/list/tab/dropdown/datepick/vlayout/hlayout/glayout/scroll 渲染正确；radio 已修复（圆形指示器在 INDICATOR part）；menu 仍为已知 stub（L3 P2）。</div>
-
-  <h3>3.5 控件交互状态（hover / 按下 / 点击 / 焦点）</h3>
-  <p><code>states</code> 场景：14 种交互控件铺满屏幕。程序通过 <code>EVT_BIND</code> 订阅 <code>HOVER_ENTER</code> / <code>HOVER_LEAVE</code> / <code>CLICK</code>，对悬停做出<strong>程序侧策略响应</strong>（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。</p>
-
-  <h4>正常态</h4>
-  <div class="shot"><img src="screenshots/states_normal.png" alt="正常态"></div>
-
-  <h4>悬停 Button（程序收到 HOVER_ENTER，画蓝色边框）</h4>
-  <div class="shot"><img src="screenshots/states_hover.png" alt="悬停态"></div>
-
-  <h4>按下 Button（LVGL 按压态）</h4>
-  <div class="shot"><img src="screenshots/states_pressed.png" alt="按下态"></div>
-
-  <h4>点击后（焦点轮廓 + CLICK 事件）</h4>
-  <div class="shot"><img src="screenshots/states_clicked.png" alt="点击态"></div>
-
-  <h4>悬停 Slider（高亮跟随指针切换控件）</h4>
-  <div class="shot"><img src="screenshots/states_slider_hover.png" alt="Slider 悬停"></div>
-
-  <div class="note">状态截图由 <code>tools/render_demo.c</code>（<code>states</code> 模式）生成：交互状态由真实的 hover 命中测试与 LVGL 按压/焦点状态驱动，非摆拍。</div>
+  <div class="note">每张截图：800×600 深色背景，控件居中，由 <code>render_demo singles</code> 模式驱动真实 LVGL 后端渲染。悬停 = 程序响应 HOVER_ENTER 画的蓝色边框；按下 = LVGL 原生按压态。image 空白（resources 未做）与 menu stub（L3 P2）为已知待办。</div>
 </section>
 
 <section class="card">
-  <h2><span class="no">4</span>已交付能力</h2>
-  <h3>4.1 字符终端（L0）</h3>
+  <h2><span class="no">4</span>视觉模型逐张验收</h2>
+  <p>所有截图（60 张 singles + 5 张状态图）经<strong>视觉模型逐张评审</strong>，维度：对比度可读性、对齐间距、视觉一致性、产品文档可用性。</p>
+  <div class="verdict-pass"><strong>验收通过 15/20 控件</strong>：button、input、checkbox、slider、switch、progress、list、dropdown、tab、datepick、vlayout、hlayout、glayout、scroll、label（非交互属正常）。客观度量：控件居中偏差 (0,0)；对比度 142-661；14 个交互控件悬停蓝框 880-2346 像素/张。</div>
+  <h3>4.1 评审抓出并修复的渲染缺陷</h3>
+  <table>
+    <tr><th>缺陷</th><th>视觉评分</th><th>根因</th><th>修复</th><th>复验</th></tr>
+    <tr><td>switch 滑块溢出轨道</td><td>3-5/10（"像渲染错误"）</td><td>LVGL 把 knob 画在开关全高，小圆角轨道挡不住四角</td><td>轨道改胶囊形（radius=高度/2）</td><td><strong>9/10</strong> "全在轨道内，垂直居中"</td></tr>
+    <tr><td>radio 方框与 checkbox 不可区分</td><td>外观重复</td><td>圆角设在 main part，方块画在 <code>LV_PART_INDICATOR</code></td><td>圆角移到 INDICATOR part</td><td>✅ "圆钮白心蓝环，可区分"</td></tr>
+    <tr><td>button hover/press 无反馈</td><td>交互缺失</td><td>内容 label 继承 CLICKABLE 拦截指针 + user_data 编码冲突</td><td>label 去 CLICKABLE + <code>type+1</code> 编码</td><td>✅ hover 蓝框 1067px、按下 diff 8404px</td></tr>
+  </table>
+  <h3>4.2 确认非 bug</h3>
   <ul>
-    <li>PTY 子进程 + forkpty winsize 设置 → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。</li>
+    <li><strong>timepick</strong> 只露 2-3 个选项：roller 可视范围语义（singles 已加高，可见 3 项）。</li>
+    <li><strong>label 无悬停响应</strong>：非交互控件，正常。</li>
+    <li><strong>image 空白</strong>：resources 子系统未做（L3 P5 已排期）。</li>
+    <li><strong>menu 只有返回箭头</strong>：已知 stub（L3 P2 范围）。</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2><span class="no">5</span>已交付能力</h2>
+  <h3>5.1 字符终端（L0）</h3>
+  <ul>
+    <li>PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。</li>
     <li>验证：<code>htop</code>、<code>ls</code> 以零 TGS 代码运行；<code>test_term.cpp</code> 覆盖模拟器与解复用。</li>
   </ul>
-
-  <h3>4.2 图形控件与布局（L0–L3）</h3>
+  <h3>5.2 图形控件与布局（L0–L3）</h3>
   <ul>
-    <li><strong>widget 集</strong>：20/20 类型映射到真实 LVGL 对象；事件（CLICK/VALUE/KEY）经 <code>wm_backend_event</code> 单一门控转发。</li>
-    <li><strong>焦点/键盘导航</strong>（L2）：合成器持有焦点权（<code>NTF_FOCUS</code> + reason）；Tab/Shift+Tab 前后移动、箭头方向移动、<code>SET_FOCUS</code> 程序化聚焦、窗口激活/失活焦点对。</li>
-    <li><strong>容器布局</strong>（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>，3 子项在 2 列网格中正确换行。</li>
-    <li><strong>容器几何回传</strong>（L2）：<code>NTF_GEOMETRY</code>(69) 布局后把每个容器/控件的屏幕绝对坐标回传，客户端 <code>tgs_client_get_widget_geometry</code> 查询。</li>
+    <li><strong>widget 集</strong>：20/20 类型映射到真实 LVGL 对象；事件经 <code>wm_backend_event</code> 单一门控转发。</li>
+    <li><strong>焦点/键盘导航</strong>（L2）：合成器持有焦点权（<code>NTF_FOCUS</code> + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。</li>
+    <li><strong>容器布局</strong>（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>。</li>
+    <li><strong>容器几何回传</strong>（L2）：<code>NTF_GEOMETRY</code>(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。</li>
   </ul>
-
-  <h3>4.3 多窗口（L3 P4）</h3>
+  <h3>5.3 多窗口（L3 P4）</h3>
   <ul>
     <li>每窗口独立 LVGL root + 焦点组；指针点击后台窗口激活。</li>
     <li><strong>Alt+Tab / Alt+Shift+Tab</strong> 循环窗口，恢复各窗口记住的焦点（<code>WINDOW_RESTORE</code>）。</li>
     <li><code>NTF_DESTROY</code>(66)、<code>NTF_STATE</code>(67)（激活切换成对通知）落地发射。</li>
   </ul>
-
-  <h3>4.4 事件订阅模型（L2 D6，第一性原理决策）</h3>
-  <p><code>EVT_BIND</code> 从 no-op 变为真实订阅门控：</p>
+  <h3>5.4 指针交互全模型（新增）</h3>
   <ul>
-    <li><strong>CLICK / VALUE_CHANGED</strong>：opt-in 订阅，未绑定不送达。</li>
-    <li><strong>KEY</strong>：输入传输，始终送达焦点程序（避免"忘绑定打字静默丢"）。</li>
-    <li><strong>焦点</strong>：<code>NTF_FOCUS</code> 永不门控。</li>
+    <li><strong>鼠标悬停</strong>：<code>TGS_EVENT_HOVER_ENTER/LEAVE</code>(7/8)——backend 递归 hit-test 窗口 root，只报状态变化；订阅门控（同 CLICK）；触摸不产生悬停（无 hover 语义）。</li>
+    <li><strong>点击/按压</strong>：CLICK 事件 + LVGL 原生按压/聚焦视觉。</li>
+    <li><strong>事件订阅模型</strong>（L2 D6）：CLICK/VALUE/HOVER 走 opt-in 订阅；KEY 是输入传输始终送达；焦点永不门控。</li>
   </ul>
-  <p>依据：设计文档 §F.2 记录 EVT_FOCUS 因 <em>"requires EVT_BIND"</em> 被退休——证明 bind 即门控是既定意图；KEY 按 §D.1 流图保持无条件。</p>
-
-  <h3>4.5 协议契约收敛</h3>
+  <h3>5.5 字符 + 控件混排（L1）</h3>
+  <p><code>TGS_WINDOW_TRANSPARENT</code> 窗口类型：root 背景透明，字符 base 透过显示，控件浮在文本上。</p>
+  <h3>5.6 协议契约收敛</h3>
   <ul>
-    <li><code>WGT_UPDATE</code> 对齐为 content-only <code>[widget_id, value]</code>（spec 的 <code>property</code> 维度从未定义）。</li>
+    <li><code>WGT_UPDATE</code> 对齐为 content-only <code>[widget_id, value]</code>。</li>
     <li><code>TGS_LAYOUT_GRID</code> 修复（原 flex 桩）；<code>TGS_STYLE_FONT_SIZE</code> 仍为 no-op（待 resources 字体机制）。</li>
   </ul>
 </section>
 
 <section class="card">
-  <h2><span class="no">5</span>质量</h2>
+  <h2><span class="no">6</span>质量</h2>
   <table>
     <tr><th>项</th><th>值</th></tr>
-    <tr><td>自动化测试</td><td><strong>72/72 通过</strong>（gtest，11 套件），ctest 1/1</td></tr>
-    <tr><td>覆盖</td><td>帧编解码、PTY、VT 模拟、导航/焦点、事件门控、容器几何、多窗口激活、LVGL 点击命中、GRID 布局</td></tr>
-    <tr><td>证据链</td><td>每个修复都做红→绿（stash 前失败 / 恢复后通过）</td></tr>
-    <tr><td>工作树</td><td>干净（提交 <code>28b1918</code>、<code>d8faf76</code>、<code>9407940</code> 等）</td></tr>
+    <tr><td>自动化测试</td><td><strong>74/74 通过</strong>（gtest，11 套件），ctest 1/1</td></tr>
+    <tr><td>覆盖</td><td>帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、LVGL 点击命中、GRID 布局</td></tr>
+    <tr><td>证据链</td><td>每个修复红→绿（stash 前失败 / 恢复后通过）</td></tr>
+    <tr><td>视觉验收</td><td>60 张控件截图 + 5 张交互状态图，视觉模型逐张评审，缺陷闭环</td></tr>
+    <tr><td>工作树</td><td>干净</td></tr>
   </table>
 </section>
 
 <section class="card">
-  <h2><span class="no">6</span>下一步</h2>
-  <div class="grid2">
-    <div>
-      <h3>P5 resources（最大缺口，greenfield）</h3>
-      <p><code>TGS_STREAM_RESOURCE</code> 资源上传/缓存，gate IMAGE widget 与 FONT_SIZE。</p>
-    </div>
-    <div>
-      <h3>P1 styles</h3>
-      <p><code>TGS_STYLE_FONT_SIZE</code> 生效（需字体机制）+ 样式查询通道。</p>
-    </div>
-    <div>
-      <h3>P6 IME</h3>
-      <p>preedit 覆盖层（§H.2）+ 候选条（<code>IME_CANDIDATES</code>/<code>IME_SELECT</code> 目前静默丢弃）。</p>
-    </div>
-  </div>
+  <h2><span class="no">7</span>下一步</h2>
+  <ol>
+    <li><strong>P5 resources</strong>（L3 最大缺口，greenfield）：<code>TGS_STREAM_RESOURCE</code> 资源上传/缓存，gate IMAGE widget 与 FONT_SIZE。</li>
+    <li><strong>P6 IME</strong>：候选条（<code>IME_CANDIDATES</code>/<code>IME_SELECT</code> 静默丢弃）——preedit overlay 已实现一半。</li>
+    <li><strong>P1 styles</strong>：<code>TGS_STYLE_FONT_SIZE</code> 生效（依赖 resources 字体机制）+ 样式查询通道。</li>
+    <li><strong>触摸接入</strong>：复用鼠标管道（<code>input_sdl.c</code> 加 <code>SDL_FINGER*</code> 分支，触摸=指针）。</li>
+    <li><strong>menu 渲染</strong>（P2 stub）：需要菜单项结构 API。</li>
+  </ol>
 </section>
 
 <footer>
