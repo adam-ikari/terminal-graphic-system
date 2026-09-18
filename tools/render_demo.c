@@ -391,6 +391,22 @@ int main(int argc, char *argv[])
     }
 
     /* --- singles mode: one widget per screenshot, its own windows --- */
+    if (strcmp(demo, "swprobe") == 0) {
+        int hs[] = {20, 30, 40, 60, 84, 100};
+        for (i = 0; i < 6; i++) {
+            void *w2 = be->create_window(TGS_WINDOW_NORMAL, "sw");
+            void *sw = be->create_widget(w2, TGS_WIDGET_SWITCH);
+            char pp[64];
+            int t;
+            be->set_widget_rect(sw, 270, 250, 260, hs[i]);
+            for (t = 0; t < 10; t++) { be->tick(16); be->render(); }
+            snprintf(pp, sizeof(pp), "/tmp/sw_%d.png", hs[i]);
+            dump_png(&disp, be, pp);
+            be->destroy_window(w2);
+        }
+        be->deinit();
+        return 0;
+    }
     if (strcmp(demo, "singles") == 0) {
         int rc = run_singles(be, &disp, "docs/screenshots/singles");
         be->deinit();

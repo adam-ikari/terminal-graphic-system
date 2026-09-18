@@ -181,7 +181,16 @@ static lv_obj_t *create_lvgl_widget(tgs_widget_type type, lv_obj_t *parent)
     case TGS_WIDGET_INPUT:    return lv_textarea_create(parent);
     case TGS_WIDGET_CHECKBOX: return lv_checkbox_create(parent);
     case TGS_WIDGET_SLIDER:   return lv_slider_create(parent);
-    case TGS_WIDGET_SWITCH:   return lv_switch_create(parent);
+    case TGS_WIDGET_SWITCH:
+        /* The knob is drawn at the switch's full height, which makes its
+         * corners stick out past the rounded track. Inset the knob via its
+         * part padding (LVGL's own sizing hook honors KNOB padding). */
+        obj = lv_switch_create(parent);
+        /* The knob is drawn at the switch's full height by LVGL, so its
+         * corners poke out of the rounded track unless the track is a full
+         * capsule: radius = height/2 keeps every knob pixel inside the arc. */
+        lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
+        return obj;
     case TGS_WIDGET_RADIO:
         /* LVGL has no dedicated radio: a checkbox with a round indicator.
          * The square box is drawn by the INDICATOR part, so the radius has
