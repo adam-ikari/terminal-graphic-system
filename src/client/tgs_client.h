@@ -70,8 +70,11 @@ int tgs_client_send_ime_preedit(int win_id, int widget_id, const char *text, int
 int tgs_client_send_ime_cancel(int win_id, int widget_id);
 
 /* Change a container's layout at runtime. Optional: a container's layout is
- * implied by its widget type (VLAYOUT/HLAYOUT/GLAYOUT/SCROLL) at creation. */
-int tgs_client_set_widget_layout(int id, tgs_layout_type layout);
+ * implied by its widget type (VLAYOUT/HLAYOUT/GLAYOUT/SCROLL) at creation.
+ * cols/rows apply to GRID (rows 0 = auto); pass TGS_LAYOUT_DEFAULT_COLS/ROWS
+ * for the defaults. */
+int tgs_client_set_widget_layout(int id, tgs_layout_type layout,
+                                 int cols, int rows);
 
 /* Send IME candidate list from IME app to compositor */
 int tgs_client_send_ime_candidates(int win_id, int widget_id,

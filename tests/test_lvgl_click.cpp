@@ -39,19 +39,36 @@ static void record_event(void *handle, tgs_event_type type,
     v->push_back({handle, type});
 }
 
+/* The LVGL backend is stateful: init() allocates indevs, groups and styles
+ * that deinit() does not release, so a second init in the same process
+ * accumulates state and wedges the timer loop. All tests in this suite share
+ * ONE backend lifetime (suite-level setup), each building its own window. */
+class LvglBackend : public ::testing::Test {
+protected:
+    static tgs_backend *be;
+    static tgs_display disp;
+
+    static void SetUpTestSuite() {
+        memset(&disp, 0, sizeof(disp));
+        lvgl_backend_register();
+        be = tgs_backend_get();
+        ASSERT_NE(be, nullptr);
+        lvgl_backend_set_display(&disp);
+        ASSERT_EQ(be->init(800, 600), 0);
+    }
+
+    static void TearDownTestSuite() {
+        if (be) be->deinit();
+    }
+};
+
+tgs_backend *LvglBackend::be = nullptr;
+tgs_display LvglBackend::disp;
+
 }  // namespace
 
-TEST(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
+TEST_F(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
 {
-    tgs_display disp;
-
-    memset(&disp, 0, sizeof(disp));
-    lvgl_backend_register();
-    tgs_backend *be = tgs_backend_get();
-    ASSERT_NE(be, nullptr);
-    lvgl_backend_set_display(&disp);
-    ASSERT_EQ(be->init(800, 600), 0);
-
     void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
     ASSERT_NE(win, nullptr);
 
@@ -100,6 +117,49 @@ TEST(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
         << "click at (30,120) must land on the button at (20,110,120,40) "
            "— is the window root still padded?";
     EXPECT_FALSE(hit_btn2);
+    /* The callback's user-data (this test's stack `events`) is about to be
+     * destroyed — unregister it or the next test's LVGL events hit a dangling
+     * pointer. */
+    be->set_event_callback(nullptr, nullptr);
+    be->destroy_window(win);
+}
 
-    be->deinit();
+/* P3: runtime TGS_LAYOUT_GRID must actually grid children into distinct
+ * cells, not silently degrade to a row flex (the pre-fix stub). Three
+ * children in a 2-column grid land in two rows: c0 top-left, c1 top-right,
+ * c2 bottom-left — so c0 and c1 share a row (same y) with different x, and
+ * c2 sits below (larger y). */
+TEST_F(LvglBackend, GridLayoutPlacesChildrenInDistinctCells)
+{
+    void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
+    ASSERT_NE(win, nullptr);
+
+    /* A grid container (GLAYOUT), then three children dropped into it. */
+    void *grid = be->create_widget(win, TGS_WIDGET_GLAYOUT);
+    ASSERT_NE(grid, nullptr);
+    be->set_widget_rect(grid, 0, 0, 400, 300);
+
+    void *c0 = be->create_widget(grid, TGS_WIDGET_BUTTON);
+    void *c1 = be->create_widget(grid, TGS_WIDGET_BUTTON);
+    void *c2 = be->create_widget(grid, TGS_WIDGET_BUTTON);
+    ASSERT_NE(c0, nullptr);
+    ASSERT_NE(c1, nullptr);
+    ASSERT_NE(c2, nullptr);
+
+    /* Runtime relayout to a real 2-column grid. */
+    be->set_widget_layout(grid, TGS_LAYOUT_GRID, 2, 0);
+    for (int i = 0; i < 5; i++) {
+        be->tick(16);
+        be->render();
+    }
+
+    int x0, y0, w0, h0, x1, y1, w1, h1, x2, y2, w2, h2;
+    ASSERT_EQ(be->widget_geometry(c0, &x0, &y0, &w0, &h0), 0);
+    ASSERT_EQ(be->widget_geometry(c1, &x1, &y1, &w1, &h1), 0);
+    ASSERT_EQ(be->widget_geometry(c2, &x2, &y2, &w2, &h2), 0);
+
+    EXPECT_EQ(y0, y1) << "c0 and c1 share the first grid row";
+    EXPECT_NE(x0, x1) << "c0 and c1 are in different columns";
+    EXPECT_GT(y2, y0) << "c2 wraps to the second row (grid, not row flex)";
+    be->destroy_window(win);
 }

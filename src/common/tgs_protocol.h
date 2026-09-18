@@ -35,7 +35,7 @@
 #define TGS_CMD_WGT_STYLE    34
 #define TGS_CMD_WGT_DESTROY  35
 #define TGS_CMD_EVT_BIND     36
-#define TGS_CMD_WGT_LAYOUT   37  /* [widget_id, layout_type] — optional runtime relayout of a container */
+#define TGS_CMD_WGT_LAYOUT   37  /* [widget_id, layout_type, cols?, rows?] — runtime relayout of a container; cols defaults to 2, rows 0 = auto rows */
 
 /* Navigation */
 #define TGS_CMD_SET_FOCUS    38  /* [window_id, widget_id] — widget_id 0 clears; app → compositor */
@@ -161,6 +161,10 @@ typedef enum {
     TGS_LAYOUT_FLEX_COL,
     TGS_LAYOUT_GRID,
 } tgs_layout_type;
+/* TGS_CMD_WGT_LAYOUT grid-track defaults: omitted cols/rows arguments resolve
+ * to 2 columns; rows 0 = auto (rows grow to fit children). */
+#define TGS_LAYOUT_DEFAULT_COLS 2
+#define TGS_LAYOUT_DEFAULT_ROWS 0
 
 /* Window activation state — `state` argument of NTF_STATE (67) */
 typedef enum {

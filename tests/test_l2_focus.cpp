@@ -84,7 +84,7 @@ static void  fb_set_widget_rect(void *, int, int, int, int) {}
 static void  fb_set_widget_content(void *, const char *) {}
 static void  fb_insert_widget_text(void *, const char *) {}
 static void  fb_set_widget_style(void *, tgs_style_prop, int32_t) {}
-static void  fb_set_widget_layout(void *, tgs_layout_type) {}
+static void  fb_set_widget_layout(void *, tgs_layout_type, int, int) {}
 static void  fb_destroy_widget(void *) {}
 static void  fb_set_event_callback(tgs_event_cb cb, void *ud) {
     g_event_cb = cb; g_event_ud = ud;

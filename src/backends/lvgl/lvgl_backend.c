@@ -581,7 +581,21 @@ static void backend_set_widget_style(void *handle, tgs_style_prop prop, int32_t 
     }
 }
 
-static void backend_set_widget_layout(void *handle, tgs_layout_type layout)
+/* LVGL grid templates are referenced, not copied, by the object's style — the
+ * pointer must outlive the object. Heap-allocate the pair and free them when
+ * the object is deleted. */
+typedef struct {
+    int32_t col[16];
+    int32_t row[16];
+} grid_dsc;
+
+static void grid_dsc_free_cb(lv_event_t *e)
+{
+    free(lv_event_get_user_data(e));
+}
+
+static void backend_set_widget_layout(void *handle, tgs_layout_type layout,
+                                      int cols, int rows)
 {
     if (!handle) return;
     lv_obj_t *obj = (lv_obj_t *)handle;
@@ -593,9 +607,27 @@ static void backend_set_widget_layout(void *handle, tgs_layout_type layout)
     case TGS_LAYOUT_FLEX_COL:
         lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_COLUMN);
         break;
-    case TGS_LAYOUT_GRID:
-        lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_ROW);
+    case TGS_LAYOUT_GRID: {
+        /* Real grid (LVGL 9): cols FR(1) tracks, rows CONTENT tracks. The
+         * static GLAYOUT template (2 cols × 4 rows) stays the type default;
+         * this is the runtime override path. */
+        grid_dsc *d = (grid_dsc *)malloc(sizeof(*d));
+        int i;
+        int nc = cols > 0 && cols < 15 ? cols : 2;
+        /* rows 0 = auto: provide several CONTENT tracks so children wrap
+         * onto later rows instead of stacking on the first; explicit rows
+         * uses exactly that many. */
+        int nr = rows > 0 && rows < 15 ? rows : 4;
+
+        if (!d) break;
+        for (i = 0; i < nc; i++) d->col[i] = LV_GRID_FR(1);
+        d->col[nc] = LV_GRID_TEMPLATE_LAST;
+        for (i = 0; i < nr; i++) d->row[i] = LV_GRID_CONTENT;
+        d->row[nr] = LV_GRID_TEMPLATE_LAST;
+        lv_obj_set_grid_dsc_array(obj, d->col, d->row);
+        lv_obj_add_event_cb(obj, grid_dsc_free_cb, LV_EVENT_DELETE, d);
         break;
+    }
     case TGS_LAYOUT_NONE:
     default:
         break;

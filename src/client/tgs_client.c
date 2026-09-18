@@ -606,20 +606,26 @@ int tgs_client_send_ime_cancel(int win_id, int widget_id)
 }
 
 /* Change a container's layout at runtime. Optional: containers receive their
- * layout from their widget type at WGT_CREATE time. */
-int tgs_client_set_widget_layout(int id, tgs_layout_type layout)
+ * layout from their widget type at WGT_CREATE time. cols/rows apply to GRID
+ * (rows 0 = auto); pass TGS_LAYOUT_DEFAULT_COLS/ROWS for the defaults. */
+int tgs_client_set_widget_layout(int id, tgs_layout_type layout,
+                                 int cols, int rows)
 {
-    char id_str[32], layout_str[32];
-    const char *args[2];
+    char id_str[32], layout_str[32], cols_str[32], rows_str[32];
+    const char *args[4];
 
     int_to_str(id, id_str, (int)sizeof(id_str));
     int_to_str((int)layout, layout_str, (int)sizeof(layout_str));
+    int_to_str(cols, cols_str, (int)sizeof(cols_str));
+    int_to_str(rows, rows_str, (int)sizeof(rows_str));
 
     args[0] = id_str;
     args[1] = layout_str;
+    args[2] = cols_str;
+    args[3] = rows_str;
 
     return tgs_frame_write(STDOUT_FILENO, TGS_STREAM_COMMAND, 0,
-                           TGS_CMD_WGT_LAYOUT, args, 2) < 0 ? -1 : 0;
+                           TGS_CMD_WGT_LAYOUT, args, 4) < 0 ? -1 : 0;
 }
 
 int tgs_client_send_ime_candidates(int win_id, int widget_id,

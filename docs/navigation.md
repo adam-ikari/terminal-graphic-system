@@ -29,6 +29,7 @@ The design below is a delta against this reality. Facts verified against the wor
 | The LVGL window root sits at 0,0 with zero padding and border, so compositor pixels == widget coordinates for hit-testing | `src/backends/lvgl/lvgl_backend.c:393-402` |
 | `NTF_DESTROY` (66) is emitted `[win_id]` when a window is destroyed; `NTF_STATE` (67) `[win_id, state]` (state: `tgs_window_state`, INACTIVE/ACTIVE) is emitted as a pair on every window activation change | `src/compositor/window_manager.c:118-131`, `:151-166`, `:579-594` |
 | `Alt+Tab` / `Alt+Shift+Tab` cycles windows in the compositor's key hook, restoring each window's remembered focus (`TGS_REASON_WINDOW_RESTORE`); with one window the key passes through | `src/compositor/window_manager.c:289-300` |
+| Runtime `TGS_LAYOUT_GRID` (via `WGT_LAYOUT` 37, optional `[cols, rows]` args; defaults 2 cols, 4 auto rows) is a real LVGL grid, not a flex stub; grid templates are heap-allocated and freed on widget delete (LVGL references, not copies) | `src/backends/lvgl/lvgl_backend.c:597-633` |
 | `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:156` |
 | LVGL version 9.6.0 | `deps/lvgl/include/lvgl/lv_version.h:9-11` |
 

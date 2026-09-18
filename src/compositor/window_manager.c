@@ -691,18 +691,26 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
     }
 
     case TGS_CMD_WGT_LAYOUT: {
-        /* args: [widget_id, layout_type] — runtime relayout of a container. */
+        /* args: [widget_id, layout_type, cols?, rows?] — runtime relayout of a
+         * container; cols defaults to 2, rows 0 = auto (see
+         * TGS_LAYOUT_DEFAULT_COLS/ROWS in tgs_protocol.h). */
         nav_widget *w;
+        int layout_type;
+        int cols, rows;
 
         if (frame->num_args < 2) break;
         w = nav_widget_find(&wm->nav, atoi(frame->args[0]));
-        if (w) {
-            if (be->set_widget_layout)
-                be->set_widget_layout(w->handle,
-                                      (tgs_layout_type)atoi(frame->args[1]));
-            if (nav_type_is_container(w->type))
-                wm->geom_pending = 1;
-        }
+        if (!w) break;
+        layout_type = atoi(frame->args[1]);
+        cols = frame->num_args >= 3 ? atoi(frame->args[2])
+                                    : TGS_LAYOUT_DEFAULT_COLS;
+        rows = frame->num_args >= 4 ? atoi(frame->args[3])
+                                    : TGS_LAYOUT_DEFAULT_ROWS;
+        if (be->set_widget_layout)
+            be->set_widget_layout(w->handle, (tgs_layout_type)layout_type,
+                                  cols, rows);
+        if (nav_type_is_container(w->type))
+            wm->geom_pending = 1;
         break;
     }
 

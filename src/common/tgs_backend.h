@@ -61,7 +61,8 @@ struct tgs_backend {
     void  (*set_widget_content)(void *handle, const char *text);
     void  (*insert_widget_text)(void *handle, const char *text);  /* Insert text at cursor position (for IME commit) */
     void  (*set_widget_style)(void *handle, tgs_style_prop prop, int32_t value);
-    void  (*set_widget_layout)(void *handle, tgs_layout_type layout);
+    void  (*set_widget_layout)(void *handle, tgs_layout_type layout,
+                               int cols, int rows);  /* cols/rows used for GRID; rows 0 = auto */
     void  (*destroy_widget)(void *handle);
 
     /* Events */
