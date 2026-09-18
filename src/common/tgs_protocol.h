@@ -104,6 +104,7 @@ typedef enum {
     TGS_WINDOW_TOOL,
 } tgs_window_type;
 
+
 /* Widget types (>= 20 per FR-5.2.1) */
 typedef enum {
     TGS_WIDGET_BUTTON = 0,
@@ -161,13 +162,10 @@ typedef enum {
     TGS_LAYOUT_GRID,
 } tgs_layout_type;
 
-/* Window states */
+/* Window activation state — `state` argument of NTF_STATE (67) */
 typedef enum {
-    TGS_STATE_NORMAL = 0,
-    TGS_STATE_MINIMIZED,
-    TGS_STATE_MAXIMIZED,
-    TGS_STATE_FULLSCREEN,
-    TGS_STATE_HIDDEN,
+    TGS_WINDOW_STATE_INACTIVE = 0,
+    TGS_WINDOW_STATE_ACTIVE = 1,
 } tgs_window_state;
 
 #endif /* TGS_PROTOCOL_H */

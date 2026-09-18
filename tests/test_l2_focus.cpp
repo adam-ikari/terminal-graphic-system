@@ -49,7 +49,7 @@ namespace {
  * input_sdl.c/input_fb.c emit and wm_nav_key switches on. */
 enum { KEY_TAB = 9, KEY_LEFT = 1000, KEY_RIGHT = 1001,
        KEY_UP = 1002, KEY_DOWN = 1003 };
-enum { MOD_SHIFT = 0x01, MOD_CTRL = 0x02 };
+enum { MOD_SHIFT = 0x01, MOD_CTRL = 0x02, MOD_ALT = 0x04 };
 
 /* ---- Fake backend ----------------------------------------------------------
  * The tgs_backend vtable holds plain C function pointers (no closure), so the
@@ -216,6 +216,8 @@ protected:
     fake_be fb;
     window_manager wm;
     int pty_rd = -1, pty_wr = -1;
+    bool have_pending = false;   /* one-frame pushback from do_win_create */
+    tgs_frame pending;
 
     void SetUp() override {
         int p[2];
@@ -247,7 +249,10 @@ protected:
         ASSERT_EQ(r.command, TGS_CMD_READY);
     }
 
-    void do_win_create(int wid, const char *type) {
+    /* When keep_state is false (the default), the NTF_STATE pair emitted by
+     * window activation is absorbed here; tests that assert on it pass true
+     * and read the frames themselves. */
+    void do_win_create(int wid, const char *type, bool keep_state = false) {
         tgs_frame f;
         mkframe(f, TGS_CMD_WIN_CREATE, {std::to_string(wid), type, "T"});
         wm_handle_frame(&f, &wm);
@@ -255,6 +260,13 @@ protected:
         ASSERT_GT(read_frame(pty_rd, p, 500), 0);
         tgs_frame r; ASSERT_TRUE(decode_frame(p, r));
         ASSERT_EQ(r.command, TGS_CMD_NTF_RESIZE);
+        if (keep_state) return;
+        for (;;) {
+            std::string q;
+            if (read_frame(pty_rd, q, 100) <= 0) break;
+            tgs_frame s; ASSERT_TRUE(decode_frame(q, s));
+            if (s.command != TGS_CMD_NTF_STATE) { pending = s; have_pending = true; break; }
+        }
     }
 
     /* Create a widget via the frame path; returns its backend handle. */
@@ -269,10 +281,14 @@ protected:
 
     /* Read the next emitted frame, asserting it is `cmd`. */
     tgs_frame expect_cmd(int cmd, int timeout_ms = 500) {
-        std::string p;
-        EXPECT_GT(read_frame(pty_rd, p, timeout_ms), 0)
-            << "no frame for cmd " << cmd;
-        tgs_frame f; EXPECT_TRUE(decode_frame(p, f));
+        tgs_frame f;
+        if (have_pending) { f = pending; have_pending = false; }
+        else {
+            std::string p;
+            EXPECT_GT(read_frame(pty_rd, p, timeout_ms), 0)
+                << "no frame for cmd " << cmd;
+            EXPECT_TRUE(decode_frame(p, f));
+        }
         EXPECT_EQ(f.command, cmd);
         return f;
     }
@@ -494,8 +510,11 @@ TEST_F(L2Focus, CharacterDemuxSurvivesWindow) {
     EXPECT_NE(text.find("CHAR-BEFORE\n"), std::string::npos);
     EXPECT_NE(text.find("CHAR-BETWEEN\n"), std::string::npos);
     EXPECT_NE(text.find("CHAR-AFTER\n"), std::string::npos);
-    /* And the frame path still emitted NTF_RESIZE + NTF_FOCUS(INIT). */
+    /* And the frame path still emitted NTF_RESIZE + NTF_STATE(ACTIVE) +
+     * NTF_FOCUS(INIT). */
     expect_cmd(TGS_CMD_NTF_RESIZE);
+    expect_cmd(TGS_CMD_NTF_STATE);             /* 1 → INACTIVE */
+    expect_cmd(TGS_CMD_NTF_STATE);             /* 2 → ACTIVE */
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on widget 30 */
 }
 /* Layout containers report real geometry: after a vlayout + two children are
@@ -549,6 +568,92 @@ TEST_F(L2Focus, LayoutContainerEmitsGeometry) {
     std::string p;
     EXPECT_LT(read_frame(pty_rd, p, 100), 0)
         << "no geometry frame expected after a non-dirty flush";
+}
+
+/* P4: WIN_DESTROY emits NTF_DESTROY [win_id] for the window that went away. */
+TEST_F(L2Focus, WinDestroyEmitsNtfDestroy) {
+    mk_widget(10, 1, "button");
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
+
+    tgs_frame f;
+    mkframe(f, TGS_CMD_WIN_DESTROY, {std::to_string(1)});
+    wm_handle_frame(&f, &wm);
+
+    tgs_frame d = expect_cmd(TGS_CMD_NTF_DESTROY);
+    ASSERT_EQ(d.num_args, 1);
+    EXPECT_EQ(atoi(d.args[0]), 1);
+}
+
+/* P4: switching activation emits NTF_STATE [old,INACTIVE] then
+ * [new,ACTIVE]. Destroy-side auto-activate covers the same pair. */
+TEST_F(L2Focus, WinSwitchEmitsNtfStatePair) {
+    void *h10 = mk_widget(10, 1, "button");
+    ASSERT_NE(h10, nullptr);
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
+
+    do_win_create(2, "0", true);
+    /* WIN_CREATE activates window 2: old 1 → INACTIVE, new 2 → ACTIVE,
+     * interleaved with the INIT focus frames. Read both NTF_STATE frames. */
+    tgs_frame s1 = expect_cmd(TGS_CMD_NTF_STATE);
+    tgs_frame s2 = expect_cmd(TGS_CMD_NTF_STATE);
+    ASSERT_EQ(s1.num_args, 2);
+    ASSERT_EQ(s2.num_args, 2);
+    EXPECT_EQ(atoi(s1.args[0]), 1);
+    EXPECT_EQ(atoi(s1.args[1]), TGS_WINDOW_STATE_INACTIVE);
+    EXPECT_EQ(atoi(s2.args[0]), 2);
+    EXPECT_EQ(atoi(s2.args[1]), TGS_WINDOW_STATE_ACTIVE);
+}
+
+/* P4: Alt+Tab activates the other window, restores its remembered focus,
+ * and consumes the key. Release of a consumed key is consumed too. */
+TEST_F(L2Focus, AltTabSwitchesWindowAndRestoresFocus) {
+    void *h10 = mk_widget(10, 1, "button");
+    ASSERT_NE(h10, nullptr);
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
+
+    do_win_create(2, "0", true);
+    void *h20 = mk_widget(20, 2, "button");
+    ASSERT_NE(h20, nullptr);
+    expect_cmd(TGS_CMD_NTF_STATE);             /* 1 → INACTIVE */
+    expect_cmd(TGS_CMD_NTF_STATE);             /* 2 → ACTIVE */
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* 10 lost (switch away) */
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 20 */
+
+    /* Remember a focus in window 1 (widget 10) again via Alt+Tab there. */
+    EXPECT_EQ(nav(KEY_TAB, MOD_ALT, 1), TGS_NAV_CONSUMED);
+    EXPECT_EQ(nav(KEY_TAB, MOD_ALT, 0), TGS_NAV_CONSUMED);
+    /* 1 → INACTIVE, 2 → ACTIVE, focus frames for the pair. */
+    expect_cmd(TGS_CMD_NTF_STATE);
+    expect_cmd(TGS_CMD_NTF_STATE);
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* 20 lost */
+    tgs_frame gained = expect_cmd(TGS_CMD_NTF_FOCUS);
+    EXPECT_EQ(atoi(gained.args[0]), 1);
+    EXPECT_EQ(atoi(gained.args[1]), 10);
+    EXPECT_EQ(atoi(gained.args[3]), TGS_REASON_WINDOW_RESTORE);
+    EXPECT_EQ(g_focus_handle, h10);
+
+    /* Alt+Tab again → back to window 2, remembered focus 20 restored. */
+    EXPECT_EQ(nav(KEY_TAB, MOD_ALT, 1), TGS_NAV_CONSUMED);
+    EXPECT_EQ(nav(KEY_TAB, MOD_ALT, 0), TGS_NAV_CONSUMED);
+    expect_cmd(TGS_CMD_NTF_STATE);
+    expect_cmd(TGS_CMD_NTF_STATE);
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* 10 lost */
+    gained = expect_cmd(TGS_CMD_NTF_FOCUS);
+    EXPECT_EQ(atoi(gained.args[0]), 2);
+    EXPECT_EQ(atoi(gained.args[1]), 20);
+    EXPECT_EQ(g_focus_handle, h20);
+}
+
+/* P4: Alt+Tab with a single window is a no-op — key still consumed? No:
+ * nothing to switch to, the compositor passes the key through (§G.2). */
+TEST_F(L2Focus, AltTabSingleWindowNoop) {
+    mk_widget(10, 1, "button");
+    expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
+
+    EXPECT_EQ(nav(KEY_TAB, MOD_ALT, 1), TGS_NAV_PASS);
+    std::string p;
+    EXPECT_LT(read_frame(pty_rd, p, 100), 0)
+        << "no frames expected for a single-window Alt+Tab";
 }
 
 }  // namespace

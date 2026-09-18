@@ -115,6 +115,21 @@ static void focus_commit(window_manager *wm, int win_id, int widget_id,
     }
 }
 
+/* Emit one NTF_STATE [win_id, state] — the window's activation state (67). */
+static void emit_state(window_manager *wm, int win_id, tgs_window_state state)
+{
+    char win_str[16], st_str[16];
+    const char *args[2];
+
+    snprintf(win_str, sizeof(win_str), "%d", win_id);
+    snprintf(st_str, sizeof(st_str), "%d", (int)state);
+    args[0] = win_str;
+    args[1] = st_str;
+    wm->frame_counter++;
+    tgs_frame_write(wm->pty_fd, TGS_STREAM_COMMAND, wm->frame_counter,
+                    TGS_CMD_NTF_STATE, args, 2);
+}
+
 /* Clear the registry without emitting — the caller owns the lost frame. */
 static void focus_forget(window_manager *wm, int win_id)
 {
@@ -135,6 +150,11 @@ static void activate_window(window_manager *wm, int win_id,
 
     if (prev != win_id) {
         nav_window *pw = nav_window_find(&wm->nav, prev);
+
+        /* Activation change is the coarser event: report the state pair
+         * first (67), then the focus hand-off frames. */
+        if (pw) emit_state(wm, prev, TGS_WINDOW_STATE_INACTIVE);
+        emit_state(wm, win_id, TGS_WINDOW_STATE_ACTIVE);
 
         if (pw && pw->focus) {
             emit_focus(wm, prev, pw->focus, 0, reason);
@@ -266,13 +286,22 @@ static tgs_nav_key_action wm_nav_key(int key, int mods, int pressed, void *user_
         }
         return TGS_NAV_PASS;
     }
-
     win = nav_window_find(&wm->nav, wm->nav.active_win);
     w = win ? nav_widget_find(&wm->nav, win->focus) : NULL;
     if (!win || !w || !nav_widget_focusable(w)) return TGS_NAV_PASS;
-
     switch (key) {
     case TGS_KEY_TAB:
+        /* Alt+Tab switches windows (§G.2); plain/Ctrl/Shift traversal is
+         * ring-local. Only the active window can Alt+Tab away. */
+        if (mods & TGS_MOD_ALT) {
+            int other = nav_other_window(&wm->nav, win->win_id);
+
+            if (other) {
+                activate_window(wm, other, TGS_REASON_WINDOW_RESTORE, 0);
+                consume = 1;
+            }
+            break;
+        }
         /* Ctrl+Tab is the escape hatch out of a NAV_TAB=1 widget (§D.2). */
         if (mods & TGS_MOD_CTRL) {
             nav_move(wm, win, 0);
@@ -552,6 +581,18 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
 
         /* Destroy is hide plus registry removal (§G.2): the app that owned the
          * window sees its widget lose focus. */
+
+        /* The window is gone — report it (66). */
+        {
+            char win_str[16];
+            const char *dargs[1];
+
+            snprintf(win_str, sizeof(win_str), "%d", win_id);
+            dargs[0] = win_str;
+            wm->frame_counter++;
+            tgs_frame_write(wm->pty_fd, TGS_STREAM_COMMAND, wm->frame_counter,
+                            TGS_CMD_NTF_DESTROY, dargs, 1);
+        }
         if (win->focus) emit_focus(wm, win_id, win->focus, 0, TGS_REASON_HIDDEN);
         focus_forget(wm, win_id);
         nav_remove_window(&wm->nav, win_id);

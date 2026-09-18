@@ -27,6 +27,8 @@ The design below is a delta against this reality. Facts verified against the wor
 | `EVT_BIND` (36) is a real per-widget subscription gate for the notification events: CLICK/VALUE reach the app only for a widget that bound them (all-off default); KEY is input transport and always reaches the focused app, bound or not; binding one widget does not affect others; focus (`NTF_FOCUS`) is never gated | `src/compositor/window_manager.c:704-727`, `:814-827`, `:225-228` |
 | `wm->disp_w/h` track the live display size (set at init and on every resize); `NTF_RESIZE` reports them at `WIN_CREATE` | `src/compositor/window_manager.c:343-352`, `src/compositor/main.c:114-120`, `:332-333` |
 | The LVGL window root sits at 0,0 with zero padding and border, so compositor pixels == widget coordinates for hit-testing | `src/backends/lvgl/lvgl_backend.c:393-402` |
+| `NTF_DESTROY` (66) is emitted `[win_id]` when a window is destroyed; `NTF_STATE` (67) `[win_id, state]` (state: `tgs_window_state`, INACTIVE/ACTIVE) is emitted as a pair on every window activation change | `src/compositor/window_manager.c:118-131`, `:151-166`, `:579-594` |
+| `Alt+Tab` / `Alt+Shift+Tab` cycles windows in the compositor's key hook, restoring each window's remembered focus (`TGS_REASON_WINDOW_RESTORE`); with one window the key passes through | `src/compositor/window_manager.c:289-300` |
 | `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:156` |
 | LVGL version 9.6.0 | `deps/lvgl/include/lvgl/lv_version.h:9-11` |
 
