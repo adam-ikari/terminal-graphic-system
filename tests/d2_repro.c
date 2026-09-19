@@ -1,17 +1,11 @@
 /*
  * d2_repro.c — red→green proof for D2 (stale key in the TGS_NAV_WIDGET path).
  *
- * Drives the REAL LVGL backend headless (a memory framebuffer, no display
+ * Drives the scene backend headless (a memory framebuffer, no display
  * server — same wiring as render_demo). A nav hook returns TGS_NAV_WIDGET for
- * every key, isolating backend_inject_key()'s WIDGET branch, which calls
- * lv_group_send_data() synchronously. That fires LV_EVENT_KEY on the focused
- * widget; lvgl_event_handler reports "key;mods" via the event callback.
- *
- * Before fix: key_ev_code/key_ev_mods are set only in kb_read_cb (the queue
- * path). The WIDGET branch never touches them, so the reported key is stale
- * (0 at init) → exit 1.
- * After fix: the WIDGET branch records the edge → reported key == injected →
- * exit 0.
+ * every key, isolating backend_inject_key()'s WIDGET branch, which delivers
+ * the key synchronously to the focused widget. The event callback reports
+ * "key;mods"; the proof is that the reported key equals the injected one.
  *
  * Build: cmake --build build --target d2_repro
  * Run:   ./build/d2_repro   (prints "D2: PASS" or "D2: FAIL (stale key)")
@@ -23,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern void lvgl_backend_register(void);
-extern void lvgl_backend_set_display(tgs_display *display);
+extern void scene_backend_register(void);
+extern void scene_backend_set_display(tgs_display *display);
 
 static int captured_key   = -999;
 static int captured_mods  = -999;
@@ -58,11 +52,11 @@ int main(void)
 
     memset(&disp, 0, sizeof(disp));
 
-    lvgl_backend_register();
+    scene_backend_register();
     be = tgs_backend_get();
     if (!be) { fprintf(stderr, "d2: no backend\n"); return 2; }
 
-    lvgl_backend_set_display(&disp);
+    scene_backend_set_display(&disp);
     if (be->init(200, 200) < 0) { fprintf(stderr, "d2: init failed\n"); return 2; }
 
     be->set_event_callback(ev_cb, NULL);
@@ -77,8 +71,8 @@ int main(void)
     be->set_active_window(win);
     be->set_focus(w);
 
-    /* 'b' = 98, mods 0. lv_group_send_data is synchronous → LV_EVENT_KEY fires
-     * inside this call, so ev_cb has run by the time we return. */
+    /* 'b' = 98, mods 0. The scene backend delivers the key synchronously in
+     * the WIDGET branch, so ev_cb has run by the time we return. */
     be->inject_key(98, 0, 1);
     be->tick(5); /* harmless: drains any residual indev state */
 

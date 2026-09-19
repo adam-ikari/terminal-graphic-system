@@ -17,7 +17,7 @@
 #include <string.h>
 
 /* Canonical TGS key codes and modifier mask (docs/navigation.md §D.4) — the
- * same space input_sdl.c/input_fb.c produce and lvgl_backend.c translates. */
+ * same space input_sdl.c/input_fb.c produce. */
 #define TGS_KEY_TAB    9
 #define TGS_KEY_LEFT   1000
 #define TGS_KEY_RIGHT  1001
@@ -88,7 +88,7 @@ static void ime_cancel(window_manager *wm, int win_id, int widget_id)
 }
 
 /* The single focus-change path: emit the pair (§F.1), update the registry and
- * move LVGL's focus. Identical (win, widget) in a row emits nothing. */
+ * redraw focus. Identical (win, widget) in a row emits nothing. */
 static void focus_commit(window_manager *wm, int win_id, int widget_id,
                          tgs_focus_reason reason)
 {
@@ -174,12 +174,12 @@ static void activate_window(window_manager *wm, int win_id,
     if (!target) nav_restore(&wm->nav, win_id, &target);
     if (!target) return;
     if (win->focus == target)
-        backend_set_focus(wm, target, reason); /* registry knew, LVGL did not */
+        backend_set_focus(wm, target, reason); /* registry knew, backend did not */
     else
         focus_commit(wm, win_id, target, reason);
 }
 
-/* Enroll a window's focusable widgets in its LVGL group (§I.1). */
+/* Enroll a window's focusable widgets in its ring (§I.1). */
 static void push_ring(window_manager *wm, int win_id)
 {
     nav_window *win = nav_window_find(&wm->nav, win_id);
@@ -244,7 +244,7 @@ static int nav_dir_move(window_manager *wm, nav_window *win, tgs_nav_dir dir)
 
 /* Residual forward (§D.3 rule 4): a key that was neither consumed by the
  * widget nor usable as navigation still belongs to the app. The compositor
- * sends it itself instead of letting LVGL hand it to the widget — an object's
+ * sends it itself instead of letting the backend hand it to the widget —
  * own key handling can swallow it before any app-visible event exists. */
 static void forward_key(window_manager *wm, nav_widget *w, int key, int mods)
 {
@@ -273,7 +273,7 @@ static void forward_key(window_manager *wm, nav_widget *w, int key, int mods)
 }
 
 /* Precedence hook (design §D.3), called by the backend for every key edge
- * before LVGL sees it: the compositor decides whether the key is navigation
+ * before the backend sees it: the compositor decides whether the key is navigation
  * for the focused widget, a hand-off to that widget, or neither. */
 static tgs_nav_key_action wm_nav_key(int key, int mods, int pressed, void *user_data)
 {
@@ -666,7 +666,7 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         if (!handle) break;
         be->set_widget_rect(handle, x, y, w, h);
         /* Content is always present in the frame; an empty string means an
-         * empty widget, so it must still be applied — otherwise LVGL's
+         * empty widget, so it must still be applied — otherwise the
          * placeholder text (LV_LABEL_DEFAULT_TEXT) leaks through. */
         be->set_widget_content(handle, frame->args[7]);
 
@@ -685,7 +685,7 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
                 focus_commit(wm, win_id, wid, TGS_REASON_INIT);
         }
         /* A new container — or anything parented to one — changes the layout;
-         * emit real geometry once LVGL has settled it (next flush). */
+         * emit real geometry once the backend has settled it. */
         if (nav_type_is_container(wtype) || pw)
             wm->geom_pending = 1;
         break;
@@ -945,7 +945,7 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
     }
     case TGS_EVENT_FOCUS: {
         /* Reasons, in order (§F.1, §G.2): the move the compositor asked for,
-         * the initial focus of a window that had none (LVGL focuses the first
+         * the initial focus of a window that had none (the backend picks the first
          * member of a group by itself), or a pointer click. */
         nav_window *win = nav_window_find(&wm->nav, w->win_id);
         tgs_focus_reason reason;

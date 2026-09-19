@@ -17,9 +17,9 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "../deps/libsixel/src/stb_image_write.h"
-/* LVGL backend registration — defined in lvgl_backend.c */
-extern void lvgl_backend_register(void);
-extern void lvgl_backend_set_display(tgs_display *display);
+/* Scene backend registration — defined in scene_backend.c */
+extern void scene_backend_register(void);
+extern void scene_backend_set_display(tgs_display *display);
 
 #define WIDTH  800
 #define HEIGHT 600
@@ -331,14 +331,14 @@ int main(int argc, char *argv[])
     memset(&disp, 0, sizeof(disp));
 
     /* --- Same wiring as src/compositor/main.c, minus the SDL window --- */
-    lvgl_backend_register();
+    scene_backend_register();
     be = tgs_backend_get();
     if (!be) {
         fprintf(stderr, "render_demo: no backend registered\n");
         return 1;
     }
 
-    lvgl_backend_set_display(&disp);
+    scene_backend_set_display(&disp);
     if (be->init(WIDTH, HEIGHT) < 0) {
         fprintf(stderr, "render_demo: backend init failed\n");
         return 1;

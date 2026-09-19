@@ -43,7 +43,7 @@ void wm_backend_event(void *widget_handle, tgs_event_type type,
 
 /* Emit NTF_GEOMETRY for every layout container and its direct children, using
  * the backend's real (post-layout) geometry. No-op unless geometry is pending.
- * The caller runs it after the backend has ticked, when LVGL has applied
+ * The caller runs it after the backend has ticked
  * flex/grid layout. */
 void wm_flush_geometry(window_manager *wm);
 

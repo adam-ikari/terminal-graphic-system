@@ -13,7 +13,7 @@ TGS 将终端变成图形平台。应用通过字节流协议构建界面——�
 │  TGS Compositor（桌面/嵌入式）            │
 │  ├── 协议解析器（APC 帧）                │
 │  ├── 窗口管理器                          │
-│  ├── LVGL 后端（20+ 控件）               │
+│  ├── 场景后端（绘制原语）                │
 │  ├── 输出后端（SDL2 或 FB）              │
 │  └── IME 路由 → IME 应用                 │
 ├─────────────────────────────────────────┤
@@ -25,11 +25,11 @@ TGS 将终端变成图形平台。应用通过字节流协议构建界面——�
 
 ## Layer 1 特性
 
-- **完整 20 控件库** — 每个 `tgs_widget_type` 映射到真实 LVGL 控件（按钮、输入框、滑块、表格、菜单、标签页、下拉、图像、滚轮、日历 等）。
+- **绘制语义渲染器** — 8 个原语 kind（按钮、标签、输入、复选、滑块、容器、滚动、图像）；paint 端口双参考后端（SDL2 已就绪，Skia 进行中）；渲染器无布局引擎。
 - **显式容器** — `VLAYOUT`/`HLAYOUT`/`GLAYOUT`/`SCROLL` 在创建时按类型应用布局；只有容器可作为父控件。
 - **键盘导航** — 合成器主导的焦点模型，每窗口焦点环/作用域，`Tab`/`Shift-Tab`/方向键遍历，`SET_FOCUS`/`NTF_FOCUS`（带 reason），`WGT_ATTR`（`FOCUSABLE`/`FOCUS_INDEX`/`NAV_ARROWS`/scope），按键路由优先级。详见 [docs/navigation.md](docs/navigation.md)。
 - **稳健输入管线** — 边沿排队的指针/键盘事件（快点击能注册、不重复按键），规范键码空间 + 修饰键。
-- **FB 呈现契约** — LVGL 发布到绘图缓冲，合成器拷贝到 mmap 的 `/dev/fb0`（16/24/32bpp 已验证）。
+- **FB 呈现契约** — 场景后端发布帧缓冲，合成器拷贝到 mmap 的 `/dev/fb0`（16/24/32bpp 已验证）。
 
 ## 快速开始
 
@@ -64,7 +64,7 @@ make run-xvfb # 无显示器：在 Xvfb 下运行并截图
 src/
 ├── common/          # 协议定义（后端无关）
 ├── compositor/      # 终端合成器核心
-├── backends/lvgl/   # LVGL 渲染后端
+├── backends/scene/  # 场景核心 + SDL2 paint 端口 + 终端视图
 └── client/          # C 客户端库
 examples/
 ├── simple_form.c    # 演示：按钮、标签、输入框

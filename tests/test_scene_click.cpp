@@ -1,7 +1,7 @@
 /*
- * test_lvgl_click.cpp — headless click-coordinate test (D4).
+ * test_scene_click.cpp — headless click-coordinate test (D4).
  *
- * Drives the *real* LVGL backend (same code path the compositor uses) with a
+ * Drives the *real* scene backend (same code path the compositor uses) with a
  * memory framebuffer, exactly like tools/render_demo.c. No display server.
  *
  * D4: the window root must sit at 0,0 with zero padding so compositor pixel
@@ -17,11 +17,11 @@
 extern "C" {
 #include "tgs_backend.h"
 #include "output.h"
-extern void lvgl_backend_register(void);
-extern void lvgl_backend_set_display(tgs_display *display);
-extern int32_t lv_obj_get_style_bg_opa(const void *obj, int part); /* LV_OPA_TRANSP */
+extern void scene_backend_register(void);
+extern void scene_backend_set_display(tgs_display *display);
 }
-#define LV_OPA_TRANSP 0
+
+#include "tgs_scene.h"
 
 #include <cstring>
 #include <vector>
@@ -41,21 +41,21 @@ static void record_event(void *handle, tgs_event_type type,
     v->push_back({handle, type});
 }
 
-/* The LVGL backend is stateful: init() allocates indevs, groups and styles
+/* The scene backend is stateful: init() allocates fonts and buffers
  * that deinit() does not release, so a second init in the same process
  * accumulates state and wedges the timer loop. All tests in this suite share
  * ONE backend lifetime (suite-level setup), each building its own window. */
-class LvglBackend : public ::testing::Test {
+class SceneBackend : public ::testing::Test {
 protected:
     static tgs_backend *be;
     static tgs_display disp;
 
     static void SetUpTestSuite() {
         memset(&disp, 0, sizeof(disp));
-        lvgl_backend_register();
+        scene_backend_register();
         be = tgs_backend_get();
         ASSERT_NE(be, nullptr);
-        lvgl_backend_set_display(&disp);
+        scene_backend_set_display(&disp);
         ASSERT_EQ(be->init(800, 600), 0);
     }
 
@@ -64,12 +64,12 @@ protected:
     }
 };
 
-tgs_backend *LvglBackend::be = nullptr;
-tgs_display LvglBackend::disp;
+tgs_backend *SceneBackend::be = nullptr;
+tgs_display SceneBackend::disp;
 
 }  // namespace
 
-TEST_F(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
+TEST_F(SceneBackend, ClickAtKnownPixelHitsExpectedWidget)
 {
     void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
     ASSERT_NE(win, nullptr);
@@ -89,14 +89,14 @@ TEST_F(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
     be->set_widget_rect(btn2, 400, 300, 100, 30);
     be->set_widget_content(btn2, "No");
 
-    /* Let LVGL apply layout so coords are settled. */
+    /* Let the scene settle (event pump). */
     for (int i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
     }
 
     /* Press then release at (30, 120) — inside btn's rect, outside btn2's.
-     * LVGL's click-focus consumes the first tap of a click-focusable widget
+     * a click-focusable widget's first tap
      * (FOCUSED only, no CLICKED), so tap twice; the second must report the
      * click. With the root padded (pre-fix) the button renders at an offset
      * and even the second tap misses it entirely. */
@@ -129,7 +129,7 @@ TEST_F(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
 /* SVG-scene semantics: a plain CONTAINER does no layout — children render at
  * exactly the rects the program set. This is the contract that replaced the
  * renderer-side flex/grid engines (layout is program policy). */
-TEST_F(LvglBackend, ContainerHoldsProgramComputedRects)
+TEST_F(SceneBackend, ContainerHoldsProgramComputedRects)
 {
     void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
     ASSERT_NE(win, nullptr);
@@ -170,18 +170,21 @@ TEST_F(LvglBackend, ContainerHoldsProgramComputedRects)
 /* L1 mixed mode: a TRANSPARENT window's root has a fully transparent
  * background so the character base shows through while widgets float on it.
  * A NORMAL window's root stays opaque. */
-TEST_F(LvglBackend, TransparentWindowRootIsTransparent)
+/* Root transparency, scene-semantics port: a TRANSPARENT window's root has
+ * no background fill, so the character base shows through; a NORMAL root
+ * paints opaque. Observable through the scene node directly. */
+TEST_F(SceneBackend, TransparentWindowRootIsTransparent)
 {
     void *norm = be->create_window(TGS_WINDOW_NORMAL, "T");
+    scene_node *nn = (scene_node *)norm;
     ASSERT_NE(norm, nullptr);
-    EXPECT_NE(lv_obj_get_style_bg_opa(norm, 0), LV_OPA_TRANSP)
-        << "NORMAL window root must be opaque";
+    EXPECT_TRUE(nn->has_bg) << "NORMAL root paints an opaque background";
 
     void *trans = be->create_window(TGS_WINDOW_TRANSPARENT, "T");
+    scene_node *tn = (scene_node *)trans;
     ASSERT_NE(trans, nullptr);
-    EXPECT_EQ(lv_obj_get_style_bg_opa(trans, 0), LV_OPA_TRANSP)
-        << "TRANSPARENT window root must not paint a background";
-
+    EXPECT_FALSE(tn->has_bg)
+        << "TRANSPARENT root must not paint a background (L1 mixed mode)";
     be->destroy_window(norm);
     be->destroy_window(trans);
 }
@@ -190,7 +193,7 @@ TEST_F(LvglBackend, TransparentWindowRootIsTransparent)
  * widget and HOVER_LEAVE when the pointer moves off — through the same
  * event callback the compositor subscribes to. Only widgets hover (a hit on
  * the window root is "no widget"). */
-TEST_F(LvglBackend, MouseMotionEmitsHoverEnterLeave)
+TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
 {
     void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
     ASSERT_NE(win, nullptr);

@@ -13,7 +13,7 @@ TGS turns your terminal into a graphical platform. Applications build UIs throug
 │  TGS Compositor (desktop/embedded)      │
 │  ├── Protocol Parser (APC frames)       │
 │  ├── Window Manager                     │
-│  ├── LVGL Backend (20+ widgets)         │
+│  ├── Scene Backend (drawing prims)      │
 │  ├── Output Backend (SDL2 or FB)        │
 │  └── IME Router → IME App               │
 ├─────────────────────────────────────────┤
@@ -25,11 +25,11 @@ TGS turns your terminal into a graphical platform. Applications build UIs throug
 
 ## Layer 1 Features
 
-- **Full 20-widget library** — every `tgs_widget_type` maps to a real LVGL widget (button, input, slider, table, menu, tab, dropdown, image, roller, calendar, …).
+- **Drawing-semantics renderer** — 8 primitive kinds (button, label, input, checkbox, slider, container, scroll, image); a paint port with two reference backends (SDL2 today, Skia next); no layout engine in the renderer.
 - **Explicit containers** — `VLAYOUT`/`HLAYOUT`/`GLAYOUT`/`SCROLL` apply their layout from their type at creation; only containers can parent children.
 - **Keyboard navigation** — compositor-owned focus model with per-window rings/scopes, `Tab`/`Shift-Tab`/arrow traversal, `SET_FOCUS`/`NTF_FOCUS` with reason, `WGT_ATTR` (`FOCUSABLE`/`FOCUS_INDEX`/`NAV_ARROWS`/scope), and key-routing precedence. See [docs/navigation.md](docs/navigation.md).
 - **Robust input pipeline** — edge-queued pointer/keypad input (fast clicks register, no double keys), canonical key space + modifiers.
-- **FB present contract** — LVGL publishes to its draw buffer; the compositor copies to mmap'd `/dev/fb0` (verified 16/24/32 bpp).
+- **FB present contract** — the scene backend publishes its framebuffer; the compositor copies to mmap'd `/dev/fb0` (16/24/32 bpp).
 
 ## Quick Start
 
@@ -64,7 +64,7 @@ make run-xvfb # Headless: run under Xvfb and capture a screenshot
 src/
 ├── common/          # Protocol definitions (backend-agnostic)
 ├── compositor/      # Terminal compositor core
-├── backends/lvgl/   # LVGL rendering backend
+├── backends/scene/  # scene core + SDL2 paint port + term view
 └── client/          # C client library
 examples/
 ├── simple_form.c    # Demo: buttons, labels, input

@@ -18,17 +18,6 @@ option(TGS_USE_SDL "Use SDL2 for desktop display (recommended)" ON)
 option(TGS_USE_SIXEL "Use sixel for terminal display (fallback)" OFF)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# deps/lvgl  (LVGL v9.6.x)
-#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-set(LV_BUILD_CONF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/backends/lvgl"
-    CACHE PATH "Directory containing lv_conf.h")
-set(CONFIG_LV_BUILD_DEMOS OFF CACHE BOOL "Build LVGL demos" FORCE)
-set(CONFIG_LV_BUILD_EXAMPLES OFF CACHE BOOL "Build LVGL examples" FORCE)
-set(CONFIG_LV_USE_THORVG OFF CACHE BOOL "Enable ThorVG" FORCE)
-set(CONFIG_LV_USE_THORVG_INTERNAL OFF CACHE BOOL "Internal ThorVG" FORCE)
-add_subdirectory(deps/lvgl)
-
-#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # deps/sixel (optional, when TGS_USE_SIXEL=ON)
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if(TGS_USE_SIXEL)
@@ -174,28 +163,31 @@ add_library(tgs_client STATIC
 target_include_directories(tgs_client PUBLIC src/client)
 target_link_libraries(tgs_client PUBLIC tgs_common)
 
-# tgs_lvgl_backend — LVGL rendering
-set(BACKEND_SOURCES src/backends/lvgl/lvgl_backend.c src/backends/lvgl/lvgl_term.c)
+# tgs_scene_backend — drawing-semantics renderer (SDL2 paint port)
+set(BACKEND_SOURCES
+    src/backends/scene/scene_core.c
+    src/backends/scene/scene_backend.c
+    src/backends/scene/paint_sdl2.c
+    src/backends/scene/term_view.c)
 if(TGS_USE_SDL)
     list(APPEND BACKEND_SOURCES src/backends/output_sdl.c src/backends/input_sdl.c)
 endif()
-if(TGS_USE_SIXEL)
-    list(APPEND BACKEND_SOURCES src/backends/lvgl/lvgl_sixel.c)
-endif()
-if(NOT TGS_USE_SDL AND NOT TGS_USE_SIXEL)
+if(NOT TGS_USE_SDL)
     list(APPEND BACKEND_SOURCES src/backends/output_fb.c src/backends/input_fb.c)
 endif()
 
-add_library(tgs_lvgl_backend STATIC ${BACKEND_SOURCES})
-target_include_directories(tgs_lvgl_backend PUBLIC
-    src/backends/lvgl src/compositor)
+add_library(tgs_scene_backend STATIC ${BACKEND_SOURCES})
+target_include_directories(tgs_scene_backend PUBLIC
+    src/backends/scene src/compositor)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SDL2 QUIET sdl2 SDL2_ttf)
+endif()
 if(TGS_USE_SDL)
-    target_link_libraries(tgs_lvgl_backend PUBLIC tgs_common lvgl ${SDL2_LIBRARIES})
-    target_include_directories(tgs_lvgl_backend PUBLIC ${SDL2_INCLUDE_DIRS})
-elseif(TGS_USE_SIXEL)
-    target_link_libraries(tgs_lvgl_backend PUBLIC tgs_common lvgl sixel)
+    target_link_libraries(tgs_scene_backend PUBLIC tgs_common ${SDL2_LIBRARIES} SDL2::SDL2 SDL2_ttf)
+    target_include_directories(tgs_scene_backend PUBLIC ${SDL2_INCLUDE_DIRS})
 else()
-    target_link_libraries(tgs_lvgl_backend PUBLIC tgs_common lvgl)
+    target_link_libraries(tgs_scene_backend PUBLIC tgs_common)
 endif()
 
 # tgs_compositor — compositor library (no event_engine, no output.c)
@@ -213,7 +205,7 @@ add_executable(tgs-compositor
     src/compositor/main.c
 )
 target_link_libraries(tgs-compositor PRIVATE
-    tgs_compositor tgs_lvgl_backend util)
+    tgs_compositor tgs_scene_backend util)
 
 # simple_form — example app
 add_executable(simple_form
@@ -231,7 +223,7 @@ target_link_libraries(container_demo PRIVATE tgs_client)
 add_executable(render_demo
     tools/render_demo.c
 )
-target_link_libraries(render_demo PRIVATE tgs_lvgl_backend tgs_common)
+target_link_libraries(render_demo PRIVATE tgs_scene_backend tgs_common)
 
 # char_and_graphics — L1: one program printing characters and opening widgets
 add_executable(char_and_graphics
@@ -270,22 +262,16 @@ add_executable(tgs_tests
     tests/test_l1.cpp
     tests/test_l2_focus.cpp
     tests/test_geometry.cpp
-    tests/test_lvgl_click.cpp
+    tests/test_scene_click.cpp
 )
 target_compile_definitions(tgs_tests PRIVATE
     TGS_SNAPSHOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/snapshots")
 target_link_libraries(tgs_tests PRIVATE tgs_common tgs_client tgs_compositor
-    tgs_lvgl_backend gtest gtest_main util)
+    tgs_scene_backend gtest gtest_main util)
 
 add_test(NAME tgs_tests COMMAND tgs_tests)
 set_tests_properties(tgs_tests PROPERTIES
     ENVIRONMENT "CHAR_AND_GRAPHICS=$<TARGET_FILE:char_and_graphics>")
-
-# letter_probe — does lv_draw_letter rasterise into a canvas layer?
-add_executable(letter_probe
-    tests/letter_probe.c
-)
-target_link_libraries(letter_probe PRIVATE tgs_lvgl_backend)
 
 # nav_probe — end-to-end navigation probe (records what the app receives)
 add_executable(nav_probe
@@ -298,13 +284,7 @@ add_executable(term_probe
     tests/term_probe.c
 )
 
-# font_probe — report the cell metrics the terminal renderer must match
-add_executable(font_probe
-    tests/font_probe.c
-)
-target_link_libraries(font_probe PRIVATE tgs_lvgl_backend)
-
 # d2_repro — headless proof that the TGS_NAV_WIDGET hand-off reports the real key
 add_executable(d2_repro tests/d2_repro.c)
-target_link_libraries(d2_repro PRIVATE tgs_lvgl_backend tgs_common)
+target_link_libraries(d2_repro PRIVATE tgs_scene_backend tgs_common)
 target_link_libraries(term_probe PRIVATE tgs_compositor)

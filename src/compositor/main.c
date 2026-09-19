@@ -23,11 +23,17 @@
 #include "output.h"
 #include "input.h"
 #include "term.h"
-#include "lvgl_term.h"
 
-/* LVGL backend registration — defined in lvgl_backend.c */
-extern void lvgl_backend_register(void);
-extern void lvgl_backend_set_display(tgs_display *display);
+/* Scene backend registration — defined in scene_backend.c/term_view.c */
+extern void scene_backend_register(void);
+extern void scene_backend_set_display(tgs_display *display);
+extern void *tgs_term_view_create(int cols, int rows);
+extern void tgs_term_view_draw(void *view, const tgs_term *t);
+extern void tgs_term_view_destroy(void *view);
+extern int tgs_term_view_cell_w(void);
+extern int tgs_term_view_cell_h(void);
+extern const uint32_t *tgs_term_view_pixels(void *view);
+extern void scene_backend_set_underlay(const uint32_t *px, int w, int h);
 
 /* ---- Character base (L0) ------------------------------------------------
  * A program that never sends a TGS frame is a character program. Its output
@@ -35,7 +41,7 @@ extern void lvgl_backend_set_display(tgs_display *display);
  * speaks TGS first (HELLO) gets the widget path instead. Both may happen in
  * one program — the stream is split, character output is never lost. */
 static tgs_term   *g_term;
-static lv_obj_t   *g_term_view;
+static void       *g_term_view;
 static int         g_master_fd = -1;
 static window_manager *g_wm;
 static tgs_backend *g_be;
@@ -111,7 +117,7 @@ static void term_resize_to(int w, int h)
 
     if (w < 1 || h < 1 || !g_term || !g_be) return;
 
-    g_be->set_size(w, h);                        /* LVGL display + draw buffer */
+    g_be->set_size(w, h);                        /* scene fb + paint port */
     if (output_resize(g_disp, w, h) < 0) return; /* fixed-size surface: leave it */
 
     /* The display really is w×h now — keep the compositor's cached size in
@@ -263,8 +269,8 @@ int main(int argc, char *argv[])
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
 
-    /* Register LVGL backend */
-    lvgl_backend_register();
+    /* Register the scene backend */
+    scene_backend_register();
     be = tgs_backend_get();
     if (!be) {
         fprintf(stderr, "No backend registered\n");
@@ -273,7 +279,7 @@ int main(int argc, char *argv[])
     }
 
     /* Pass display to backend before init */
-    lvgl_backend_set_display(&disp);
+    scene_backend_set_display(&disp);
 
     /* Initialize backend */
     if (be->init(disp.width, disp.height) < 0) {
@@ -363,6 +369,9 @@ int main(int argc, char *argv[])
             output_cleanup(&disp);
             return 1;
         }
+        scene_backend_set_underlay(tgs_term_view_pixels(g_term_view),
+                                   cols * tgs_term_view_cell_w(),
+                                   rows * tgs_term_view_cell_h());
         tgs_term_set_reply_cb(g_term, term_reply_cb, NULL);
         tgs_parser_set_text_cb(&parser, term_text_cb, NULL);
         g_master_fd = master_fd;
@@ -420,11 +429,8 @@ int main(int argc, char *argv[])
         /* Poll SDL input */
         input_poll();
 
-        /* LVGL tick */
+        /* Backend tick */
         be->tick(10);
-
-        /* Pump LVGL's refresh timers — without this the draw buffer is never
-         * painted and output_present() uploads an all-zero framebuffer. */
 
         /* Repaint the character base when it changed. */
         if (tgs_term_take_dirty(g_term)) {
@@ -432,8 +438,7 @@ int main(int argc, char *argv[])
             term_dump();
         }
         be->render();
-        /* After the tick has applied LVGL's flex/grid layout, report the real
-         * geometry of any changed layout containers to the app. */
+        /* Report real geometry of changed containers to the app. */
         wm_flush_geometry(&wm);
 
         /* Present framebuffer */

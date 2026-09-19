@@ -3,7 +3,7 @@
  *
  * A program's ordinary output goes here; TGS APC frames are demultiplexed
  * separately by the parser (parser.h). This module is the character grid and
- * its ANSI/VT parser — no LVGL, no platform dependency, unit-testable alone.
+ * its ANSI/VT parser — no rendering, no platform dependency, unit-testable alone.
  */
 #ifndef TGS_TERM_H
 #define TGS_TERM_H

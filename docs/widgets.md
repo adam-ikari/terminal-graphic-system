@@ -2,12 +2,12 @@
 
 TGS defines 20 widget types (`tgs_widget_type` enum in `tgs_protocol.h`). The types and their
 semantics are **protocol-neutral** — they name abstract UI concepts any rendering backend can
-implement. The "Reference mapping" column records how the current LVGL backend realizes each
+implement. The "Reference mapping" column records how the scene backend (SDL2 paint port) realizes each
 type; swapping the backend only changes that column.
 
 ## Widget Kinds
 
-| Widget | TGS Enum | Protocol semantics | Reference mapping (LVGL backend) |
+| Widget | TGS Enum | Protocol semantics | Reference mapping (scene backend) |
 |--------|----------|--------------------|----------------------------------|
 | Button | `TGS_WIDGET_BUTTON` | Push button; delivers CLICK when activated | `lv_button` |
 | Label | `TGS_WIDGET_LABEL` | Static text display; non-interactive | `lv_label` |
