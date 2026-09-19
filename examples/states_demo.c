@@ -49,21 +49,24 @@ int main(void)
     if (tgs_client_create_window(TGS_WINDOW_NORMAL, "States", &win) != 0)
         return 1;
 
-    /* 5x4 grid of interactive widgets (labels are not interactive). */
+    /* 5x4 grid of interactive widgets, primitives only. Derived looks are
+     * style/attr compositions: radio = round checkbox, "switch" = wide
+     * round checkbox. Compound widgets (list/table/tab/dropdown/pickers)
+     * are CONTAINER + child widgets at program-computed rects. */
     add_widget(&win, TGS_WIDGET_BUTTON,    20,  20, 140, 56, "Button");
     add_widget(&win, TGS_WIDGET_INPUT,     20,  96, 140, 56, "");
     add_widget(&win, TGS_WIDGET_CHECKBOX,  20, 172, 140, 40, "Check");
-    add_widget(&win, TGS_WIDGET_RADIO,     20, 232, 140, 40, "Radio");
+    add_widget(&win, TGS_WIDGET_CHECKBOX,  20, 232, 140, 40, "Radio");
     add_widget(&win, TGS_WIDGET_SLIDER,    20, 292, 140, 48, "");
-    add_widget(&win, TGS_WIDGET_SWITCH,    20, 360, 140, 40, "");
-    add_widget(&win, TGS_WIDGET_DROPDOWN, 180,  20, 160, 48, "one\ntwo\nthree");
-    add_widget(&win, TGS_WIDGET_LIST,     180,  96, 160, 96, "item a");
-    add_widget(&win, TGS_WIDGET_TAB,      180, 212, 160, 88, "tab");
-    add_widget(&win, TGS_WIDGET_TIMEPICK, 180, 320, 160, 80, "10\n11\n12\n13\n14");
-    add_widget(&win, TGS_WIDGET_PROGRESS, 360,  20, 160, 40, "60");
-    add_widget(&win, TGS_WIDGET_SCROLL,   360,  80, 160, 120, "");
-    add_widget(&win, TGS_WIDGET_TABLE,    360, 220, 160, 100, "cell");
-    add_widget(&win, TGS_WIDGET_MENU,     360, 340, 160, 80, "");
+    add_widget(&win, TGS_WIDGET_CHECKBOX,  20, 360, 140, 40, "");
+    add_widget(&win, TGS_WIDGET_CONTAINER,180,  20, 160, 48, "");
+    add_widget(&win, TGS_WIDGET_CONTAINER,180,  96, 160, 96, "");
+    add_widget(&win, TGS_WIDGET_CONTAINER,180, 212, 160, 88, "");
+    add_widget(&win, TGS_WIDGET_SCROLL,   180, 320, 160, 80, "");
+    add_widget(&win, TGS_WIDGET_SLIDER,   360,  20, 160, 40, "");
+    add_widget(&win, TGS_WIDGET_CONTAINER,360,  80, 160, 120, "");
+    add_widget(&win, TGS_WIDGET_CONTAINER,360, 220, 160, 100, "");
+    add_widget(&win, TGS_WIDGET_CONTAINER,360, 340, 160, 80, "");
 
     if (tgs_client_create_widget(TGS_WIDGET_LABEL, ID_STATUS, win.window_id,
                                  20, 440, 560, 30,

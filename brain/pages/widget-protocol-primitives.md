@@ -73,3 +73,25 @@ L0/L1 shipped the catalog; apps exist. The catalog is already semantic
 composition-debt is MENU (stub, never shipped a semantic) and the layout trio
 (attr-expressible but type-installed). Collapse is a breaking protocol change
 deferred until a second backend or L4 forces the payoff.
+
+## Stage 2 (2026-09-18): catalog collapsed to 8 primitive kinds
+
+User directive escalated the primitivization: the widget protocol is DRAWING
+semantics (like SVG). The enum now has 8 kinds — BUTTON(0), LABEL(1),
+INPUT(2), CHECKBOX(3), SLIDER(5), CONTAINER(8), SCROLL(11), IMAGE(17) —
+values 4,6,7,9,10,12-19 reserved. Retired kinds map to primitive
+replacements in the compositor decode (wire compat): radio/switch→CHECKBOX,
+progress→SLIDER, list/table/menu/tab/dropdown/pickers→CONTAINER.
+
+Derived looks are style/attr compositions: radio = round CHECKBOX (RADIUS
+style), "switch" = wide capsule CHECKBOX, "progress" = SLIDER whose drag the
+app ignores. Compound widgets (list/table) = CONTAINER + child widgets at
+program-computed rects — this also fixed the old TABLE cell(0,0)-only
+limitation structurally (cells are real widgets with their own ids/events).
+
+Blocked primitives for full derivation: POPUP (dropdown/menu/pickers) and
+raw pointer coordinates for app-drawn surfaces (L4 pixel surface). Both are
+L4-scoped; until then these compositions stay app-side approximations.
+
+Events remain interaction-shaped. Spec §5.2 rewritten (drawing semantics +
+retired-value remap table), §5.2.1 rules kept, §5.3 gains HOVER rows.

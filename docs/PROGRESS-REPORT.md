@@ -81,22 +81,14 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ### 3.6 控件分列展示（每控件独立渲染）
 
-每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 54 张（18 控件 × 3 状态）经**视觉模型逐张验收**。布局已归程序（**SVG 场景语义**）：CONTAINER 是纯盒子，子控件 rect 由程序计算，渲染器不跑布局引擎。
+每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 24 张（**8 个原语 kind** × 3 状态）经**视觉模型逐张验收**。协议已是绘制语义（类 SVG）：BOX/TEXT/BUTTON/INPUT/CHECKBOX/SLIDER/SCROLL/IMAGE，布局与派生外观全部是程序侧组合。
 
 | 控件 | 正常 | 悬停 | 按下 |
 |---|---|---|---|
 | Button 按钮 | ![b](screenshots/singles/button_normal.png) | ![bh](screenshots/singles/button_hover.png) | ![bp](screenshots/singles/button_pressed.png) |
 | Input 输入框 | ![i](screenshots/singles/input_normal.png) | ![ih](screenshots/singles/input_hover.png) | ![ip](screenshots/singles/input_pressed.png) |
-| Checkbox 复选框 | ![c](screenshots/singles/checkbox_normal.png) | ![ch](screenshots/singles/checkbox_hover.png) | ![cp](screenshots/singles/checkbox_pressed.png) |
-| Radio 单选钮 | ![r](screenshots/singles/radio_normal.png) | ![rh](screenshots/singles/radio_hover.png) | ![rp](screenshots/singles/radio_pressed.png) |
 | Slider 滑块 | ![s](screenshots/singles/slider_normal.png) | ![sh](screenshots/singles/slider_hover.png) | ![sp](screenshots/singles/slider_pressed.png) |
-| Switch 开关 | ![sw](screenshots/singles/switch_normal.png) | ![swh](screenshots/singles/switch_hover.png) | ![swp](screenshots/singles/switch_pressed.png) |
-| Progress 进度条 | ![p](screenshots/singles/progress_normal.png) | ![ph](screenshots/singles/progress_hover.png) | ![pp](screenshots/singles/progress_pressed.png) |
-| List 列表 | ![l](screenshots/singles/list_normal.png) | ![lh](screenshots/singles/list_hover.png) | ![lp](screenshots/singles/list_pressed.png) |
 | Dropdown 下拉框 | ![d](screenshots/singles/dropdown_normal.png) | ![dh](screenshots/singles/dropdown_hover.png) | ![dp](screenshots/singles/dropdown_pressed.png) |
-| Tab 标签页 | ![t](screenshots/singles/tab_normal.png) | ![th](screenshots/singles/tab_hover.png) | ![tp](screenshots/singles/tab_pressed.png) |
-| Timepick 时间滚轮 | ![ti](screenshots/singles/timepick_normal.png) | ![tih](screenshots/singles/timepick_hover.png) | ![tip](screenshots/singles/timepick_pressed.png) |
-| Datepick 日历 | ![da](screenshots/singles/datepick_normal.png) | ![dah](screenshots/singles/datepick_hover.png) | ![dap](screenshots/singles/datepick_pressed.png) |
 | Container 容器（程序摆位） | ![vl](screenshots/singles/container_normal.png) | ![vlh](screenshots/singles/container_hover.png) | ![vlp](screenshots/singles/container_pressed.png) |
 | Scroll 滚动容器 | ![sc](screenshots/singles/scroll_normal.png) | ![sch](screenshots/singles/scroll_hover.png) | ![scp](screenshots/singles/scroll_pressed.png) |
 

@@ -123,23 +123,15 @@ typedef enum {
     TGS_WIDGET_BUTTON = 0,
     TGS_WIDGET_LABEL = 1,
     TGS_WIDGET_INPUT = 2,
-    TGS_WIDGET_CHECKBOX = 3,
-    TGS_WIDGET_RADIO = 4,
-    TGS_WIDGET_SLIDER = 5,
-    TGS_WIDGET_PROGRESS = 6,
-    TGS_WIDGET_SWITCH = 7,
+    TGS_WIDGET_CHECKBOX = 3,   /* bool + label; RADIUS style makes it round */
+    TGS_WIDGET_SLIDER = 5,     /* value + range + drag */
     TGS_WIDGET_CONTAINER = 8,  /* plain box; children at app-computed rects */
-    /* 9, 10 reserved (VLAYOUT/HLAYOUT/GLAYOUT retired: layout is program
-     * policy — a renderer-side layout engine was a policy leak) */
+    /* 4, 6, 7, 9, 10, 12-19 reserved: retired kinds (RADIO=CHECKBOX+round
+     * style, SWITCH=CHECKBOX+capsule, PROGRESS=SLIDER read-only, LIST/TABLE/
+     * MENU=CONTAINER+child widgets, TAB/DROPDOWN/TIMEPICK/DATEPICK need a
+     * popup layer — all are app-side compositions now, see spec §5.2.1) */
     TGS_WIDGET_SCROLL = 11,
-    TGS_WIDGET_LIST = 12,
-    TGS_WIDGET_TABLE = 13,
-    TGS_WIDGET_MENU = 14,
-    TGS_WIDGET_TAB = 15,
-    TGS_WIDGET_DROPDOWN = 16,
     TGS_WIDGET_IMAGE = 17,
-    TGS_WIDGET_TIMEPICK = 18,
-    TGS_WIDGET_DATEPICK = 19,
     TGS_WIDGET_COUNT = 20,
 } tgs_widget_type;
 /* Event types */

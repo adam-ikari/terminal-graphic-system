@@ -22,7 +22,6 @@ int nav_type_focusable(tgs_widget_type t)
 {
     switch (t) {
     case TGS_WIDGET_LABEL:
-    case TGS_WIDGET_PROGRESS:
     case TGS_WIDGET_IMAGE:
     /* Layout containers are transparent for focus (§B.3): their children take
      * part in the enclosing ring, the container itself is never a stop. */
@@ -39,12 +38,6 @@ int nav_type_consumes_arrows(tgs_widget_type t)
     switch (t) {
     case TGS_WIDGET_INPUT:
     case TGS_WIDGET_SLIDER:
-    case TGS_WIDGET_LIST:
-    case TGS_WIDGET_TABLE:
-    case TGS_WIDGET_MENU:
-    case TGS_WIDGET_DROPDOWN:
-    case TGS_WIDGET_TIMEPICK:
-    case TGS_WIDGET_DATEPICK:
         return 1;
     default:
         return 0;

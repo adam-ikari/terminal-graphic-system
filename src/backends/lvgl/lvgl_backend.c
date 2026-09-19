@@ -157,9 +157,6 @@ static lv_obj_t *create_container(lv_obj_t *parent)
 #define GRID_COLS 2
 #define GRID_ROWS 4
 
-static int32_t grid_col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-static int32_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT,
-                                 LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
 /* Drop a new child into the next free cell of its grid container. */
 static void grid_place_child(lv_obj_t *grid, lv_obj_t *child)
@@ -181,47 +178,7 @@ static lv_obj_t *create_lvgl_widget(tgs_widget_type type, lv_obj_t *parent)
     case TGS_WIDGET_INPUT:    return lv_textarea_create(parent);
     case TGS_WIDGET_CHECKBOX: return lv_checkbox_create(parent);
     case TGS_WIDGET_SLIDER:   return lv_slider_create(parent);
-    case TGS_WIDGET_SWITCH:
-        /* The knob is drawn at the switch's full height, which makes its
-         * corners stick out past the rounded track. Inset the knob via its
-         * part padding (LVGL's own sizing hook honors KNOB padding). */
-        obj = lv_switch_create(parent);
-        /* The knob is drawn at the switch's full height by LVGL, so its
-         * corners poke out of the rounded track unless the track is a full
-         * capsule: radius = height/2 keeps every knob pixel inside the arc. */
-        lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
-        return obj;
-    case TGS_WIDGET_RADIO:
-        /* LVGL has no dedicated radio: a checkbox with a round indicator.
-         * The square box is drawn by the INDICATOR part, so the radius has
-         * to go there — setting it on the main part changes nothing visible
-         * and a radio renders indistinguishable from a checkbox. */
-        obj = lv_checkbox_create(parent);
-        lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
-        return obj;
-    case TGS_WIDGET_PROGRESS:
-        obj = lv_bar_create(parent);
-        lv_bar_set_range(obj, 0, 100);
-        lv_bar_set_value(obj, 0, LV_ANIM_OFF);
-        return obj;
-    case TGS_WIDGET_LIST:
-        /* lv_list is deprecated in the vendored LVGL 9.6 but still the LIST mapping. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-        return lv_list_create(parent);
-#pragma GCC diagnostic pop
-    case TGS_WIDGET_TABLE:    return lv_table_create(parent);
-    case TGS_WIDGET_MENU:
-        /* lv_menu is deprecated in the vendored LVGL 9.6 but still the MENU mapping. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-        return lv_menu_create(parent);
-#pragma GCC diagnostic pop
-    case TGS_WIDGET_TAB:      return lv_tabview_create(parent);
-    case TGS_WIDGET_DROPDOWN: return lv_dropdown_create(parent);
     case TGS_WIDGET_IMAGE:    return lv_image_create(parent);
-    case TGS_WIDGET_TIMEPICK: return lv_roller_create(parent);
-    case TGS_WIDGET_DATEPICK: return lv_calendar_create(parent);
     case TGS_WIDGET_CONTAINER:
         /* Plain box: children sit where the program puts them (SVG-scene
          * semantics). The renderer runs no layout engine for app content. */
@@ -504,45 +461,8 @@ static void backend_set_widget_content(void *handle, const char *text)
     case TGS_WIDGET_INPUT:
         lv_textarea_set_text(obj, text);
         break;
-    case TGS_WIDGET_RADIO:
-        lv_checkbox_set_text(obj, text);
-        break;
-    case TGS_WIDGET_PROGRESS:
-        lv_bar_set_value(obj, atoi(text), LV_ANIM_OFF);
-        break;
-    case TGS_WIDGET_LIST:
-        /* Each call appends one row; empty content means "no row". */
-        if (text[0]) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-            lv_list_add_button(obj, NULL, text);
-#pragma GCC diagnostic pop
-        }
-        break;
-    case TGS_WIDGET_TABLE:
-        lv_table_set_cell_value(obj, 0, 0, text);
-        break;
-    case TGS_WIDGET_TAB:
-        /* Each call adds one tab. */
-        if (text[0]) lv_tabview_add_tab(obj, text);
-        break;
-    case TGS_WIDGET_DROPDOWN:
-        /* Options are newline separated. */
-        lv_dropdown_set_options(obj, text);
-        break;
-    case TGS_WIDGET_TIMEPICK:
-        lv_roller_set_options(obj, text, LV_ROLLER_MODE_NORMAL);
-        break;
-    case TGS_WIDGET_DATEPICK: {
-        int y, m, d;
-        if (sscanf(text, "%d-%d-%d", &y, &m, &d) == 3) {
-            lv_calendar_set_today_date(obj, (uint32_t)y, (uint32_t)m, (uint32_t)d);
-            lv_calendar_set_month_shown(obj, (uint32_t)y, (uint32_t)m);
-        }
-        break;
-    }
     default:
-        /* Containers carry no content; MENU and IMAGE have no string mapping. */
+        /* Containers carry no content; IMAGE has no string mapping. */
         break;
     }
 }

@@ -223,6 +223,8 @@ Rules for new types (normative):
 
 ### 5.3 Event Types
 
+Events are interaction-shaped, never widget-shaped.
+
 | Value | Name            | Description                  |
 |-------|-----------------|------------------------------|
 | 0     | CLICK           | Mouse click                  |
@@ -232,6 +234,8 @@ Rules for new types (normative):
 | 4     | VALUE_CHANGED   | Input value changed          |
 | 5     | IME_PREEDIT     | IME composition text         |
 | 6     | IME_COMMIT      | IME committed text           |
+| 7     | HOVER_ENTER     | Pointer entered a widget (mouse only; no hover for touch) |
+| 8     | HOVER_LEAVE     | Pointer left a widget        |
 
 ### 5.4 Style Properties
 

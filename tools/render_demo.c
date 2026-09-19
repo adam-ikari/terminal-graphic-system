@@ -84,18 +84,9 @@ static void build_library(tgs_backend *be, void *win)
         { TGS_WIDGET_BUTTON,   "button" },
         { TGS_WIDGET_INPUT,    "input" },
         { TGS_WIDGET_CHECKBOX, "checkbox" },
-        { TGS_WIDGET_RADIO,    "radio" },
         { TGS_WIDGET_SLIDER,   "" },
-        { TGS_WIDGET_PROGRESS, "60" },
-        { TGS_WIDGET_SWITCH,   "" },
-        { TGS_WIDGET_LIST,     "list item" },
-        { TGS_WIDGET_TABLE,    "cell" },
-        { TGS_WIDGET_MENU,     "" },
-        { TGS_WIDGET_TAB,      "tab" },
-        { TGS_WIDGET_DROPDOWN, "one\ntwo\nthree" },
+        { TGS_WIDGET_CONTAINER, "" },
         { TGS_WIDGET_IMAGE,    "" },
-        { TGS_WIDGET_TIMEPICK, "00\n01\n02" },
-        { TGS_WIDGET_DATEPICK, "2026-09-14" },
         { TGS_WIDGET_CONTAINER, "" },
         { TGS_WIDGET_SCROLL,   "" },
         { TGS_WIDGET_SCROLL,   "" },
@@ -166,17 +157,12 @@ static void build_states(tgs_backend *be, void *win)
         { TGS_WIDGET_BUTTON,    20,  20, 140, 56, "Button" },
         { TGS_WIDGET_INPUT,     20,  96, 140, 56, "" },
         { TGS_WIDGET_CHECKBOX,  20, 172, 140, 40, "Check" },
-        { TGS_WIDGET_RADIO,     20, 232, 140, 40, "Radio" },
+        { TGS_WIDGET_CHECKBOX,  20, 232, 140, 40, "Radio" },
         { TGS_WIDGET_SLIDER,    20, 292, 140, 48, "" },
-        { TGS_WIDGET_SWITCH,    20, 360, 140, 40, "" },
-        { TGS_WIDGET_DROPDOWN, 180,  20, 160, 48, "one\ntwo\nthree" },
-        { TGS_WIDGET_LIST,     180,  96, 160, 96, "item a" },
-        { TGS_WIDGET_TAB,      180, 212, 160, 88, "tab" },
-        { TGS_WIDGET_TIMEPICK, 180, 320, 160, 80, "10\n11\n12\n13\n14" },
-        { TGS_WIDGET_PROGRESS, 360,  20, 160, 40, "60" },
-        { TGS_WIDGET_SCROLL,   360,  80, 160, 120, "" },
-        { TGS_WIDGET_TABLE,    360, 220, 160, 100, "cell" },
-        { TGS_WIDGET_MENU,     360, 340, 160, 80, "" },
+        { TGS_WIDGET_CHECKBOX,  20, 360, 140, 40, "" },
+        { TGS_WIDGET_SCROLL,   180, 320, 160, 80, "" },
+        { TGS_WIDGET_SLIDER,   360,  20, 160, 40, "" },
+        { TGS_WIDGET_CONTAINER,360,  80, 160, 120, "" },
     };
     size_t n = sizeof(items) / sizeof(items[0]);
     size_t k;
@@ -246,18 +232,8 @@ static const struct { tgs_widget_type type; const char *name; const char *t; } s
     { TGS_WIDGET_LABEL,     "label",     "Label text" },
     { TGS_WIDGET_INPUT,     "input",     "" },
     { TGS_WIDGET_CHECKBOX,  "checkbox",  "Checkbox" },
-    { TGS_WIDGET_RADIO,     "radio",     "Radio" },
     { TGS_WIDGET_SLIDER,    "slider",    "" },
-    { TGS_WIDGET_PROGRESS,  "progress",  "60" },
-    { TGS_WIDGET_SWITCH,    "switch",    "" },
-    { TGS_WIDGET_LIST,      "list",      "item one" },
-    { TGS_WIDGET_TABLE,     "table",     "cell" },
-    { TGS_WIDGET_MENU,      "menu",      "File\nEdit\nView\nHelp" },
-    { TGS_WIDGET_TAB,       "tab",       "tab one" },
-    { TGS_WIDGET_DROPDOWN,  "dropdown",  "one\ntwo\nthree" },
     { TGS_WIDGET_IMAGE,     "image",     "" },
-    { TGS_WIDGET_TIMEPICK,  "timepick",  "10\n11\n12\n13\n14" },
-    { TGS_WIDGET_DATEPICK,  "datepick",  "2026-09-18" },
     { TGS_WIDGET_CONTAINER, "container", "" },
     { TGS_WIDGET_SCROLL,    "scroll",    "" },
 };
@@ -305,10 +281,7 @@ static int run_singles(tgs_backend *be, tgs_display *disp, const char *dir)
         if (!win) return -1;
         w = be->create_widget(win, singles[k].type);
         if (!w) return -1;
-        /* rollers and pickers need more height to show several options */
-        int h = (singles[k].type == TGS_WIDGET_TIMEPICK ||
-                 singles[k].type == TGS_WIDGET_DATEPICK) ? 150 : 90;
-        be->set_widget_rect(w, 270, 250, 260, h);
+        be->set_widget_rect(w, 270, 250, 260, 90);
         be->set_widget_content(w, singles[k].t);
         populate_single(be, w, singles[k].type);
 

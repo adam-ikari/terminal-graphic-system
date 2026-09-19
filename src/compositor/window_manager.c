@@ -484,29 +484,43 @@ static tgs_widget_type str_to_widget_type(const char *s)
     if (strcmp(s, "label") == 0)    return TGS_WIDGET_LABEL;
     if (strcmp(s, "input") == 0)    return TGS_WIDGET_INPUT;
     if (strcmp(s, "checkbox") == 0) return TGS_WIDGET_CHECKBOX;
-    if (strcmp(s, "radio") == 0)    return TGS_WIDGET_RADIO;
-    if (strcmp(s, "slider") == 0)   return TGS_WIDGET_SLIDER;
-    if (strcmp(s, "progress") == 0) return TGS_WIDGET_PROGRESS;
-    if (strcmp(s, "switch") == 0)   return TGS_WIDGET_SWITCH;
+    if (strcmp(s, "radio") == 0 || strcmp(s, "switch") == 0)
+                                    return TGS_WIDGET_CHECKBOX;
+    if (strcmp(s, "slider") == 0 || strcmp(s, "progress") == 0)
+                                    return TGS_WIDGET_SLIDER;
     /* layout names retired: they map to the plain CONTAINER (app computes
      * child geometry); kept for wire compat with older programs */
     if (strcmp(s, "vlayout") == 0 || strcmp(s, "hlayout") == 0 ||
         strcmp(s, "glayout") == 0)  return TGS_WIDGET_CONTAINER;
     if (strcmp(s, "scroll") == 0)   return TGS_WIDGET_SCROLL;
-    if (strcmp(s, "list") == 0)     return TGS_WIDGET_LIST;
-    if (strcmp(s, "table") == 0)    return TGS_WIDGET_TABLE;
-    if (strcmp(s, "menu") == 0)     return TGS_WIDGET_MENU;
-    if (strcmp(s, "tab") == 0)      return TGS_WIDGET_TAB;
-    if (strcmp(s, "dropdown") == 0) return TGS_WIDGET_DROPDOWN;
     if (strcmp(s, "image") == 0)    return TGS_WIDGET_IMAGE;
-    if (strcmp(s, "timepick") == 0) return TGS_WIDGET_TIMEPICK;
-    if (strcmp(s, "datepick") == 0) return TGS_WIDGET_DATEPICK;
+    /* Retired kinds decode to their primitive replacement (wire compat with
+     * older programs — see spec §5.2.1): radio/switch are checkbox+style,
+     * progress is a read-only slider, list/table/menu/tab were containers
+     * with children, dropdown/pickers were popup compositions. */
+    if (strcmp(s, "radio") == 0 || strcmp(s, "switch") == 0)
+        return TGS_WIDGET_CHECKBOX;
+    if (strcmp(s, "progress") == 0) return TGS_WIDGET_SLIDER;
+    if (strcmp(s, "list") == 0 || strcmp(s, "table") == 0 ||
+        strcmp(s, "menu") == 0 || strcmp(s, "tab") == 0 ||
+        strcmp(s, "dropdown") == 0 || strcmp(s, "timepick") == 0 ||
+        strcmp(s, "datepick") == 0)
+        return TGS_WIDGET_CONTAINER;
     /* Same numeric encoding as str_to_window_type: the client sends
-     * int_to_str((int)type), so digits must decode too. */
+     * int_to_str((int)type), so digits must decode too. Retired numbers
+     * remap to their primitive replacement. */
     if (s[0] >= '0' && s[0] <= '9') {
         int v = atoi(s);
 
-        if (v >= 0 && v < (int)TGS_WIDGET_COUNT) return (tgs_widget_type)v;
+        switch (v) {
+        case 4: case 7: return TGS_WIDGET_CHECKBOX;   /* radio, switch */
+        case 6:         return TGS_WIDGET_SLIDER;     /* progress */
+        case 9: case 10: case 12: case 13: case 14:
+        case 15: case 16: case 18: case 19:
+                        return TGS_WIDGET_CONTAINER;  /* list..datepick */
+        default:
+            if (v >= 0 && v < (int)TGS_WIDGET_COUNT) return (tgs_widget_type)v;
+        }
     }
     return TGS_WIDGET_BUTTON;
 }

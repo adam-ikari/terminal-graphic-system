@@ -65,7 +65,7 @@ TEST_F(NavTest, RingSkipsNonFocusableTypes)
     add(101, 100, TGS_WIDGET_BUTTON);
     add(102, WIN, TGS_WIDGET_LABEL);
     add(103, 100, TGS_WIDGET_BUTTON);
-    add(104, WIN, TGS_WIDGET_PROGRESS);
+    add(104, WIN, TGS_WIDGET_LABEL);
     add(105, 100, TGS_WIDGET_BUTTON);
 
     EXPECT_EQ(101, nav_first_focusable(&m, WIN));

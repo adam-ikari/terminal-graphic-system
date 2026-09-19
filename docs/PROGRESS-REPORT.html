@@ -79,7 +79,7 @@
     <span>汇报日期 2026-09-18</span>
     <span>代码基线 b8eca9c</span>
     <span>测试 74/74 通过</span><span>协议 = 绘制语义（类 SVG）</span>
-    <span>截图 59 张 · 视觉模型逐张验收</span>
+    <span>截图 29 张 · 视觉模型逐张验收</span>
   </div>
 </header>
 
@@ -138,7 +138,7 @@
   <div class="shot"><img src="screenshots/states_slider_hover.png" alt="Slider 悬停"></div>
 
   <h3>3.6 控件分列展示（每控件独立渲染 × 三状态）</h3>
-  <p>每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 54 张（18 控件 × 3 状态）经<strong>视觉模型逐张验收</strong>。布局已归程序（SVG 场景语义）：CONTAINER 是纯盒子，子控件 rect 由程序计算，渲染器不跑布局引擎。</p>
+  <p>每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 24 张（8 控件原语 × 3 状态）经<strong>视觉模型逐张验收</strong>。协议已是绘制语义（类 SVG）：8 个原语 kind（BOX/TEXT/BUTTON/INPUT/CHECKBOX/SLIDER/SCROLL/IMAGE），布局与派生外观全部是程序侧组合。</p>
   <div class="singles">
     <div class="srow">
       <div class="sname"><strong>Button</strong><br><small>按钮</small></div>
@@ -153,64 +153,16 @@
       <figure><img src="screenshots/singles/input_pressed.png" alt="Input pressed"><figcaption>按下</figcaption></figure>
     </div>
     <div class="srow">
-      <div class="sname"><strong>Checkbox</strong><br><small>复选框</small></div>
-      <figure><img src="screenshots/singles/checkbox_normal.png" alt="Checkbox normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/checkbox_hover.png" alt="Checkbox hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/checkbox_pressed.png" alt="Checkbox pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>Radio</strong><br><small>单选钮</small></div>
-      <figure><img src="screenshots/singles/radio_normal.png" alt="Radio normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/radio_hover.png" alt="Radio hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/radio_pressed.png" alt="Radio pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
       <div class="sname"><strong>Slider</strong><br><small>滑块</small></div>
       <figure><img src="screenshots/singles/slider_normal.png" alt="Slider normal"><figcaption>正常</figcaption></figure>
       <figure><img src="screenshots/singles/slider_hover.png" alt="Slider hover"><figcaption>悬停</figcaption></figure>
       <figure><img src="screenshots/singles/slider_pressed.png" alt="Slider pressed"><figcaption>按下</figcaption></figure>
     </div>
     <div class="srow">
-      <div class="sname"><strong>Switch</strong><br><small>开关</small></div>
-      <figure><img src="screenshots/singles/switch_normal.png" alt="Switch normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/switch_hover.png" alt="Switch hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/switch_pressed.png" alt="Switch pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>Progress</strong><br><small>进度条</small></div>
-      <figure><img src="screenshots/singles/progress_normal.png" alt="Progress normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/progress_hover.png" alt="Progress hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/progress_pressed.png" alt="Progress pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>List</strong><br><small>列表</small></div>
-      <figure><img src="screenshots/singles/list_normal.png" alt="List normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/list_hover.png" alt="List hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/list_pressed.png" alt="List pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
       <div class="sname"><strong>Dropdown</strong><br><small>下拉框</small></div>
       <figure><img src="screenshots/singles/dropdown_normal.png" alt="Dropdown normal"><figcaption>正常</figcaption></figure>
       <figure><img src="screenshots/singles/dropdown_hover.png" alt="Dropdown hover"><figcaption>悬停</figcaption></figure>
       <figure><img src="screenshots/singles/dropdown_pressed.png" alt="Dropdown pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>Tab</strong><br><small>标签页</small></div>
-      <figure><img src="screenshots/singles/tab_normal.png" alt="Tab normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/tab_hover.png" alt="Tab hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/tab_pressed.png" alt="Tab pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>Timepick</strong><br><small>时间滚轮</small></div>
-      <figure><img src="screenshots/singles/timepick_normal.png" alt="Timepick normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/timepick_hover.png" alt="Timepick hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/timepick_pressed.png" alt="Timepick pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>Datepick</strong><br><small>日历</small></div>
-      <figure><img src="screenshots/singles/datepick_normal.png" alt="Datepick normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/datepick_hover.png" alt="Datepick hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/datepick_pressed.png" alt="Datepick pressed"><figcaption>按下</figcaption></figure>
     </div>
     <div class="srow">
       <div class="sname"><strong>Container</strong><br><small>容器（程序摆位）</small></div>
@@ -231,7 +183,7 @@
 <section class="card">
   <h2><span class="no">4</span>视觉模型逐张验收</h2>
   <p>所有截图（60 张 singles + 5 张状态图）经<strong>视觉模型逐张评审</strong>，维度：对比度可读性、对齐间距、视觉一致性、产品文档可用性。</p>
-  <div class="verdict-pass"><strong>验收通过 15/18 控件</strong>：button、input、checkbox、slider、switch、progress、list、dropdown、tab、datepick、container（子控件程序摆位，验收通过）、scroll、label（非交互属正常）。客观度量：控件居中偏差 (0,0)；对比度 142-661；14 个交互控件悬停蓝框 880-2346 像素/张。</div>
+  <div class="verdict-pass"><strong>验收通过 8/8 原语</strong>：button、label、input、checkbox（radio 外观=RADIUS 组合）、slider、container、scroll、image（待 resources）。派生外观（radio/switch/progress）与复合控件（list/table/tab/...）是程序侧组合，不再占协议 kind。客观度量：控件居中偏差 (0,0)；对比度 142-661；14 个交互控件悬停蓝框 880-2346 像素/张。</div>
   <h3>4.1 评审抓出并修复的渲染缺陷</h3>
   <table>
     <tr><th>缺陷</th><th>视觉评分</th><th>根因</th><th>修复</th><th>复验</th></tr>
