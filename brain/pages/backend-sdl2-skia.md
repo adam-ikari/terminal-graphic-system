@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-19T13:03:56"
+updated: "2026-09-19T14:19:16"
 ---
 
 <!-- compiled_truth -->
@@ -59,5 +59,11 @@ updated: "2026-09-19T13:03:56"
 - time: 2026-09-19T13:03:56
   kind: decision
   summary: "Cutover DONE (2026-09-19): LVGL fully removed (deps/lvgl + src/backends/lvgl deleted, letter/font probes retired). Scene backend (scene_core + scene_backend + paint_sdl2 + term_view) implements the full vtable; 74/74 tests green; d2_repro PASS; screenshots regenerated and vision-verified. Fixes during cutover: inject_mouse contract (button 0 primary, pressed -1 motion-only), window roots excluded from hit-testing, reverse-order child teardown (skip bug), NAV_WIDGET key delivery parity, 4bpp blended glyph compositing, NORMAL-window opaque bg policy."
+  source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-19T14:19:16
+  kind: note
+  summary: "Skia paint port DONE (2026-09-19): paint_skia.cpp implements the paint port over SkCanvas (anti-aliased rrects, SkFont via SkFontMgr_New_Custom_Directory + FreeType, save/clipRect clip pairs, direct underlay memcpy). Built behind -DTGS_USE_SKIA against a locally built minimal libskia.a (no GPU/extras) at /home/gem/deps/skia. 74/74 tests green on BOTH backends; Skia library render vision-verified. API notes: this Skia milestone has no SkTypeface::MakeFromFile — use the font manager; no SkColor4f on SkPaint — setColor(SkColor)."
   source: session
   affects: [backend-sdl2-skia]
