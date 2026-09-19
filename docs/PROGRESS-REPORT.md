@@ -45,7 +45,7 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ### 3.3 全 widget 库（L3 P2 基础）
 
-`library` 场景：20 种 widget 类型逐一渲染。
+`library` 场景：8 种绘制原语逐一渲染（SVG 语义）。
 
 ![widget 库](screenshots/library.png)
 
@@ -130,7 +130,7 @@ button、input、checkbox、slider（含悬停蓝描边）、switch（修复后 
 
 ### 5.2 图形控件与布局（L0–L3）
 
-- **widget 集**：20/20 类型映射到真实 LVGL 对象；事件经 `wm_backend_event` 单一门控转发。
+- **widget 原语集**：8 种绘制原语映射到真实 LVGL 对象；派生外观是程序侧组合；事件经 `wm_backend_event` 单一门控转发。
 - **焦点/键盘导航**（L2）：合成器持有焦点权（`NTF_FOCUS` + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。
 - **容器布局**（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；**运行时 GRID 真布局**——`WGT_LAYOUT` 支持 `[cols, rows]`。
 - **容器几何回传**（L2）：`NTF_GEOMETRY`(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。

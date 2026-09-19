@@ -118,7 +118,7 @@
 
   <h3>3.3 全 widget 库（L3 P2 基础）</h3>
   <div class="shot"><img src="screenshots/library.png" alt="library"></div>
-  <p class="shot-cap">20 种 widget 类型逐一渲染。</p>
+  <p class="shot-cap">8 种绘制原语逐一渲染（SVG 语义）。</p>
 
   <h3>3.4 字符 + 控件混排（L1）</h3>
   <div class="shot"><img src="screenshots/mixed.png" alt="mixed"></div>
@@ -183,7 +183,7 @@
 <section class="card">
   <h2><span class="no">4</span>视觉模型逐张验收</h2>
   <p>所有截图（60 张 singles + 5 张状态图）经<strong>视觉模型逐张评审</strong>，维度：对比度可读性、对齐间距、视觉一致性、产品文档可用性。</p>
-  <div class="verdict-pass"><strong>验收通过 8/8 原语</strong>：button、label、input、checkbox（radio 外观=RADIUS 组合）、slider、container、scroll、image（待 resources）。派生外观（radio/switch/progress）与复合控件（list/table/tab/...）是程序侧组合，不再占协议 kind。客观度量：控件居中偏差 (0,0)；对比度 142-661；14 个交互控件悬停蓝框 880-2346 像素/张。</div>
+  <div class="verdict-pass"><strong>验收通过 8/8 原语</strong>：button、label、input、checkbox（radio 外观=RADIUS 组合）、slider、container、scroll、image（待 resources）。协议已收缩为 8 个绘制原语——radio/switch/progress 是 CHECKBOX/SLIDER 的样式组合，list/table 是 CONTAINER+子控件组合，不再占协议 kind。派生外观与复合控件是程序侧组合。客观度量：控件居中偏差 (0,0)；对比度 142-661；14 个交互控件悬停蓝框 880-2346 像素/张。</div>
   <h3>4.1 评审抓出并修复的渲染缺陷</h3>
   <table>
     <tr><th>缺陷</th><th>视觉评分</th><th>根因</th><th>修复</th><th>复验</th></tr>
