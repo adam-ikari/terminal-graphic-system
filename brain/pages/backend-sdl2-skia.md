@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-19T14:19:16"
+updated: "2026-09-19T14:38:56"
 ---
 
 <!-- compiled_truth -->
@@ -68,4 +68,10 @@ updated: "2026-09-19T14:19:16"
   kind: note
   summary: "Skia paint port DONE (2026-09-19): paint_skia.cpp implements the paint port over SkCanvas (anti-aliased rrects, SkFont via SkFontMgr_New_Custom_Directory + FreeType, save/clipRect clip pairs, direct underlay memcpy). Built behind -DTGS_USE_SKIA against a locally built minimal libskia.a (no GPU/extras) at /home/gem/deps/skia. 74/74 tests green on BOTH backends; Skia library render vision-verified. API notes: this Skia milestone has no SkTypeface::MakeFromFile — use the font manager; no SkColor4f on SkPaint — setColor(SkColor)."
   source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-19T14:38:56
+  kind: decision
+  summary: "Decision (2026-09-19): control semantics is abandoned; graphics primitives are the protocol and the renderer. No widget catalog on the wire (8 drawing-primitive kinds), the renderer is a scene painter with two reference paint ports (SDL2, Skia), and all engine history is purged from docs/brain — the record keeps only the principle."
+  source: user directive
   affects: [backend-sdl2-skia]
