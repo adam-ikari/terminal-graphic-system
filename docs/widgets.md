@@ -1,33 +1,33 @@
 # TGS Widget Reference
 
-TGS defines 20 widget types (`tgs_widget_type` enum in `tgs_protocol.h`). All are backed by LVGL equivalents.
+TGS defines 20 widget types (`tgs_widget_type` enum in `tgs_protocol.h`). The types and their
+semantics are **protocol-neutral** — they name abstract UI concepts any rendering backend can
+implement. The "Reference mapping" column records how the current LVGL backend realizes each
+type; swapping the backend only changes that column.
 
 ## Basic Widgets
 
-| Widget | TGS Enum | LVGL Equivalent | Description |
-|--------|----------|-----------------|-------------|
-| Button | `TGS_WIDGET_BUTTON` | `lv_button` | Clickable button with label text |
-| Label | `TGS_WIDGET_LABEL` | `lv_label` | Static or dynamic text display |
-| Input | `TGS_WIDGET_INPUT` | `lv_textarea` | Single-line text input field |
-| Checkbox | `TGS_WIDGET_CHECKBOX` | `lv_checkbox` | Toggle on/off with visible check |
-| Radio | `TGS_WIDGET_RADIO` | `lv_checkbox` (round) | Mutually exclusive option within a group (LVGL has no dedicated radio; a round-styled checkbox) |
-| Slider | `TGS_WIDGET_SLIDER` | `lv_slider` | Draggable value within a range |
-| Progress | `TGS_WIDGET_PROGRESS` | `lv_bar` | Read-only progress indicator |
-| Switch | `TGS_WIDGET_SWITCH` | `lv_switch` | Toggle switch (on/off) |
+| Widget | TGS Enum | Protocol semantics | Reference mapping (LVGL backend) |
+|--------|----------|--------------------|----------------------------------|
+| Button | `TGS_WIDGET_BUTTON` | Push button; delivers CLICK when activated | `lv_button` |
+| Label | `TGS_WIDGET_LABEL` | Static text display; non-interactive | `lv_label` |
+| Input | `TGS_WIDGET_INPUT` | Single-line text input; the IME-eligible type | `lv_textarea` |
+| Checkbox | `TGS_WIDGET_CHECKBOX` | Independent on/off toggle | `lv_checkbox` |
+| Radio | `TGS_WIDGET_RADIO` | Visually round option marker (exclusivity is app policy) | round-styled `lv_checkbox` |
 
 ## Layout Containers
 
-| Widget | TGS Enum | LVGL Equivalent | Description |
-|--------|----------|-----------------|-------------|
-| VLayout | `TGS_WIDGET_VLAYOUT` | `lv_flex` (column) | Vertical flex container — stacks children top to bottom |
-| HLayout | `TGS_WIDGET_HLAYOUT` | `lv_flex` (row) | Horizontal flex container — stacks children left to right |
-| GLayout | `TGS_WIDGET_GLAYOUT` | `lv_grid` | Grid container — arranges children in rows and columns |
-| Scroll | `TGS_WIDGET_SCROLL` | scrollable `lv_obj` container | Scrollable viewport for overflow content |
+| Widget | TGS Enum | Protocol semantics | Reference mapping (LVGL backend) |
+|--------|----------|--------------------|----------------------------------|
+| VLayout | `TGS_WIDGET_VLAYOUT` | Vertical flex container — stacks children top to bottom | flex column container |
+| HLayout | `TGS_WIDGET_HLAYOUT` | Horizontal flex container — stacks children left to right | flex row container |
+| GLayout | `TGS_WIDGET_GLAYOUT` | Grid container — arranges children in rows and columns | grid container |
+| Scroll | `TGS_WIDGET_SCROLL` | Scrollable viewport for overflow content | scrollable container |
 
 ## Complex Widgets
 
-| Widget | TGS Enum | LVGL Equivalent | Description |
-|--------|----------|-----------------|-------------|
+| Widget | TGS Enum | Protocol semantics | Reference mapping (LVGL backend) |
+|--------|----------|--------------------|----------------------------------|
 | List | `TGS_WIDGET_LIST` | `lv_list` | Scrollable list of items |
 | Table | `TGS_WIDGET_TABLE` | `lv_table` | Row/column data grid |
 | Menu | `TGS_WIDGET_MENU` | `lv_menu` | Hierarchical menu with submenus |

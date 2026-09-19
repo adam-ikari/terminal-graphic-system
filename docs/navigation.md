@@ -61,8 +61,8 @@ Division of labour, stated exactly:
 | Binding table (key → nav action) | compositor (defaults; app-overridable in Layer 2, §K) |
 | IME activation/deactivation and key hand-off to the IME process | compositor |
 | Emitting `NTF_FOCUS` / forwarding residual `EVT_KEY` | compositor |
-| Focus visibility (outline, ring order inside LVGL, scroll-into-view) | backend |
-| Key translation (TGS key code → LVGL key), execution of focus moves, geometric candidate search | backend |
+| Focus visibility (outline, ring order inside the renderer, scroll-into-view) | backend |
+| Key translation (TGS key code → renderer key), execution of focus moves, geometric candidate search | backend |
 | Widget contents, activation semantics (what Enter *does*), dialog visibility | app |
 
 The compositor is authoritative when the two disagree: the backend reports focus changes and the compositor decides whether they stand.
@@ -90,7 +90,7 @@ Default focusability is a property of the widget **type**; it can be overridden 
 | VLAYOUT (8) | no | no | no | container; transparent unless declared a scope (§C) |
 | HLAYOUT (9) | no | no | no | same |
 | GLAYOUT (10) | no | no | no | same |
-| SCROLL (11) | no | **yes*** | no | *consumes arrows only while it can still scroll in that direction: `LV_OBJ_FLAG_SCROLL_WITH_ARROW` (`deps/lvgl/include/lvgl/core/lv_obj.h:64`). Tab is the way out |
+| SCROLL (11) | no | **yes*** | no | *consumes arrows only while it can still scroll in that direction (as-built: current backend sets `SCROLL_WITH_ARROW`, `deps/lvgl/.../lv_obj.h:64`). Tab is the way out |
 | LIST (12) | yes | yes | no | arrows move item selection |
 | TABLE (13) | yes | yes | no | arrows move the cell cursor |
 | MENU (14) | yes | yes | no | treated like LIST: it is an item ring, not a layout container |
@@ -166,7 +166,7 @@ Wrap is on for every ring (matches `lv_group_set_wrap(group, true)`).
 ### C.2 Semantics
 
 - Scope membership: a scope's ring contains exactly the focusable **descendants reachable without crossing another scope boundary**, in tree order (§B.1).
-- Declaring or changing `TGS_ATTR_FOCUS_SCOPE` on a container rebuilds the parent ring and the inner ring (rebuild = recompute + re-enroll in LVGL; §I).
+- Declaring or changing `TGS_ATTR_FOCUS_SCOPE` on a container rebuilds the parent ring and the inner ring (rebuild = recompute + re-enroll in the renderer; §I).
 - Nested scopes are legal (a `TRAP` dialog inside a `GROUP` toolbar). Depth is bounded by the widget tree depth.
 - Entering/leaving: focus entering a scope targets the scope's **remembered** member if it still exists and is focusable, otherwise the first member in ring order (reason `SCOPE_RESTORE` for the remembered case).
 
@@ -185,7 +185,7 @@ Wrap is on for every ring (matches `lv_group_set_wrap(group, true)`).
 This is the crux of the design, so it is stated as a rule rather than a sketch:
 
 - The **compositor** owns the binding table and the policy: which keys are navigation for the current focused widget, what happens when a navigation key is consumed, and what the app sees. It computes ring order (it owns `seq` and the attributes) and it owns the focus registry.
-- The **backend** owns execution, because only it has LVGL's real geometry (flex/grid move children after `set_widget_rect`, so app-declared rectangles are not authoritative) and LVGL's key semantics. It translates TGS key codes to LVGL keys, maintains group membership in compositor-defined order, performs the focus move, and reports the resulting focus change back with a reason.
+- The **backend** owns execution, because only it has the renderer's real geometry (flex/grid move children after `set_widget_rect`, so app-declared rectangles are not authoritative) and the renderer's key semantics. It translates TGS key codes into renderer keys, maintains group membership in compositor-defined order, performs the focus move, and reports the resulting focus change back with a reason.
 - Consequence: **a key consumed by navigation never crosses the protocol boundary.** It produces no `EVT_KEY`. Conversely, a key the widget/app consumes is delivered normally.
 
 Routing of one key press:
@@ -200,7 +200,7 @@ compositor input  ──►  backend -> inject_key(key, mods, pressed)
                      ┌───────┴────────┐
                  consumed          not consumed
                      │                 │
-        backend moves focus    LVGL sends key to the focused widget
+        backend moves focus    renderer sends key to the focused widget
         (ring / spatial)              │
                      │            widget event ──► TGS_EVENT_KEY
                      │                              │
@@ -226,7 +226,7 @@ compositor input  ──►  backend -> inject_key(key, mods, pressed)
 | `Left`, `Right`, `Up`, `Down` (1000-1003) | 1) widget consumes arrows → delivered to the widget; 2) else spatial `focus_dir()` inside the current ring; 3) else forwarded as `EVT_KEY` | the widget-consuming set is the §A.3 table plus `TGS_ATTR_NAV_ARROWS` |
 | `Home` (1004), `End` (1005) | 1) widget consumes arrows → delivered to the widget (list/table/input use them); 2) else first/last member of the current ring | same notion of "consumes arrows" |
 | `PageUp` (1006), `PageDown` (1007) | delivered to the widget; if unconsumed, forwarded as `EVT_KEY` | reserved codes; no ring action in Layer 1 |
-| `Enter` (13), `Space` (32) | delivered to the focused widget (LVGL press → `LV_EVENT_CLICKED` → `EVT_CLICK` for the app) | the compositor never activates anything itself |
+| `Enter` (13), `Space` (32) | delivered to the focused widget (renderer press → activation event → `EVT_CLICK` for the app) | the compositor never activates anything itself |
 | `Escape` (27) | delivered to the widget/app, **always** | never a navigation key (§C.3) |
 | `Alt+Tab`, `Ctrl+Alt+Tab` | unbound in Layer 1 | window switching deferred (§G.1) |
 
@@ -245,23 +245,16 @@ Spatial search (`focus_dir`, backend): candidates are the members of the current
 
 ### D.4 Key-code normalisation (required prerequisite)
 
-Navigation cannot work on the current key space: `input_sdl.c` emits arrows as 1000-1003 and HOME/END as 1004/1005, while `map_tgs_key()` in the LVGL backend maps 1-4 (`src/backends/lvgl/lvgl_backend.c:43-57`), and SDL injects `mods = 0` always. The TGS key space is therefore defined once, in the compositor, and every input source (SDL, framebuffer/evdev, future backends) MUST normalise into it:
+Navigation cannot work on raw input-source key spaces: `input_sdl.c` emits arrows as 1000-1003 and HOME/END as 1004/1005, while SDL injects `mods = 0` always. The TGS key space is therefore defined once, in the compositor, and every input source (SDL, framebuffer/evdev, future backends) MUST normalise into it:
 
-| Key | Code | | Key | Code |
-|---|---|---|---|---|
-| Backspace | 8 | | Left | 1000 |
-| Tab | 9 | | Right | 1001 |
-| Enter | 13 | | Up | 1002 |
-| Escape | 27 | | Down | 1003 |
-| Space | 32 | | Home | 1004 |
-| Delete | 127 | | End | 1005 |
-| printable ASCII | ASCII | | PageUp / PageDown | 1006 / 1007 |
+| TGS key | Code | Meaning |
+|---|---|---|
+| `TGS_KEY_ENTER` | 13 | Enter/Return |
+| `TGS_KEY_TAB` | 9 | Tab |
+| Arrows | 1000-1003 | Left/Right/Up/Down |
+| `TGS_KEY_HOME`/`END` | 1004/1005 | Ring ends |
 
-Modifiers travel alongside (`inject_key(key, mods, pressed)`), with `TGS_MOD_SHIFT = 1`, `TGS_MOD_CTRL = 2`, `TGS_MOD_ALT = 4`. `map_tgs_key()` MUST map 1000-1007 to `LV_KEY_LEFT/RIGHT/UP/DOWN/HOME/END`, and MUST translate `Tab + SHIFT` to `LV_KEY_PREV` (11) rather than `LV_KEY_NEXT` (9) — LVGL has no modifier concept, so Shift must be resolved before injection. Codes 1-4 MUST NOT be used for arrows (they collide with LVGL's `LV_KEY_HOME = 2` / `LV_KEY_END = 3`, `deps/lvgl/include/lvgl/core/lv_group.h:24-35`).
-
-`EVT_KEY` (`[win_id, widget_id, key, mods]`) carries these codes verbatim to the app — the app-facing key space is the table above.
-
----
+Modifiers travel alongside (`inject_key(key, mods, pressed)`), with `TGS_MOD_SHIFT = 1`, `TGS_MOD_CTRL = 2`, `TGS_MOD_ALT = 4`. The TGS key space reserves 1-4 (they are short list-navigation codes in some toolkits) and requires `Tab + SHIFT` to be resolvable by the backend so ring-reverse is expressible. Each backend owns its own mapping from its raw input space into the TGS space — see §I.2 for the current backend's mapping.
 
 ## E. Programmatic focus
 
@@ -271,7 +264,7 @@ Modifiers travel alongside (`inject_key(key, mods, pressed)`), with `TGS_MOD_SHI
   - Setting focus in a non-active window is allowed and does **not** activate the window; it only updates the remembered focus.
 - **Query:** `tgs_client_get_focus(win_id)` returns the client's cached value, kept up to date from `NTF_FOCUS`. No protocol round-trip in Layer 1. A cold query (`TGS_CMD_GET_FOCUS`, id 39, reply = `NTF_FOCUS` with reason `NONE`) is reserved for Layer 2; the cache is correct as long as the client applies every notification.
 - **Automatic focus on creation:** the first focusable widget created in a window whose focus is "none" receives focus (reason `INIT = 6`). This keeps trivial apps usable with no focus code at all, and gives the ring a well-defined starting point.
-- **Pointer focus:** the backend marks every focusable widget `LV_OBJ_FLAG_CLICK_FOCUSABLE`; LVGL's pointer path then calls `lv_group_focus_obj()` for click-focusable objects that belong to a group (`deps/lvgl/src/indev/lv_indev.c:1761-1776`). The resulting change is reported upward with reason `POINTER = 4`. Clicking a non-focusable widget or the background does not change widget focus.
+- **Pointer focus:** the backend marks every focusable widget click-focusable; the renderer's pointer path then focuses click-focusable objects that belong to a group (as-built: `deps/lvgl/src/indev/lv_indev.c:1761-1776`). The resulting change is reported upward with reason `POINTER = 4`. Clicking a non-focusable widget or the background does not change widget focus.
 - Pointer and keyboard compose through one registry: whichever route moved focus last wins, and both produce the same notification shape. A click inside window B activates B (raising it and restoring B's remembered focus, reason `WINDOW_ACTIVATE = 7`) *and*, if it lands on a focusable widget, focuses that widget (reason `POINTER`), in that order: activation pair first, then the widget-level pair within the newly active window.
 
 ---
@@ -342,7 +335,7 @@ Layer 1 does include the window **activation contract** below, because dialogs n
 - Every window stores `last_focus_widget_id` (updated on each focus gain).
 - **Activate** (pointer click on a window, raise, unhide): the window becomes the active window, the keyboard group switches to its root scope, and focus is restored to `last_focus_widget_id` if it is alive and focusable, else to the first member in ring order (reason `WINDOW_ACTIVATE`). The previous window receives a lost pair with reason `WINDOW_ACTIVATE`.
 - **Hide / minimize** (`NTF_STATE` = `HIDDEN` or `MINIMIZED`): the window's app receives a lost pair with reason `HIDDEN`; focus moves to the topmost still-visible window, restoring its remembered focus with reason `WINDOW_RESTORE`.
-- **Destroy** (`WIN_DESTROY`): identical to hide, plus the window's registry entry is dropped and its LVGL groups deleted.
+- **Destroy** (`WIN_DESTROY`): identical to hide, plus the window's registry entry is dropped and its renderer groups deleted.
 - **Widget destroy while focused**: focus moves to the next ring member after the destroyed widget, else the previous member, else "none"; reason `DESTROYED`. A destroyed widget is removed from every ring before the successor is chosen.
 - **Scope destroyed/hidden** (a `TRAP` panel closed): unfreeze the enclosing ring, restore its remembered member, reason `SCOPE_RESTORE`.
 - Z-order is used only to pick the restoration target; the compositor MUST NOT reorder z-order as a side effect of a focus change.
@@ -362,7 +355,7 @@ Per `docs/ime.md`, the IME is a separate TGS app; the compositor routes keys to 
 
 The compositor renders preedit through a dedicated backend call, `set_widget_preedit(handle, text, cursor)`; the widget's text is untouched until `IME_COMMIT` (97) inserts committed text via `insert_widget_text`. This is a deliberate change from "preedit as content": it makes cancel trivial (drop the overlay), keeps the app's own text model coherent, and removes the need for the compositor to cache committed text in order to restore it. Every `IME_PREEDIT` received for the armed widget replaces the overlay; an empty preedit clears it.
 
-**Layer-1 known gap — preedit overlay not yet rendered.** The invariant above is the design contract, but the rendering half is not implemented in this layer. Specifically: `set_widget_preedit` is **not** a member of `struct tgs_backend` yet (it is only proposed in §J.6), the LVGL backend has no overlay widget, and the compositor's `TGS_CMD_IME_PREEDIT` (96) case in `window_manager.c` is a documented no-op stub that points back here. `IME_CANCEL` (100) — the other half of H — *is* implemented (disarm sends cancel, focus visuals clear). Closing this gap is small and localised: (1) add `void (*set_widget_preedit)(void *handle, const char *text, int cursor)` to `struct tgs_backend` (`src/common/tgs_backend.h`); (2) implement it in `src/backends/lvgl/lvgl_backend.c` as a per-`INPUT` overlay `lv_label` (shown when `text` is non-empty, hidden on empty, dropped on `destroy_widget`); (3) in `window_manager.c`'s `IME_PREEDIT` case, call `be->set_widget_preedit(w->handle, text, cursor)` and clear it (call with `""`/`NULL`) both on empty preedit and in the disarm path of §H.1. No protocol change is needed — command 96 already carries `[win_id, widget_id, text, cursor]`.
+**Status (as-built):** the invariant above is implemented end-to-end. `set_widget_preedit(handle, text, cursor)` is a member of `struct tgs_backend` (`src/common/tgs_backend.h`), the current backend renders the overlay as a tagged child label on the INPUT (never widget text), the compositor's `IME_PREEDIT` (96) case forwards it, and the disarm path (cancel → overlay cleared → focus pair) clears it on every focus move off an INPUT. Not yet implemented: the candidate list (`IME_CANDIDATES`/`IME_SELECT` remain silent drops — L3 P6).
 
 ### H.3 Tab (or any focus change) while composing: cancel
 
@@ -534,9 +527,9 @@ Layering follows the roadmap: Layer 1 = floating/grid/split layouts + full widge
 | `SET_FOCUS` + `NTF_FOCUS` with reason | **1** | the app contract |
 | `TRAP` / `GROUP` scopes (`nav.scope`) | **1** | modal dialogs are Layer 1 |
 | IME arm/disarm + cancel-on-focus-change | **1 ✓** | `IME_CANCEL` (100) implemented in the disarm path |
-| IME preedit overlay (`set_widget_preedit`, §H.2) | **1 ⚠ gap** | invariant + protocol ready; backend method + LVGL overlay deferred — see §H.2 known-gap note |
+| IME preedit overlay (`set_widget_preedit`, §H.2) | **1 ✓** | implemented end-to-end: backend method + overlay rendering + disarm clearing (§H.2 as-built) |
 | Key-code + modifier normalisation (§D.4) | **1** | prerequisite; currently broken |
-| Per-window LVGL roots (§I.6) | **1** | prerequisite for multi-window focus |
+| Per-window renderer roots (§I.6) | **1** | prerequisite for multi-window focus |
 | Focus outline style | **1** | focus must be visible to be usable |
 | `Alt+Tab` window switcher | 2 | needs compositor chrome/overlay |
 | `Tab` crossing window boundaries | 2 | needs an explicit window ring order |

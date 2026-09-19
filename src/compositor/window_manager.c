@@ -53,7 +53,7 @@ static void emit_focus(window_manager *wm, int win_id, int widget_id,
                     TGS_CMD_NTF_FOCUS, args, 4);
 }
 
-/* Focus the widget in LVGL and remember the reason for the report the backend
+/* Focus the widget in the renderer and remember the reason for the report the backend
  * will send back (§F.1 keeps the optimistic move from echoing). */
 static void backend_set_focus(window_manager *wm, int widget_id,
                              tgs_focus_reason reason)
