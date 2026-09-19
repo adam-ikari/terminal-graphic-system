@@ -232,7 +232,7 @@ add_executable(container_demo
 )
 target_link_libraries(container_demo PRIVATE tgs_client)
 
-# render_demo — headless screenshot harness (LVGL backend → PNG, no display server)
+# render_demo — headless screenshot harness (scene backend → PNG, no display server)
 add_executable(render_demo
     tools/render_demo.c
 )

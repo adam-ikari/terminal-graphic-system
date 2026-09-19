@@ -209,7 +209,7 @@ because it is what a terminal already is.
   `/dev/fb0`), so this is an extension, not a new system.
 - **The server must stay policy-free.** The moment window-management policy enters the server, the
   model stops being self-consistent (and the server stops being neutral).
-- **LVGL is a widget toolkit, not a scene compositor.** L4 adds a light scene layer *beside* LVGL
+- **A widget toolkit is not a scene compositor.** L4 adds a light scene layer *beside* the backend
   (compositing independent surfaces), not a replacement for it.
 
 ---

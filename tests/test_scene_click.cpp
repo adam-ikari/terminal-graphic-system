@@ -120,7 +120,7 @@ TEST_F(SceneBackend, ClickAtKnownPixelHitsExpectedWidget)
            "— is the window root still padded?";
     EXPECT_FALSE(hit_btn2);
     /* The callback's user-data (this test's stack `events`) is about to be
-     * destroyed — unregister it or the next test's LVGL events hit a dangling
+     * destroyed — unregister it or the next test's events hit a dangling
      * pointer. */
     be->set_event_callback(nullptr, nullptr);
     be->destroy_window(win);
@@ -206,8 +206,7 @@ TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
     be->set_widget_rect(btn, 20, 20, 120, 40);
     be->set_widget_content(btn, "Hover me");
 
-    /* Settle layout first: LVGL resolves object coords from style sizes on
-     * the next tick, and the hit test reads those coords. */
+    /* Settle first: the hit test reads the rects the program set. */
     for (int i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
@@ -219,8 +218,8 @@ TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
     be->render();
 
 
-    /* LVGL's pointer indev also focuses clickable objects under the cursor,
-     * so the callback sees FOCUS events alongside hover — count only the
+    /* A click-focusable widget gains focus under the cursor, so the
+     * callback sees FOCUS events alongside hover — count only the
      * hover types. */
     auto hovers = [&]() {
         size_t n = 0;

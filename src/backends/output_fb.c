@@ -2,10 +2,10 @@
  * TGS Framebuffer Output Backend
  * Direct /dev/fb0 output for embedded Linux.
  *
- * Buffer contract (same one output_sdl.c implements, see output.h): the LVGL
+ * Buffer contract (same one output_sdl.c implements, see output.h): the scene
  * backend owns the draw buffer and publishes it as d->buffer. This backend
  * keeps the mmap'd framebuffer *private* and output_present() is what pushes
- * d->buffer into it — LVGL never writes the mmap itself, so a missing present
+ * d->buffer into it — the backend never writes the mmap itself, so a missing present
  * used to mean a black screen.
  */
 #include "output.h"
@@ -40,7 +40,7 @@ static uint32_t pack_channel(uint8_t v, const struct fb_bitfield *bf)
     return (t & ((1u << len) - 1u)) << bf->offset;
 }
 
-/* One LVGL ARGB8888 pixel → the framebuffer's own channel layout. */
+/* One published ARGB8888 pixel → the framebuffer's own channel layout. */
 static uint32_t pack_pixel(const fb_priv *p, uint32_t argb)
 {
     uint32_t v = pack_channel((uint8_t)(argb >> 16), &p->r)
@@ -104,13 +104,13 @@ int output_init(tgs_display *d, int width, int height)
         return -1;
     }
 
-    /* width/height/bpp/stride describe the LVGL draw buffer, not the panel;
+    /* width/height/bpp/stride describe the published draw buffer, not the panel;
      * the panel's format lives in this file's private struct. */
     d->width        = priv->width;
     d->height       = priv->height;
     d->bpp          = 32;
     d->stride       = priv->width * 4;
-    d->buffer       = NULL; /* LVGL backend provides it */
+    d->buffer       = NULL; /* the scene backend provides it */
     d->backend_priv = priv;
 
     fprintf(stderr, "fb: %dx%d %dbpp stride=%d (draw buffer 32bpp)\n",
@@ -123,7 +123,7 @@ void output_present(tgs_display *d)
     fb_priv *p = (fb_priv *)d->backend_priv;
     if (!p || !d->buffer) return;
 
-    /* Fast path: the panel already stores 32bpp with LVGL's channel order
+    /* Fast path: the panel already stores 32bpp with the published channel order
      * (BGRA/ARGB8888 little-endian; alpha bits are ignored). */
     const int byte_copy = (p->fb_bpp == 32 &&
                            p->r.offset == 16 && p->r.length == 8 &&

@@ -74,7 +74,7 @@ int output_init(tgs_display *d, int width, int height)
     d->height      = height;
     d->bpp         = 32;
     d->stride      = width * 4;
-    d->buffer      = NULL; /* LVGL provides the buffer */
+    d->buffer      = NULL; /* the scene backend provides the buffer */
     d->backend_priv = priv;
 
     return 0;

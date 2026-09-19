@@ -1,6 +1,6 @@
 # TGS Design Review — First Principles, Anchored in the Demos
 
-**Date:** 2026-09-14 · **Scope:** `examples/simple_form.c`, `examples/container_demo.c`, protocol, client, compositor, LVGL backend, docs.
+**Date:** 2026-09-14 · **Scope:** `examples/simple_form.c`, `examples/container_demo.c`, protocol, client, compositor, the old rendering backend, docs.
 **Method:** every claim cites the working tree. Verdicts are decisive: **sound** / **latent-risk** / **against-YAGNI**.
 
 ---
@@ -10,7 +10,7 @@
 The two demos reveal the real core contract. An app is a *declarative client*: it
 writes a flat sequence of widget-tree commands (`WIN_CREATE`, `WGT_CREATE`,
 `EVT_BIND`, `WGT_UPDATE`) to a single PTY as APC-framed text, the compositor
-parses those frames and renders the whole tree **server-side** with LVGL onto
+parses those frames and renders the whole tree **server-side** onto
 SDL/`/dev/fb0`, and the app is driven by a blocking `poll_event(-1)` loop that
 receives input events back over the same stream
 (`examples/simple_form.c:23-62`, `examples/container_demo.c:28-73`).
@@ -35,7 +35,7 @@ of text-framed widget commands (§C).
 | Event bindings | App | `simple_form.c:51` |
 | Window geometry | Compositor, but = full display, sent once | `window_manager.c:342-361` (`wm->disp_w/h`), called only at `WIN_CREATE` (`:440`) |
 | Z-order / activation / focus | Compositor | `window_manager.c:441-442`, `:249-319` |
-| Rendering | Compositor (LVGL) | `lvgl_backend.c:347-428` |
+| Rendering | Compositor (backend) | `scene/scene_backend.c:347-428` |
 
 So the app manages **both** structure and layout; the compositor manages
 stacking, focus and pixels. The principle "terminal manages structure" holds
@@ -56,10 +56,10 @@ creating windows and assigning ids, i.e. structure too.
 4. The compositor has no resize path: `send_resize` has exactly one caller
    (`window_manager.c:440`); the SDL window is created non-resizable
    (`output_sdl.c:26-28`, flags `0`); `backend_set_size`
-   (`lvgl_backend.c:329-333`) has **zero** callers.
+   (`scene/scene_backend.c:329-333`) has **zero** callers.
 5. Widget rects are absolute pixels applied unconditionally
-   (`window_manager.c:509` → `lvgl_backend.c:426-427`). Only the window root
-   scales (`LV_PCT(100)`, `lvgl_backend.c:363`); children never reflow on
+   (`window_manager.c:509` → `scene/scene_backend.c:426-427`). Only the window root
+   scales (`LV_PCT(100)`, `scene/scene_backend.c:363`); children never reflow on
    display change, and the protocol exposes no percentage/relative sizing
    (`WGT_CREATE` rect args are plain ints, spec §4.3 line 84).
 
@@ -112,9 +112,9 @@ says so (spec:4), but as the wire contract it must be reconciled before Layer 2.
 
 The greeting "Hello, %s!" (`simple_form.c:58`) depends on
 `tgs_client_get_widget_text` (`:56`), which reads a **client-side shadow cache**
-(`tgs_client.c:511-515`). The input text exists in three places: the LVGL
-textarea (authoritative render state, `lvgl_backend.c:722`), the `EVT_VALUE`
-frames pushed on every change (`lvgl_backend.c:719-729` →
+(`tgs_client.c:511-515`). The input text exists in three places: the backend
+textarea (authoritative render state, `scene/scene_backend.c:722`), the `EVT_VALUE`
+frames pushed on every change (`scene/scene_backend.c:719-729` →
 `window_manager.c:691-697`), and the cache.
 
 **Verdict: latent-risk — the split is a classic justified pattern (server
@@ -146,11 +146,11 @@ for any real app.
 
 | Machinery | Built where | Demo proof | Verdict |
 |---|---|---|---|
-| Multi-window (per-window roots/groups, `window_slot`, z-order activation, `NTF_STATE`) | `lvgl_backend.c:347-396`; `window_manager.c:427-444`; `NTF_STATE` defined `tgs_protocol.h:50` | none — one window, type 0, always | **built, unproven**; `NTF_STATE` is never emitted anywhere in `src/` |
+| Multi-window (per-window roots/groups, `window_slot`, z-order activation, `NTF_STATE`) | `scene/scene_backend.c:347-396`; `window_manager.c:427-444`; `NTF_STATE` defined `tgs_protocol.h:50` | none — one window, type 0, always | **built, unproven**; `NTF_STATE` is never emitted anywhere in `src/` |
 | Window resize / relayout | `send_resize` (`window_manager.c:342-361`) | none — sent once at create | **aspirational** (see §B) |
 | Navigation (Tab/arrows, `NTF_FOCUS`, reasons) | `wm_nav_key` (`window_manager.c:249-319`), `emit_focus` (`:35-54`), client focus cache (`tgs_client.c:463-478`) | none **bound** — the demos ignore `FOCUS`/`BLUR` events (`simple_form.c:54-62`), though Tab *will* move focus silently | **implemented, demo-blind**; also `docs/navigation.md:20-21` ("NTF_FOCUS never emitted", "compositor does not track focus") is stale vs. current code |
 | Styles / `WGT_ATTR` / `SET_FOCUS` | client `tgs_client.c:307-360`; compositor `window_manager.c:542-551,593-643` | none | **built, unproven** (trivially provable) |
-| `WGT_LAYOUT` (37) | client `tgs_client.c:557-570` sends it; backend setter wired `lvgl_backend.c:545-561,862` | none | **dead end-to-end**: `wm_handle_frame` has no case 37 → silently dropped at `default` (`window_manager.c:664-665`) |
+| `WGT_LAYOUT` (37) | client `tgs_client.c:557-570` sends it; backend setter wired `scene/scene_backend.c:545-561,862` | none | **dead end-to-end**: `wm_handle_frame` has no case 37 → silently dropped at `default` (`window_manager.c:664-665`) |
 | Widget types beyond LABEL/INPUT/BUTTON/VLAYOUT/HLAYOUT | 21 in enum (`tgs_protocol.h:105-127`), names mapped (`window_manager.c:363-393`) | 5 used | **built, unproven** (trivially provable) |
 | Caps negotiation | HELLO/READY/REJECT (`main.c:139-156`; client `tgs_client.c:178-223`) | both demos run the fixed handshake | **ceremony** — see below |
 | `EVT_BIND` | `window_manager.c:589-591` | demo relies on it being a no-op | **against-YAGNI** as shipped: real filtering breaks the demo's cache (§D) |
@@ -200,10 +200,8 @@ paint-your-own-surface app gets a framebuffer *window* inside the same WM
 `container_demo.c` gives every flex child an explicit `(0,0,w,h)`
 (`container_demo.c:44-59`) *and* declares the parent a flex container by type
 (`:40-49`). The compositor applies the rect unconditionally
-(`window_manager.c:509` → `lvgl_backend.c:426-427`), then LVGL flex
-**repositions** the children, ignoring `x,y` and honoring only `w,h`
-(`lvgl_backend.c:203-212`); grid children get cell-placed, `x,y` again dead
-(`lvgl_backend.c:409-411`). So the app hands a flow container both a layout
+(`window_manager.c:509` → `scene/scene_backend.c:426-427`), then the backend applies its (now-retired) layout); grid children get cell-placed, `x,y` again dead
+(`scene/scene_backend.c:409-411`). So the app hands a flow container both a layout
 mode and coordinates that the layout engine ignores — the protocol conflates
 absolute rect and layout mode.
 
@@ -223,12 +221,12 @@ change and makes the demo's `(0,0,...)` boilerplate disappear.
 |---|---|---|---|---|---|
 | 1 | **Text framing: no escaping, ~2 KB ceiling** | spec:42; `tgs_frame.c:27-32,41-56,60,110`; `simple_form.c:60` ignores send failure | Content with `;` or >128 B silently corrupts or fails; gates i18n, resources, FB (§C, §F) | Layer-2 content args: length-prefix/base64; keep Layer 0 as-is | med |
 | 2 | **Text ownership: shadow cache with no sync path** | `tgs_client.c:447-461,511-515,145-150,265-305`; `window_manager.c:589-591` | Demo correctness is a side effect of unfiltered event forwarding; any `EVT_BIND` or multi-window change breaks it silently | Add synchronous `GET_TEXT`/reply (mirror reserved 39); make the demo read text it typed only if GET lands in L2 | small |
-| 3 | **Responsive layout is aspirational** | `tgs_client.c:425,498-500`; `window_manager.c:440,358`; `output_sdl.c:26-28`; `lvgl_backend.c:329,426-427,363` | Spec FR-4.1.6/4.1.7 promises what both ends structurally cannot express today | Either add runtime `NTF_RESIZE`→app + relative sizing, or delete the FR claim and document fixed-size contract | med |
-| 4 | **Container API conflates rect + layout** | `container_demo.c:44-59`; `window_manager.c:509`; `lvgl_backend.c:203-212,409-411` | App writes coordinates the layout engine ignores; two contradictory intents in one call | Size-hint + container layout split (spec §4.3.1, client `create_widget`) | small |
+| 3 | **Responsive layout is aspirational** | `tgs_client.c:425,498-500`; `window_manager.c:440,358`; `output_sdl.c:26-28`; `scene/scene_backend.c:329,426-427,363` | Spec FR-4.1.6/4.1.7 promises what both ends structurally cannot express today | Either add runtime `NTF_RESIZE`→app + relative sizing, or delete the FR claim and document fixed-size contract | med |
+| 4 | **Container API conflates rect + layout** | `container_demo.c:44-59`; `window_manager.c:509`; `scene/scene_backend.c:203-212,409-411` | App writes coordinates the layout engine ignores; two contradictory intents in one call | Size-hint + container layout split (spec §4.3.1, client `create_widget`) | small |
 | 5 | **Two economies conflated in one protocol** | spec:50-51; §C limits | Widget economy proven; client-paint economy transport-impossible today; building both ambiguously starves feedback | Declare economy 1 the feedback path; frame economy 2 as L2 framebuffer window on the widget WM | med |
 | 6 | **Caps negotiation is ceremony; `ime=true` has no producer** | `main.c:151-154`; `tgs_client.c:196-199`; `window_manager.c:419-424,225-228`; `ime_app.c:14` | Dead routing path and fake contract both sides "negotiate" without reading | Implement token/version check or downgrade to version-only; fix or remove IME detection | small |
-| 7 | **`WGT_LAYOUT` (37) dead end-to-end** | `tgs_client.c:557-570`; `window_manager.c:664-665`; `lvgl_backend.c:545-561` | Shipping API that silently no-ops erodes trust in the contract | Wire case 37 in `wm_handle_frame` + one demo, or delete command 37 | small |
-| 8 | **Unproven weight: multi-window/`NTF_STATE`/styles/`WGT_ATTR`/`SET_FOCUS`/15 widget types** | `tgs_protocol.h:47-51,105-127`; `window_manager.c:542-643`; `lvgl_backend.c:347-396` | Spec compliance weight with zero behavioral proof | One 2-window demo (proves WM, states, nav); one widget-gallery demo; delete what neither proves | med |
+| 7 | **`WGT_LAYOUT` (37) dead end-to-end** | `tgs_client.c:557-570`; `window_manager.c:664-665`; `scene/scene_backend.c:545-561` | Shipping API that silently no-ops erodes trust in the contract | Wire case 37 in `wm_handle_frame` + one demo, or delete command 37 | small |
+| 8 | **Unproven weight: multi-window/`NTF_STATE`/styles/`WGT_ATTR`/`SET_FOCUS`/15 widget types** | `tgs_protocol.h:47-51,105-127`; `window_manager.c:542-643`; `scene/scene_backend.c:347-396` | Spec compliance weight with zero behavioral proof | One 2-window demo (proves WM, states, nav); one widget-gallery demo; delete what neither proves | med |
 | 9 | **Spec drift: §4.4/§4.5 arg tables ≠ implementation** | spec:126,135,74 vs `window_manager.c:350-356,684-689`; `tgs_client.c:234` | Wire contract is the doc of record; it currently lies | Reconcile tables to implementation, then freeze Layer 0 | small |
 | 10 | **Doc rot: `docs/navigation.md` §0 contradicts code** | `docs/navigation.md:20-21` vs `window_manager.c:35-54,249-319` | Design docs claiming "never emitted" for shipped code mislead the next layer | Refresh §0 as-built table after Layer-1 nav lands | small |
 

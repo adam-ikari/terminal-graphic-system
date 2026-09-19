@@ -1,13 +1,13 @@
 # L2 Survey: Focus / Key-Routing Interop (READ-ONLY)
 
-**Headline:** `nav.c` + `window_manager.c` + `lvgl_backend.c` already implement the design in `docs/navigation.md §A–§J`. The doc's §0 "as-built inventory" is **stale** (lists 4 facts now false). L2 is a **verification gap**, not an implementation gap. The unproven claim: real key edge → compositor decision → `NTF_FOCUS` to client + key/click delivered to focused widget, char base unaffected.
+**Headline:** `nav.c` + `window_manager.c` + `scene_backend.c` already implement the design in `docs/navigation.md §A–§J`. The doc's §0 "as-built inventory" is **stale** (lists 4 facts now false). L2 is a **verification gap**, not an implementation gap. The unproven claim: real key edge → compositor decision → `NTF_FOCUS` to client + key/click delivered to focused widget, char base unaffected.
 
 ---
 
 ## A. Per-file survey
 
 ### src/compositor/nav.c + nav.h
-- **Exists:** Pure policy layer (no LVGL/PTY/heap). Model structs, add/remove window+widget, `nav_attr_set` (range-validated), ring construction (`build_ring`/`collect`/`scope_new`/`scope_member`/`nav_rebuild`), traversal (`nav_step`/`nav_edge`/`nav_ring_handles`), `nav_set_focus`/`nav_restore`/`nav_successor`/`nav_all_handles`/`nav_first_focusable`/`nav_other_window`. Type policy: containers+label+progress+image non-focusable; input/slider/list/etc consume arrows; DIALOG root = TRAP, others GROUP/plain.
+- **Exists:** Pure policy layer (no 旧后端/PTY/heap). Model structs, add/remove window+widget, `nav_attr_set` (range-validated), ring construction (`build_ring`/`collect`/`scope_new`/`scope_member`/`nav_rebuild`), traversal (`nav_step`/`nav_edge`/`nav_ring_handles`), `nav_set_focus`/`nav_restore`/`nav_successor`/`nav_all_handles`/`nav_first_focusable`/`nav_other_window`. Type policy: containers+label+progress+image non-focusable; input/slider/list/etc consume arrows; DIALOG root = TRAP, others GROUP/plain.
 - **Tested:** `tests/test_nav.cpp` (9 tests: ring skips, FOCUS_INDEX sort, attr overrides, GROUP single-stop, TRAP wrap, DIALOG-root-TRAP, reason map, successor, restore). Pure model only.
 - **Missing:** None at policy layer.
 
@@ -16,8 +16,8 @@
 - **Tested:** **Zero.** No test references `wm_handle_frame`/`wm_init`. `test_l1.cpp` drives only the client side.
 - **Missing:** No test proves NTF_FOCUS emitted on INIT/TAB/POINTER, or that `wm_nav_key` routes correctly. **Core L2 gap.**
 
-### src/backends/lvgl/lvgl_backend.c
-- **Exists:** Full `tgs_backend` impl. Per-window root+group (`lv_group_set_wrap` true); `backend_set_window_ring`/`set_active_window`/`set_focus`/`focus_dir` (geometric, primary+2·perp)/`set_widget_focusable`/`set_nav_key_cb`; `backend_inject_key` (CONSUMED→drop, WIDGET→`lv_group_send_data` bypass, PASS→queue); `kb_read_cb`/`mouse_read_cb`; `lvgl_event_handler` (LV_EVENT_*→TGS_EVENT_*); `map_tgs_key` maps 1000–1007 + Tab→NEXT/PREV.
+### src/backends/旧渲染引擎/scene_backend.c
+- **Exists:** Full `tgs_backend` impl. Per-window root+group (`后端焦点组_set_wrap` true); `backend_set_window_ring`/`set_active_window`/`set_focus`/`focus_dir` (geometric, primary+2·perp)/`set_widget_focusable`/`set_nav_key_cb`; `backend_inject_key` (CONSUMED→drop, WIDGET→`后端焦点组_send_data` bypass, PASS→queue); `kb_read_cb`/`mouse_read_cb`; `旧渲染引擎_event_handler` (LV_EVENT_*→TGS_EVENT_*); `map_tgs_key` maps 1000–1007 + Tab→NEXT/PREV.
 - **Tested:** Only indirectly via screenshot/font probes. `nav_probe.c` is a client probe needing xdotool+Xvfb — **not in ctest**.
 - **Missing:** No automated test exercises the indev round-trip (inject_key→kb_read_cb→LV_EVENT_KEY→wm_backend_event→EVT_KEY).
 
@@ -29,7 +29,7 @@
 - **Defect:** **Stale.** §0 claims now false: (1) "NTF_FOCUS never emitted" — false, `emit_focus` emits it; (2) "focus untracked, win_id hardcoded" — false, per-window tracked; (3) "arrows map 1-4, fall through" — false, `map_tgs_key` maps 1000-1003; (4) "modifiers dropped, mods=0" — false, `sdl_mods` computes them. Status line still says "to be implemented".
 
 ### src/compositor/term.c + main.c
-- **Exists:** PTY fork, wm_init, poll loop, input sinks. Char base = `tgs_term` + `tgs_term_view` (LVGL canvas). `input_poll` calls both term sink AND `backend->inject_key/mouse`.
+- **Exists:** PTY fork, wm_init, poll loop, input sinks. Char base = `tgs_term` + `tgs_term_view` (旧后端 canvas). `input_poll` calls both term sink AND `backend->inject_key/mouse`.
 - **Defect (char-input cut):** `term_key_sink` returns early when `hello_received`. Post-HELLO the character program gets **zero** keyboard input — only the widget path. Char base is render-only. Flag: if L2 means both take input, this is a gap; if "char base renders output", by-design.
 - **Defect (disp resize):** `wm.disp_w/disp_h` set once at init, never updated in `term_resize_to`. `send_resize` reads stale values. No NTF_RESIZE broadcast to existing windows on resize.
 
@@ -45,7 +45,7 @@
 **Not covered.** Grep of `tests/` for `NTF_FOCUS|wm_nav_key|inject_key|focus_commit|SET_FOCUS|focus_dir|TGS_EVENT_KEY|TGS_REASON_` → only `test_nav.cpp` (nav.c model) and `nav_probe.c` (manual client probe). `test_l1.cpp` asserts handshake+liveness only.
 
 - **Covered:** nav.c ring/scope/reason/successor/restore (test_nav, 9 tests); L1 handshake byte-level (test_l1); L0 terminal/pty/snapshot/frame/protocol.
-- **Uncovered:** (1) `emit_focus`→NTF_FOCUS on INIT/TAB/POINTER/PROGRAMMATIC/DESTROYED/HIDDEN; (2) `wm_nav_key` decision CONSUMED vs PASS vs WIDGET; (3) `activate_window` keyboard switch+restore; (4) WGT_CREATE init-focus §E; (5) WGT_DESTROY successor; (6) `wm_backend_event` CLICK/KEY/VALUE bridges; (7) lvgl indev round-trip; (8) mouse click→focus→NTF_FOCUS(POINTER).
+- **Uncovered:** (1) `emit_focus`→NTF_FOCUS on INIT/TAB/POINTER/PROGRAMMATIC/DESTROYED/HIDDEN; (2) `wm_nav_key` decision CONSUMED vs PASS vs WIDGET; (3) `activate_window` keyboard switch+restore; (4) WGT_CREATE init-focus §E; (5) WGT_DESTROY successor; (6) `wm_backend_event` CLICK/KEY/VALUE bridges; (7) 旧渲染引擎 indev round-trip; (8) mouse click→focus→NTF_FOCUS(POINTER).
 
 ---
 
@@ -53,9 +53,9 @@
 
 ### Tier 1 — REQUIRED, CI-headless, fake backend (new `tests/test_l2_focus.cpp`)
 
-`tgs_tests` already links `tgs_compositor` (nav.c+window_manager.c+parser.c) but **not** `tgs_lvgl_backend`. `window_manager.backend` is a `tgs_backend*` — supply stub function pointers. Isolates compositor focus-authority (the L2 concern) from LVGL rendering. Reuse `read_frame()` from test_l1.cpp for APC decode.
+`tgs_tests` already links `tgs_compositor` (nav.c+window_manager.c+parser.c) but **not** `tgs_scene_backend`. `window_manager.backend` is a `tgs_backend*` — supply stub function pointers. Isolates compositor focus-authority (the L2 concern) from 旧后端 rendering. Reuse `read_frame()` from test_l1.cpp for APC decode.
 
-**Setup:** `fake_be` struct (record-calls stubs); `pty_fd` = pipe; `wm_init(&wm, &fake_be.base, pty_write, -1)`. Stubs return fake handles by id; `set_focus`/`set_active_window`/`set_window_ring`/`set_widget_focusable` record; `set_nav_key_cb` captures cb+ud; `focus_dir` returns NULL (force residual-forward); `set_event_callback` captures `wm_backend_event` so the test can simulate LVGL events.
+**Setup:** `fake_be` struct (record-calls stubs); `pty_fd` = pipe; `wm_init(&wm, &fake_be.base, pty_write, -1)`. Stubs return fake handles by id; `set_focus`/`set_active_window`/`set_window_ring`/`set_widget_focusable` record; `set_nav_key_cb` captures cb+ud; `focus_dir` returns NULL (force residual-forward); `set_event_callback` captures `wm_backend_event` so the test can simulate 旧后端 events.
 
 | # | Test | Asserts |
 |---|------|---------|
@@ -70,18 +70,18 @@
 
 Proves the 4 L2 claims: (a) NTF_FOCUS with correct reason; (b) key-routing decision per widget type; (c) key/click reach focused widget as EVT_KEY/EVT_CLICK; (d) char path demux unaffected.
 
-### Tier 2 — OPTIONAL smoke, real LVGL (reuse `nav_probe`)
+### Tier 2 — OPTIONAL smoke, real 旧后端 (reuse `nav_probe`)
 
-Run `tgs-compositor` + `nav_probe` under Xvfb (`scripts/run-xvfb.sh` exists). Inject Tab + letter via xdotool. Assert `/tmp/tgs-nav-probe.log` contains `focus widget=10 reason=INIT`, `focus widget=12 reason=TAB`, `key widget=12`. Proves the LVGL indev round-trip Tier-1 fakes. Heavier; gating-on-failure only.
+Run `tgs-compositor` + `nav_probe` under Xvfb (`scripts/run-xvfb.sh` exists). Inject Tab + letter via xdotool. Assert `/tmp/tgs-nav-probe.log` contains `focus widget=10 reason=INIT`, `focus widget=12 reason=TAB`, `key widget=12`. Proves the 旧后端 indev round-trip Tier-1 fakes. Heavier; gating-on-failure only.
 
 ### Defects found (real, not speculative)
 
 | ID | Severity | Where | Issue |
 |----|----------|-------|-------|
 | D1 | medium | main.c:328-329, 107-136 | `wm.disp_w/disp_h` set once, never updated on resize. `send_resize` sends stale size. No NTF_RESIZE to existing windows on resize. |
-| D2 | low-narrow | lvgl_backend.c:814-819 | `TGS_NAV_WIDGET` branch calls `lv_group_send_data` without updating `key_ev_code/key_ev_mods` → app gets stale key via LV_EVENT_KEY. Only Tab on `attr_tab=1` widgets. |
-| D3 | medium-visual | lvgl_backend.c:393-403 | Window root: fullscreen opaque bg, created after term canvas → paints over char base. Once any window exists, character terminal hidden (bytes still flow, not visible). Contradicts "char base still renders". Needs design decision. |
-| D4 | medium | lvgl_backend.c:393-403 vs 454-460 | Window root retains default-theme padding (no `remove_style_all`). Widget pos is content-box-relative; mouse coords are screen pixels → click hit-test misses by root padding. |
+| D2 | low-narrow | scene_backend.c:814-819 | `TGS_NAV_WIDGET` branch calls `后端焦点组_send_data` without updating `key_ev_code/key_ev_mods` → app gets stale key via LV_EVENT_KEY. Only Tab on `attr_tab=1` widgets. |
+| D3 | medium-visual | scene_backend.c:393-403 | Window root: fullscreen opaque bg, created after term canvas → paints over char base. Once any window exists, character terminal hidden (bytes still flow, not visible). Contradicts "char base still renders". Needs design decision. |
+| D4 | medium | scene_backend.c:393-403 vs 454-460 | Window root retains default-theme padding (no `remove_style_all`). Widget pos is content-box-relative; mouse coords are screen pixels → click hit-test misses by root padding. |
 | D5 | low-doc | docs/navigation.md §0 | 4 stale facts + status "to be implemented". Misleads. |
 | D6 | low-info | window_manager.c:601-603 | `EVT_BIND` is no-op (L0: all forwarded). `tgs_client_bind_event` is cosmetic. Document or implement if selective binding intended. |
 

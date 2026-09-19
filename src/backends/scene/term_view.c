@@ -1,7 +1,7 @@
 /*
  * term_view.c — the character base, painted through SDL2_ttf.
  *
- * Replaces the LVGL canvas view (lvgl_term.c): draws the tgs_term cell grid
+ * Draws the tgs_term cell grid
  * into an ARGB8888 buffer that the compositor blits under the widget scene.
  * Reference implementation: one monospace face, box-drawing/block glyphs
  * synthesised as rects — exact at any cell size and font-coverage-free.

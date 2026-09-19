@@ -145,7 +145,7 @@ void scene_emit(tgs_scene *s, scene_node *n, tgs_event_type type,
     scene_event *e;
     int next = (s->evq_tail + 1) % SCENE_EVENT_QUEUE;
 
-    if (next == s->evq_head) return;  /* full: drop (same as the LVGL indev queue) */
+    if (next == s->evq_head) return;  /* full: drop */
     e = &s->evq[s->evq_tail];
     e->node = n;
     e->type = type;

@@ -1,7 +1,7 @@
 /*
  * render_demo.c — Headless renderer for the TGS widget tree.
  *
- * Drives the *real* LVGL backend (same code path the compositor uses) with a
+ * Drives the *real* scene backend (same code path the compositor uses) with a
  * memory framebuffer instead of the SDL window, then dumps the ARGB8888 draw
  * buffer to a PNG. No display server required.
  *
@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* --- Let LVGL run its refresh timers into the shared draw buffer --- */
+    /* --- Pump the scene: paint into the shared draw buffer --- */
     for (i = 0; i < 10; i++) {
         be->tick(16);
         be->render();

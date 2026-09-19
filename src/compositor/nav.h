@@ -1,7 +1,7 @@
 /*
  * TGS focus model and ring computation (docs/navigation.md §A–§C).
  *
- * Pure policy layer: no LVGL, no PTY, no heap. The compositor owns the widget
+ * Pure policy layer: no rendering engine, no PTY, no heap. The compositor owns the widget
  * tree, the effective attributes and the per-window focus registry; the
  * backend only executes what this module decides (§A.1 division of labour).
  */

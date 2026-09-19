@@ -7,9 +7,9 @@
  * the tgs_paint port, so paint_skia.c can replace the engine without
  * touching this file.
  *
- * Replaces the LVGL backend: same vtable, same event contract, same
- * published-framebuffer contract as the old LVGL backend (the buffer this
- * module allocates is what output_present() pushes).
+ * The renderer-side reference implementation: same vtable, same event
+ * contract, same published-framebuffer contract (the buffer this module
+ * allocates is what output_present() pushes).
  */
 #include "tgs_scene.h"
 #include "tgs_backend.h"
@@ -25,7 +25,7 @@ static uint8_t *g_fb;
 static tgs_display *g_display;              /* published-buffer consumer */
 static tgs_backend *g_self;                 /* registered backend */
 
-/* Same buffer contract as the LVGL backend: this module allocates the fb,
+/* Buffer contract: this module allocates the fb,
  * publishes it through g_display, and output_present() pushes it out. */
 void scene_backend_set_display(tgs_display *display)
 {
@@ -292,7 +292,7 @@ static void backend_set_event_callback(tgs_event_cb cb, void *user_data)
 
 /* ---------- input ---------- */
 
-/* Pointer edge contract (same as the LVGL backend accepted): button 0 is
+/* Pointer edge contract: button 0 is
  * the primary button; pressed is 1 (press edge), 0 (release edge) or
  * -1 (motion only, no button state change). A CLICK completes on the
  * release edge, over the widget under the pointer. */

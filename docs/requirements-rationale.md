@@ -285,8 +285,8 @@ paste. Therefore the five IME-specific protocol commands are over-engineering:
 
 - **Commit** — the committed text enters the textarea by the SAME path as keyboard input
   (insert-text into the focused widget → `EVT_VALUE_CHANGED`). No dedicated command.
-- **Preedit** — the compositor renders it in the textarea (LVGL supports preedit); no protocol event.
-- **Candidate window** — the compositor renders it as an LVGL widget; no protocol event.
+- **Preedit** — the compositor renders it in the input widget (backend overlay); no protocol event.
+- **Candidate window** — the compositor renders it as a backend overlay widget; no protocol event.
 - **Cancel** — the compositor handles it internally on focus loss; no protocol event.
 
 Cut all five commands (`IME_PREEDIT`/`IME_COMMIT`/`IME_CANDIDATES`/`IME_SELECT`/`IME_CANCEL`) and the
@@ -385,8 +385,8 @@ attack surface.
 
 **One hidden interaction the director did not flag** (requirements-level, not impl): §5.2
 requires *server-side* widget rendering — the compositor process runs the widget library
-(LVGL) on behalf of every app. So a malicious/buggy widget (e.g., an image decode overflow
-in LVGL) executes *inside the compositor*, not inside the app sandbox. The "app://
+(backend) on behalf of every app. So a malicious/buggy widget (e.g., an image decode overflow
+in the backend) executes *inside the compositor*, not inside the app sandbox. The "app://
 isolation" in §6.3 isolates app-to-app but not app-to-compositor, because the rendering
 authority is shared. The rational consequence is that the sandbox boundary is drawn wrong:
 isolation must also cover the server-side render path, or widget rendering must be
@@ -455,13 +455,13 @@ economy); `design-review.md:145-156` (§E, multi-window/split/nesting all "built
 TWO rendering backends**, and the fusion condition is the transport split.
 
 **(A) Native widgets — the default path.** Declarative widget commands as small text frames; the
-compositor renders with LVGL; the transport stays in the char-grid economy. This is what the demos
+compositor renders with backend; the transport stays in the char-grid economy. This is what the demos
 prove (`design-review.md:8-25`, §A), what §5.2 requires, and what the terminal's nature directly
 supports: zero-deploy, SSH-native, char-grid contract, low bandwidth (a form ≈100B), single surface.
 
 **(B) A pixel surface — the opt-in path.** The app paints a widget-sized drawable region; the
 compositor composites it alongside native widgets. This is not Wayland-over-SSH and it is not a
-second product: it is the shape every mature toolkit has (Qt widgets + QCanvas; LVGL widgets +
+second product: it is the shape every mature toolkit has (Qt widgets + QCanvas; the old backend widgets +
 canvas), and it is how terminals have grown graphics for forty years (Sixel, ReGIS, kitty graphics).
 
 The two are reconcilable under three conditions the spec is currently missing:

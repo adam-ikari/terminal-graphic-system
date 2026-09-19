@@ -211,7 +211,7 @@
   <ul>
     <li><strong>widget 集</strong>：20/20 类型映射到真实 场景节点；事件经 <code>wm_backend_event</code> 单一门控转发。</li>
     <li><strong>焦点/键盘导航</strong>（L2）：合成器持有焦点权（<code>NTF_FOCUS</code> + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。</li>
-    <li><strong>容器布局</strong>（L3 P3）：（历史记录）布局引擎已随旧后端（LVGL）退役——布局归程序（SVG 场景语义）。<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>。</li>
+    <li><strong>容器布局</strong>（L3 P3）：（历史记录）布局引擎已随旧后端退役——布局归程序（SVG 场景语义）。<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>。</li>
     <li><strong>容器几何回传</strong>（L2）：<code>NTF_GEOMETRY</code>(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。</li>
   </ul>
   <h3>5.3 多窗口（L3 P4）</h3>

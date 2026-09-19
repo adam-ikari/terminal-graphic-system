@@ -13,7 +13,7 @@
 #include <string.h>
 
 /* Canonical TGS key space and modifier mask (docs/navigation.md §D.4) — the
- * same values input_sdl.c emits and lvgl_backend.c translates to LVGL.
+ * same values input_sdl.c emits; the backend translates them.
  * Printable ASCII maps to itself, 1000+ is reserved for keys without one. */
 #define TGS_KEY_LEFT   1000
 #define TGS_KEY_RIGHT  1001

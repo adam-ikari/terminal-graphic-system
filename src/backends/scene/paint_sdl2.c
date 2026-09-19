@@ -8,7 +8,7 @@
  * presented by output_present() like every other backend.
  *
  * Pixels are 0xAARRGGBB in memory as bytes R,G,B,A (little-endian), which
- * matches what LVGL's ARGB8888 buffer carried before.
+ * matches the published-buffer byte order (BGRA in memory).
  */
 #include "tgs_scene.h"
 

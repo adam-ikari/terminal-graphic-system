@@ -1,13 +1,13 @@
 /*
  * TGS SDL Input Backend
- * Polls SDL events, injects keyboard/mouse into LVGL backend.
+ * Polls SDL events, injects keyboard/mouse into the backend.
  */
 #include "input.h"
 
 #include <SDL2/SDL.h>
 
 /* Canonical TGS key space and modifier mask (docs/navigation.md §D.4) — the
- * same values input_fb.c/evdev emits and lvgl_backend.c translates to LVGL.
+ * same values input_fb.c/evdev emits; the backend translates them.
  * Printable ASCII maps to itself and 1000+ is reserved for keys without one:
  *   1000 LEFT  1001 RIGHT  1002 UP  1003 DOWN  1004 HOME  1005 END
  *   1006 PAGEUP  1007 PAGEDOWN

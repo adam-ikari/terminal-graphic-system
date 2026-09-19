@@ -20,7 +20,7 @@ TGS
 │   ├─ Event engine
 │   ├─ IME router
 │   └─ Sixel output
-├─ LVGL Backend
+├─ Scene Backend (SDL2 / Skia paint ports)
 │   ├─ 20+ widgets
 │   ├─ Styles
 │   └─ Layout (flex/grid)

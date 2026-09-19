@@ -1,7 +1,7 @@
 /*
  * Focus model and ring computation tests (src/compositor/nav.c).
  *
- * Pure policy: no LVGL, no display, no compositor. Handles are fake pointers —
+ * Pure policy: no rendering, no display, no compositor. Handles are fake pointers —
  * nav.c only carries them, it never dereferences one.
  */
 #include "nav.h"

@@ -7,7 +7,7 @@ TGS (Terminal Graphic System) turns a terminal into a graphical platform. Applic
 The system has four layers:
 
 1. **Protocol** — Wire format (APC frames), stream multiplexing, capability negotiation
-2. **Compositor** — Protocol parser, window manager, event engine, IME router, LVGL backend, output backends (SDL2 / FB)
+2. **Compositor** — Protocol parser, window manager, event engine, IME router, the old rendering backend, output backends (SDL2 / FB)
 3. **Client Library** — C API (`tgs_client`) for applications
 4. **Applications** — User code, IME apps, tools
 
@@ -19,14 +19,14 @@ The system has four layers:
 │                                              │
 │  ┌────────────────┐  ┌─────────────────────┐ │
 │  │ Protocol Parser │  │ Window Manager      │ │
-│  │ (APC frames)    │──│ (ID → LVGL handle)  │ │
+│  │ (APC frames)    │──│ (ID → scene node)   │ │
 │  └────────────────┘  │ Event routing       │ │
 │                      └────────┬────────────┘ │
 │  ┌────────────────┐          │              │
 │  │ Event Engine   │──────────┘              │
 │  │ (terminal →    │                         │
 │  │  backend)      │  ┌─────────────────────┐│
-│  └────────────────┘  │ LVGL Backend        ││
+│  └────────────────┘  │ Scene Backend       ││
 │                      │ (20+ widget types)  ││
 │  ┌────────────────┐  └────────┬────────────┘│
 │  │ IME Router     │           │             │
@@ -61,7 +61,7 @@ TGS supports two output backends, selected at compile time:
 
 ### SDL Backend (Desktop Linux)
 - SDL2 creates a window and simulates a framebuffer
-- LVGL renders into a pixel buffer, displayed via SDL texture
+- The scene backend rasterizes into a pixel buffer, displayed via SDL texture
 - SDL events handle keyboard and mouse input
 - Compile option: `cmake -DTGS_USE_SDL=ON`
 
@@ -91,7 +91,7 @@ tgs_client_bind_event()          → frame: TGS;1;3;EVT_BIND;...
                            └────────┬────────┘
                                     │
                            ┌────────▼────────┐
-                           │ LVGL Backend     │
+                           │ Scene Backend    │
                            │ create widget,   │
                            │ set style, etc.  │
                            └────────┬────────┘
@@ -116,7 +116,7 @@ Terminal keypress / mouse
     └───────┬───────┘
             │
     ┌───────▼───────┐
-    │ LVGL Backend   │
+    │ Scene Backend   │
     │ inject_mouse() │
     │ inject_key()   │
     └───────┬───────┘
@@ -237,7 +237,7 @@ The window manager (`window_manager`) maps widget/window IDs to backend handles:
 
 - Each app gets one or more windows (normal, dialog, fullscreen, tool)
 - Windows are root containers; widgets are children
-- IDs are app-assigned integers — the compositor translates them to LVGL handles
+- IDs are app-assigned integers — the compositor translates them to the backend handles
 - Events are routed by widget ID back to the originating app
 
 Window types:
@@ -251,7 +251,7 @@ Window types:
 
 ## Widget Library (Layer 1)
 
-All 20 `tgs_widget_type` values map to real LVGL 9.6 widgets (see [widgets.md](widgets.md)): `lv_button`, `lv_label`, `lv_textarea`, `lv_checkbox`, `lv_slider`, `lv_switch`, `lv_bar`, `lv_list`, `lv_table`, `lv_menu`, `lv_tabview`, `lv_dropdown`, `lv_image`, `lv_roller`, `lv_calendar`, plus the four container types below. `RADIO` is a round-styled checkbox (LVGL has no dedicated radio); `LIST`/`MENU` use LVGL's deprecated-but-present implementations behind a pragma to silence the deprecation warning.
+The 8 primitive `tgs_widget_type` kinds (BUTTON, LABEL, INPUT, CHECKBOX, SLIDER, CONTAINER, SCROLL, IMAGE) map to scene nodes painted by the backend (see [widgets.md](widgets.md)). Derived looks — radio, switch, progress, list/table/tab — are program-side compositions of those primitives, per spec §5.2.1.
 
 ### Explicit containers
 
@@ -263,21 +263,21 @@ Both backends feed input through an **edge-queued** indev model:
 
 - **Pointer** (`input_sdl.c`, `input_fb.c`): only state *transitions* are enqueued — fast clicks that previously landed between two `mouse_read_cb` polls now register. `mouse_qedged` holds the last queued state to suppress repeats.
 - **Keypad**: only key *DOWN* edges are queued as presses; releasing on key-up made every typed character appear twice, collapsing a burst dropped keys.
-- **Canonical key space**: every source normalises to one space before the backend — printable ASCII is itself, `1000..1005` = LEFT/RIGHT/UP/DOWN/HOME/END, modifiers `0x01` SHIFT / `0x02` CTRL / `0x04` ALT. Shift is applied to letters/digits. The LVGL backend translates this back to `LV_KEY_*`.
+- **Canonical key space**: every source normalises to one space before the backend — printable ASCII is itself, `1000..1005` = LEFT/RIGHT/UP/DOWN/HOME/END, modifiers `0x01` SHIFT / `0x02` CTRL / `0x04` ALT. Shift is applied to letters/digits. The the old rendering backend translates this back to `LV_KEY_*`.
 
 ### FB present contract
 
-The compositor never hands a pointer directly to `/dev/fb0`. LVGL publishes into `disp_drv->buffer`; `output_present()` (`output_fb.c`) **copies** that buffer to the mmap'd framebuffer. The copy is bpp-agnostic and verified at 16/24/32 bpp against a fake-fb with zero pixel mismatches, so LVGL may republish or reorganise its draw buffer freely.
+The compositor never hands a pointer directly to `/dev/fb0`. The scene backend publishes into the display buffer; `output_present()` (`output_fb.c`) **copies** that buffer to the mmap'd framebuffer. The copy is bpp-agnostic and verified at 16/24/32 bpp against a fake-fb with zero pixel mismatches, so The backend may republish or reorganise its draw buffer freely.
 
 ## Navigation (Layer 1)
 
-Keyboard focus is owned by the compositor, not LVGL. The design and full spec live in [navigation.md](navigation.md); summary:
+Keyboard focus is owned by the compositor, not the backend. The design and full spec live in [navigation.md](navigation.md); summary:
 
 - **Focus model** (`src/compositor/nav.c`, `nav.h`): a per-window registry of widgets + focus rings + scopes. Only focusable types are ring members; containers are transparent to traversal.
 - **`NTF_FOCUS` (65)** with `[win_id, widget_id, focused, reason]` notifies the app of every focus change (gained/lost) with the reason (Tab, pointer, `SET_FOCUS`, programmatic). `EVT_FOCUS` (83) is retired.
 - **`SET_FOCUS` (38)** / **`WGT_ATTR` (40)**: app requests focus and per-widget attributes (`TGS_ATTR_FOCUSABLE`, `TGS_ATTR_FOCUS_INDEX`, `NAV_ARROWS`, `nav.scope` = GROUP/TRAP).
-- **Key-routing precedence**: the compositor consults a `nav_key_cb` hook *before* LVGL's indev; it consumes Tab/Shift-Tab/arrows only when the focused widget doesn't (e.g. a slider consumes Left/Right, an INPUT consumes arrows when `NAV_ARROWS` is set).
-- **Window navigation**: per-window LVGL roots + groups; pointer click activates and restores last focus; z-order is read-only for restoration.
+- **Key-routing precedence**: the compositor consults a `nav_key_cb` hook *before* the old backend's indev; it consumes Tab/Shift-Tab/arrows only when the focused widget doesn't (e.g. a slider consumes Left/Right, an INPUT consumes arrows when `NAV_ARROWS` is set).
+- **Window navigation**: per-window scene roots + focus rings; pointer click activates and restores last focus; z-order is read-only for restoration.
 - **IME cancel**: focus leaving an IME-armed `INPUT` sends `IME_CANCEL` (100) to the IME process *before* clearing visuals and emitting `NTF_FOCUS` — never auto-commits. The preedit *overlay* itself is a documented Layer-1 gap (see [navigation.md §H.2](navigation.md#h2-preedit-is-an-overlay-never-widget-text-invariant)).
 
 ## Security Model

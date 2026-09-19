@@ -2,7 +2,7 @@
 
 **Status:** Design — to be implemented (Layer 1)
 **Version:** 1.0
-**Scope:** focus model, focus order, focus scopes, keyboard navigation, programmatic focus, focus events, window activation/restoration, IME composition, LVGL mapping, protocol additions.
+**Scope:** focus model, focus order, focus scopes, keyboard navigation, programmatic focus, focus events, window activation/restoration, IME composition, backend mapping, protocol additions.
 
 Companion docs: [architecture.md](architecture.md) · [ime.md](ime.md) · [widgets.md](widgets.md) · [../protocol/tgs-spec-layer0.md](../protocol/tgs-spec-layer0.md)
 
@@ -14,26 +14,16 @@ The design below is a delta against this reality. Facts verified against the wor
 
 | Fact | Evidence |
 |---|---|
-| The character base is the **bottom** LVGL layer; widgets/windows composite above it, so a full-screen opaque window occludes the terminal — expected z-order, not a defect; the compositor never forces char-on-top nor auto-transparent/shrink | `src/compositor/main.c:346`, `src/backends/lvgl/lvgl_backend.c:393-402` |
-| Each window owns a **distinct LVGL root and group** (ring wrap on); ring membership is installed by the compositor, widgets are never silently enrolled | `src/backends/lvgl/lvgl_backend.c:379-409`, `:607` |
-| `lv_group_set_default()` is never called | no occurrence in `src/` |
-| The single KEYPAD indev is pointed at the **active** window's group; `set_active_window()` swaps it | `src/backends/lvgl/lvgl_backend.c:631-637` |
 | `TGS_CMD_NTF_FOCUS` (65) is **emitted** by `emit_focus()` with `[win_id, widget_id, focused, reason]` | `src/compositor/window_manager.c:35-54` |
 | Focus reaches the app as `NTF_FOCUS` (65) `[win_id, widget_id, focused, reason]`; `EVT_FOCUS` (83) is retired and never sent | `src/common/tgs_protocol.h:48`, `:60`, `src/client/tgs_client.c:498-513` |
 | The compositor tracks focus per window and every event carries the real `win_id` and `reason` | `src/compositor/window_manager.c:108-114` |
 | Key codes arriving from SDL: TAB=9, ESC=27, arrows=**1000-1003**, HOME=1004, END=1005, PAGEUP=1006, PAGEDOWN=1007 | `src/backends/input_sdl.c` |
-| `map_tgs_key()` maps arrows **1000-1003** (Home/End/PgUp/PgDn likewise) to LVGL key codes, and Tab/Shift+Tab to NEXT/PREV | `src/backends/lvgl/lvgl_backend.c:108-111`, `:121-137` |
 | Modifiers are carried: `input_sdl.c` computes SHIFT/CTRL/ALT via `sdl_mods()` and passes them to `inject_key()` | `src/backends/input_sdl.c:78-85`, `:150-155`, `src/common/tgs_backend.h` |
 | `EVT_BIND` (36) is a real per-widget subscription gate for the notification events: CLICK/VALUE reach the app only for a widget that bound them (all-off default); KEY is input transport and always reaches the focused app, bound or not; binding one widget does not affect others; focus (`NTF_FOCUS`) is never gated | `src/compositor/window_manager.c:704-727`, `:814-827`, `:225-228` |
 | `wm->disp_w/h` track the live display size (set at init and on every resize); `NTF_RESIZE` reports them at `WIN_CREATE` | `src/compositor/window_manager.c:343-352`, `src/compositor/main.c:114-120`, `:332-333` |
-| The LVGL window root sits at 0,0 with zero padding and border, so compositor pixels == widget coordinates for hit-testing | `src/backends/lvgl/lvgl_backend.c:393-402` |
 | `NTF_DESTROY` (66) is emitted `[win_id]` when a window is destroyed; `NTF_STATE` (67) `[win_id, state]` (state: `tgs_window_state`, INACTIVE/ACTIVE) is emitted as a pair on every window activation change | `src/compositor/window_manager.c:118-131`, `:151-166`, `:579-594` |
 | `Alt+Tab` / `Alt+Shift+Tab` cycles windows in the compositor's key hook, restoring each window's remembered focus (`TGS_REASON_WINDOW_RESTORE`); with one window the key passes through | `src/compositor/window_manager.c:289-300` |
-| Runtime `TGS_LAYOUT_GRID` (via `WGT_LAYOUT` 37, optional `[cols, rows]` args; defaults 2 cols, 4 auto rows) is a real LVGL grid, not a flex stub; grid templates are heap-allocated and freed on widget delete (LVGL references, not copies) | `src/backends/lvgl/lvgl_backend.c:597-633` |
 | `WGT_UPDATE` (33) is `[widget_id, value]` — replaces the widget's text content (the spec's vague `property` dimension was removed; there is no defined property set) | `src/compositor/window_manager.c:672-680`, `src/client/tgs_client.c:312-322` |
-| `TGS_WINDOW_TRANSPARENT` (4) window type: the root paints no background (`bg_opa` TRANSP), so the character base shows through and widgets float on the text — char + control interleaving (L1, `examples/mixed_demo.c`); other types keep the opaque dark root | `src/backends/lvgl/lvgl_backend.c:403-409`, `src/compositor/window_manager.c:512` |
-| `LV_USE_GRIDNAV 1` is enabled in project config | `src/backends/lvgl/lv_conf.h:156` |
-| LVGL version 9.6.0 | `deps/lvgl/include/lvgl/lv_version.h:9-11` |
 
 Two consequences drive the design: (1) focus needs an **authority** (today nobody has one), and (2) the key-code space and the Shift modifier must be fixed before any navigation binding can work.
 
@@ -70,7 +60,7 @@ The compositor is authoritative when the two disagree: the backend reports focus
 ### A.2 Granularity
 
 - **One focused widget per window.** A window's focus is either a widget id or "none" (`0`).
-- **One focused window** globally: the active window. It owns the keyboard; all other windows are frozen (`lv_group_focus_freeze`, §I).
+- **One focused window** globally: the active window. It owns the keyboard; all other windows are frozen (their rings not steppedcus_freeze`, §I).
 - Focus **scopes** (§C) refine *within* a window: a window's ring may consist of plain widgets and of scope containers, each of which has an inner ring with its own cursor. At any instant exactly two cursors are live: the window's ring cursor and at most one inner scope cursor per level of nesting on the path to the focused leaf. No two leaf widgets are focused at the same time.
 
 ### A.3 Focusable widget types
@@ -90,7 +80,6 @@ Default focusability is a property of the widget **type**; it can be overridden 
 | VLAYOUT (8) | no | no | no | container; transparent unless declared a scope (§C) |
 | HLAYOUT (9) | no | no | no | same |
 | GLAYOUT (10) | no | no | no | same |
-| SCROLL (11) | no | **yes*** | no | *consumes arrows only while it can still scroll in that direction (as-built: current backend sets `SCROLL_WITH_ARROW`, `deps/lvgl/.../lv_obj.h:64`). Tab is the way out |
 | LIST (12) | yes | yes | no | arrows move item selection |
 | TABLE (13) | yes | yes | no | arrows move the cell cursor |
 | MENU (14) | yes | yes | no | treated like LIST: it is an item ring, not a layout container |
@@ -161,7 +150,7 @@ Window-derived scopes:
 | `FULLSCREEN` (2) | ring with wrap = true |
 | `DIALOG` (1) | **TRAP**: wraps inside, freezes the previously active window's rings |
 
-Wrap is on for every ring (matches `lv_group_set_wrap(group, true)`).
+Wrap is on for every ring (every ring wraps).
 
 ### C.2 Semantics
 
@@ -172,7 +161,7 @@ Wrap is on for every ring (matches `lv_group_set_wrap(group, true)`).
 
 ### C.3 Modal dialogs
 
-- A `DIALOG` window's root scope is a `TRAP`. While it is active, every underlying window's group is frozen (`lv_group_focus_freeze(other, true)`); Tab cycles inside the dialog only.
+- A `DIALOG` window's root scope is a `TRAP`. While it is active, every underlying window's group is frozen `); Tab cycles inside the dialog only.
 - **Escape is not swallowed by the compositor.** The compositor never closes or hides a window on its own: windows have no app-facing "show" command (`NTF_STATE` is compositor → app only, id 67), so an ESC that hid a dialog could not be undone by the app. ESC is forwarded to the focused app as `EVT_KEY` (key code 27); the app destroys (`WIN_DESTROY`) or hides the dialog. The compositor's half of the contract is **focus restoration** (§G.2), which is what makes the dialog cycle close cleanly.
 - Closing a dialog therefore is: ESC → app → `WIN_DESTROY` / `NTF_STATE`-driven hide → compositor unfreezes the underlying window, restores its remembered focus, and emits `NTF_FOCUS` (reason `WINDOW_RESTORE`) to the dialog's app for the defocus and to the restored app for the focus.
 
@@ -241,7 +230,7 @@ Everything in this table is the compositor's default binding. Layer 2 adds `TGS_
 
 This is what makes "a slider needs arrows; a plain container does not" true without special cases: the slider matches rule 2, the container matches rule 3.
 
-Spatial search (`focus_dir`, backend): candidates are the members of the current ring (scope members when a scope cursor is active). A candidate qualifies if its center lies in the arrow's half-plane relative to the focused widget's center. Score = distance along the arrow axis + 2 × |perpendicular offset|; lowest score wins. `LV_OBJ_FLAG_SCROLL_*`: the target is scrolled into view (`lv_obj_scroll_to_view`) after the move. If no candidate qualifies, the key falls to rule 4.
+Spatial search (`focus_dir`, backend): candidates are the members of the current ring (scope members when a scope cursor is active). A candidate qualifies if its center lies in the arrow's half-plane relative to the focused widget's center. Score = distance along the arrow axis + 2 × |perpendicular offset|; lowest score wins. The backend scrolls the target into its viewport after the move. If no candidate qualifies, the key falls to rule 4.
 
 ### D.4 Key-code normalisation (required prerequisite)
 
@@ -264,7 +253,7 @@ Modifiers travel alongside (`inject_key(key, mods, pressed)`), with `TGS_MOD_SHI
   - Setting focus in a non-active window is allowed and does **not** activate the window; it only updates the remembered focus.
 - **Query:** `tgs_client_get_focus(win_id)` returns the client's cached value, kept up to date from `NTF_FOCUS`. No protocol round-trip in Layer 1. A cold query (`TGS_CMD_GET_FOCUS`, id 39, reply = `NTF_FOCUS` with reason `NONE`) is reserved for Layer 2; the cache is correct as long as the client applies every notification.
 - **Automatic focus on creation:** the first focusable widget created in a window whose focus is "none" receives focus (reason `INIT = 6`). This keeps trivial apps usable with no focus code at all, and gives the ring a well-defined starting point.
-- **Pointer focus:** the backend marks every focusable widget click-focusable; the renderer's pointer path then focuses click-focusable objects that belong to a group (as-built: `deps/lvgl/src/indev/lv_indev.c:1761-1776`). The resulting change is reported upward with reason `POINTER = 4`. Clicking a non-focusable widget or the background does not change widget focus.
+- **Pointer focus:** the backend marks every focusable widget click-focusable; the renderer's pointer path then focuses click-focusable objects that belong to a group (scene backend: pointer press focuses the hit widget). The resulting change is reported upward with reason `POINTER = 4`. Clicking a non-focusable widget or the background does not change widget focus.
 - Pointer and keyboard compose through one registry: whichever route moved focus last wins, and both produce the same notification shape. A click inside window B activates B (raising it and restoring B's remembered focus, reason `WINDOW_ACTIVATE = 7`) *and*, if it lands on a focusable widget, focuses that widget (reason `POINTER`), in that order: activation pair first, then the widget-level pair within the newly active window.
 
 ---
@@ -369,47 +358,31 @@ The compositor renders preedit through a dedicated backend call, `set_widget_pre
 
 ---
 
-## I. LVGL mapping (LVGL 9.6.0, `deps/lvgl/`)
+## I. Backend mapping (scene backend)
 
-All APIs below were verified in the vendored tree; no function is invented.
+The scene backend realizes the focus contract directly on the scene node
+pool; there is no external toolkit underneath. Reference points:
 
-### I.1 Groups = scopes
-
-- **One `lv_group_t` per focus scope**: the window root scope, plus one per `GROUP`/`TRAP` container. (Today: one group for the whole compositor, `lvgl_backend.c:206`.)
-- Widget creation: add the object to the group of its **nearest enclosing scope**, in compositor-defined ring order (`lv_group_add_obj(group, obj)`, `deps/lvgl/include/lvgl/core/lv_group.h:84`). Non-focusable widgets are **not** added at all (today every non-container widget is, `lvgl_backend.c:280`).
-- Destroy / scope change: `lv_group_remove_obj(obj)` (`:97`), or `lv_group_remove_all_objs(group)` (`:103`) when a scope is rebuilt.
-- Ring order inside LVGL is insertion order; `FOCUS_INDEX` is realised by removing and re-adding members in the computed order (bounded by the ring size, and only when an index attribute is present).
-- `lv_group_set_focus_cb(group, cb)` (`:143`) plus the group's own `LV_EVENT_FOCUSED`/`LV_EVENT_DEFOCUSED` deliveries (`deps/lvgl/src/core/lv_group.c:257-265`, `:536-543`) feed the compositor's focus reports; the event callback already registered per object (`lvgl_backend.c:283`) is where the reason string is attached.
-- Frozen rings: `lv_group_focus_freeze(group, true)` (`:128`) for every group outside a modal `TRAP`.
-- `lv_group_set_default(group)` (`:71`) MAY be pointed at the active window's root group so widgets created later auto-enroll; explicit `lv_group_add_obj` is still required for scope containers and for ordering.
-
-### I.2 Keys
-
-- One KEYPAD indev per compositor (already exists, `lvgl_backend.c:207-210`). On window activation: `lv_indev_set_group(kb_indev, root_group_of_active_window)`; `NULL` when the active window has no focusable widget.
-- Tab / Shift+Tab: LVGL consumes `LV_KEY_NEXT` (9) and `LV_KEY_PREV` (11) inside the group and calls `lv_group_focus_next/prev` (`deps/lvgl/src/indev/lv_indev.c:877-887`). Wrap via `lv_group_set_wrap(group, true)` (`lv_group.h:173`). Because LVGL has no modifiers, the backend maps `Tab + SHIFT` → `LV_KEY_PREV` and plain `Tab` → `LV_KEY_NEXT` before injection.
-- Other keys: `lv_group_send_data(group, key)` (`:136`) delivers to the focused object — the LVGL default path (`lv_indev.c:905-908`) — which is exactly §D.3 rule 2 ("widget consumes arrows"). For a widget that does **not** consume arrows, the backend MUST intercept the arrow **before** `lv_group_send_data` and run its geometric `focus_dir()` instead (§D.3).
-- Home/End: the same interception applies; for consuming widgets they are handed to the object.
-- Scroll containers: `lv_obj_set_scroll_with_arrow(obj, true)` (`deps/lvgl/include/lvgl/core/lv_obj.h:336`, flag `LV_OBJ_FLAG_SCROLL_WITH_ARROW` at `:64`); arrows scroll, Tab leaves.
-
-### I.3 Focus visuals
-
-- Explicit, theme-independent focus ring: `lv_obj_set_style_outline_width/color/opa/pad(obj, ..., LV_PART_MAIN | LV_STATE_FOCUSED)` (`deps/lvgl/include/lvgl/core/lv_obj_style_gen.h:1986-2027`), applied to every focusable widget; unfocused state keeps outline width 0.
-- On focus: `lv_obj_scroll_to_view(obj, LV_ANIM_OFF)` so the target is visible inside `SCROLL`/`LIST`/`TABLE` viewports; the compositor never scrolls on its own.
-- Disabled widgets (`LV_STATE_DISABLED`) are skipped by every ring.
-
-### I.4 Pointer
-
-`lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICK_FOCUSABLE)` (`lv_obj.h:54`, `:239`) on focusable widgets; LVGL's `indev_click_focus` then calls `lv_group_focus_obj()` only when the pressed object is click-focusable and belongs to a group (`lv_indev.c:1761-1776`). This is precisely the desired "click focuses a widget, clicking a label does not" behaviour, so the backend does not need its own hit-test focus logic.
-
-### I.5 `lv_gridnav` — considered, not used
-
-`lv_gridnav` is enabled in the project config (`src/backends/lvgl/lv_conf.h:153`) and implements arrow-key navigation inside a container. It is **not** used for TGS arrow navigation because its focus cursor (`lv_gridnav_dsc_t.focused_obj`) is private: the public header exposes only `lv_gridnav_add` / `lv_gridnav_remove` / `lv_gridnav_set_focused` (`deps/lvgl/include/lvgl/indev/lv_gridnav.h:70-84`), with no accessor for the current inner focus. The compositor could therefore not learn which inner widget holds focus — which would break IME routing (§H) and `NTF_FOCUS`. A backend geometric `focus_dir()` over the current ring's members gives the same UX with an observable cursor.
-
-### I.6 Prerequisite: one LVGL root per window
-
-`backend_create_window()` currently returns `lv_screen_active()` (`lvgl_backend.c:245-255`), i.e. every window shares one root object, and `wm_backend_event` hardcodes `window_map[0].win_id` (`window_manager.c:360-364`). Per-window focus registries, per-window groups, freezing inactive windows and window activation all require each window to own a distinct root object (`lv_obj_create(lv_screen_active())`) and an id → root mapping. Until that lands, multi-window focus semantics are defined but not observable; single-window behaviour is unaffected.
-
----
+- **Rings = scopes**: the compositor owns ring order and enrollment
+  (`nav.c`); the backend holds per-window focus *visuals* and the focused
+  node pointer (`scene/scene_backend.c` `set_window_ring` / `set_focus`).
+  Non-focusable widgets never become focus targets, on pointer or key.
+- **Ring order** is whatever the compositor installed; `FOCUS_INDEX` is
+  the compositor re-emitting the ring in the computed order.
+- **Focus reports**: `set_focus` emits FOCUS/BLUR through the event
+  callback; the compositor gates them by the app's subscription mask.
+- **Frozen rings** (modal `TRAP`): the compositor simply stops stepping
+  outside the trapped window's ring — no backend support needed.
+- **Keys**: the backend calls the compositor's nav-precedence hook first
+  (`inject_key` → `nav_key_cb`); `TGS_NAV_WIDGET` delivers the key to the
+  focused widget synchronously ("key;mods"), `TGS_NAV_CONSUMED` drops it,
+  `TGS_NAV_PASS` lets a focused INPUT consume text keys.
+- **Tab / Shift+Tab**: the compositor steps the ring; the backend never
+  invents order.
+- **Scroll containers**: SCROLL consumes arrows only while it can still
+  scroll in that direction (viewport state is backend mechanism).
+- **Focus visuals**: an explicit, theme-independent outline drawn by the
+  paint port (`scene_draw` pass 2), not tied to any widget theme.
 
 ## J. Protocol proposal
 
@@ -576,5 +549,5 @@ Recorded here for the implementation hand-off; each has a recommended default al
 | 1 | Should `Escape` on a `DIALOG` close it in the compositor, or stay app-driven? | App-driven (§C.3): the compositor has no app-facing "show" command, so a compositor-initiated hide would be irreversible for the app. |
 | 2 | Is a generic error frame (`CMD_ERROR`) worth adding for rejected `WGT_ATTR`/`SET_FOCUS` requests? | No for Layer 1 — ignore + log; revisit in Layer 2 together with `NTF_FOCUS_PRE`. |
 | 3 | Should `Tab` cross window boundaries? | No in Layer 1 — a window's ring wraps; cross-window traversal belongs with the window switcher (Layer 2). |
-| 4 | Radio groups: should arrows walk the set? | No in Layer 1 — Space toggles, arrows navigate. LVGL's radio behaviour is opt-in per app. |
+| 4 | Radio groups: should arrows walk the set? | No in Layer 1 — Space toggles, arrows navigate. the old backend's radio behaviour is opt-in per app. |
 | 5 | Does `MENU` count as focusable? | Yes, treated like `LIST` (§A.3): it is an item ring, not a layout container. |

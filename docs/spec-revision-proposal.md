@@ -15,10 +15,10 @@ desktop-class window management. The earlier layers are the *path*, not a ceilin
 **The rungs (each reuses the previous):**
 
 1. **Native-widget toolkit** (now). Declarative widget-tree commands as small text frames; the
-   compositor renders with LVGL. A form is ≈100 bytes. The demos prove this rung.
+   compositor rasterizes with its scene painter. A form is ≈100 bytes. The demos prove this rung.
 2. **Client pixel surfaces.** An app gets a **widget-sized drawable region** — the "client surface"
    primitive — fed by a binary DCS frame (§5.4). This is where client-shaded pixels enter.
-3. **Surface compositor.** Multiple overlapping surfaces with z-order, alpha, and transforms; LVGL
+3. **Surface compositor.** Multiple overlapping surfaces with z-order, alpha, and transforms; the backend
    renders the *widget* surfaces, the compositor scenes them together.
 4. **Desktop graphics system.** Local clients share buffers zero-copy (shm / dmabuf, GPU-accelerated)
    and get full WM semantics (overlap, decorations, layout, workspaces). The terminal transport
@@ -36,8 +36,8 @@ it reaches the compositor is an implementation detail:
 exactly why X11 forwarding was abandoned for local shm/GPU compositors. The terminal path delivers
 the *toolkit* and the *remote* story; the desktop endpoint needs the compositor to own a local
 display and accept local surfaces. TGS already has a display-owning compositor (`tgs_backend.h`:
-SDL / `/dev/fb0`), so this is an extension, not a new system. Where LVGL stops being enough — scene
-composition of independent surfaces — L4 introduces a light scene layer *beside* LVGL, not a
+SDL / `/dev/fb0`), so this is an extension, not a new system. Where the backend stops being enough — scene
+composition of independent surfaces — L4 introduces a light scene layer *beside* the backend, not a
 replacement for it.
 
 TGS is **not** Wayland-over-SSH, and it is **not** merely a terminal toolkit. **TGS evolved from the

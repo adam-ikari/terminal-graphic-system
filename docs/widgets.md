@@ -14,7 +14,7 @@ type; swapping the backend only changes that column.
 | Input | `TGS_WIDGET_INPUT` | Single-line text input; the IME-eligible type | `lv_textarea` |
 | Checkbox | `TGS_WIDGET_CHECKBOX` | Toggle state; round variant (radio look) via RADIUS style | `lv_checkbox` |
 | Slider | `TGS_WIDGET_SLIDER` | Value + range + drag capture; read-only variant = app ignores drag | `lv_slider` |
-| Container | `TGS_WIDGET_CONTAINER` | Plain box; children at program-computed rects (layout is program policy) | plain `lv_obj`, no layout engine |
+| Container | `TGS_WIDGET_CONTAINER` | Plain box; children at program-computed rects (layout is program policy) | plain scene node, no layout engine |
 | Scroll | `TGS_WIDGET_SCROLL` | Scrollable viewport; scroll offset is mechanism | scrollable container |
 | Image | `TGS_WIDGET_IMAGE` | Pixel buffer display; source via resources (stream 2) | `lv_image` |
 

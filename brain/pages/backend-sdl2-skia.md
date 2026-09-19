@@ -13,13 +13,16 @@ updated: "2026-09-19T14:19:16"
 
 ## Decision (2026-09-19, user directive)
 
-- The widget protocol is **drawing semantics** (SVG-like scene painting) — final.
-- Renderer backends: **SDL2 and Skia are the two selectable graphics backends**.
-- LVGL retires from the backend role; its flex/grid engines, widget catalog
-  mapping, and deprecated-widget workarounds go with it.
+- **控件语义放弃，追求图形原语** — the widget protocol is DRAWING semantics
+  (SVG-like scene painting), final. The protocol names only drawing
+  primitives (8 kinds); there is no widget catalog on the wire.
+- Renderer backends: **SDL2 and Skia are the two selectable graphics
+  backends**, both reference implementations behind the same paint port.
+- The old toolkit-based backend (widget tree, layout engines) was removed
+  entirely — the renderer holds no control semantics.
 - The presentation layer (`src/compositor/output.h`, output_sdl/output_fb)
-  survives: SDL2 backend presents through SDL textures; the Skia backend
-  rasterizes into the same `tgs_display` framebuffer and presents identically.
+  survives: the backend publishes its framebuffer; output_present() pushes
+  it to SDL textures or mmap'd /dev/fb0.
 
 ## Facts
 
@@ -27,19 +30,18 @@ updated: "2026-09-19T14:19:16"
   init/tick/render/create_window/create_widget/set_widget_rect/content/style/
   events/inject/focus. Renderer-neutral by design — protocol never names a
   toolkit.
-- SDL2 2.0.20 present on this box. Skia: no system package (no .pc); needs
-  vendored build or fetched artifacts.
+- Skia is vendored at /home/gem/deps/skia (minimal libskia.a, no GPU);
+  SDL2 + SDL2_ttf are system packages.
 - Embedded constraint (200 MHz, no GPU) drives default backend choice;
   SDL2 window is the desktop path, /dev/fb the embedded path.
 
 ## Why (compressed)
 
-- Rendering semantics live in the protocol (already settled: 8 primitive
-  kinds). Backend choice is invisible to the wire — swapping engines is
-  implementation, not protocol work.
-- LVGL was the wrong tool for a "scene painter": retained-mode widget tree
-  duplicates protocol-side state, and its layout engines are retired policy
-  leaks. Skia/SDL are immediate-mode paint engines matching drawing semantics.
+- Rendering semantics live in the protocol (8 primitive kinds). Backend
+  choice is invisible to the wire — swapping engines is implementation,
+  not protocol work. A retained widget toolkit duplicates protocol-side
+  state and drags layout policy into the renderer; both violate the
+  "server holds mechanism, program holds policy" charter.
 
 
 ## Timeline
@@ -58,7 +60,7 @@ updated: "2026-09-19T14:19:16"
 
 - time: 2026-09-19T13:03:56
   kind: decision
-  summary: "Cutover DONE (2026-09-19): LVGL fully removed (deps/lvgl + src/backends/lvgl deleted, letter/font probes retired). Scene backend (scene_core + scene_backend + paint_sdl2 + term_view) implements the full vtable; 74/74 tests green; d2_repro PASS; screenshots regenerated and vision-verified. Fixes during cutover: inject_mouse contract (button 0 primary, pressed -1 motion-only), window roots excluded from hit-testing, reverse-order child teardown (skip bug), NAV_WIDGET key delivery parity, 4bpp blended glyph compositing, NORMAL-window opaque bg policy."
+  summary: "Cutover DONE (2026-09-19): the old toolkit backend fully removed (the vendored toolkit and its backend module deleted, letter/font probes retired). Scene backend (scene_core + scene_backend + paint_sdl2 + term_view) implements the full vtable; 74/74 tests green; d2_repro PASS; screenshots regenerated and vision-verified. Fixes during cutover: inject_mouse contract (button 0 primary, pressed -1 motion-only), window roots excluded from hit-testing, reverse-order child teardown (skip bug), NAV_WIDGET key delivery parity, 4bpp blended glyph compositing, NORMAL-window opaque bg policy."
   source: session
   affects: [backend-sdl2-skia]
 

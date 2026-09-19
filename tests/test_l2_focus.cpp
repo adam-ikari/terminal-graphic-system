@@ -1,20 +1,20 @@
 /*
  * test_l2_focus.cpp — headless integration of the compositor focus authority.
  *
- * Drives wm_handle_frame directly with a FAKE tgs_backend (no LVGL, no display,
+ * Drives wm_handle_frame directly with a FAKE tgs_backend (no rendering, no display,
  * no real PTY): the compositor writes its outgoing frames (NTF_FOCUS, EVT_*,
  * NTF_RESIZE, READY) to a pipe; the test reads and decodes them. The fake
  * backend records set_focus / set_window_ring / set_widget_focusable calls and
  * captures the nav-key precedence hook and the event callback, so the test can
  * (a) invoke the nav hook as input_sdl/inject_key would, and (b) invoke the
- * event callback as lvgl_event_handler would — exercising the same
+ * event callback the real backend would — exercising the same
  * window_manager paths the real backend drives, without a render loop.
  *
  * Proves the L2 contracts the survey flagged unproven:
  *   - WIN_CREATE + first focusable widget → NTF_FOCUS(win,widget,1,INIT)
  *   - Tab / Shift+Tab → NTF_FOCUS with TAB / SHIFT_TAB reason and next/prev widget
  *   - Arrow precedence: non-consuming widget → residual forward (EVT_KEY);
- *     arrow-consuming widget → TGS_NAV_PASS (LVGL owns it)
+ *     arrow-consuming widget → TGS_NAV_PASS (backend owns it)
  *   - SET_FOCUS (programmatic) → NTF_FOCUS(PROGRAMMATIC)
  *   - EVT_KEY / EVT_CLICK delivered to the client as EVT_* frames
  *   - Character output is NOT lost when a window exists — the stream demuxer
@@ -368,7 +368,7 @@ TEST_F(L2Focus, ArrowPrecedence) {
     EXPECT_EQ(atoi(ek.args[2]), KEY_LEFT);
     EXPECT_EQ(atoi(ek.args[3]), 0);
 
-    /* Slider consumes arrows → PASS (LVGL owns it, no compositor frame). */
+    /* Slider consumes arrows → PASS (backend owns it, no compositor frame). */
     mk_widget(20, 1, "slider");
     tgs_frame sf;
     mkframe(sf, TGS_CMD_SET_FOCUS, {"1", "20"});
@@ -395,7 +395,7 @@ TEST_F(L2Focus, BackendEventsDelivered) {
     mkframe(bf, TGS_CMD_EVT_BIND, {"10", std::to_string(TGS_EVENT_CLICK)});
     wm_handle_frame(&bf, &wm);
 
-    /* Simulate LVGL reporting a key event on the focused widget. */
+    /* Simulate the backend reporting a key event on the focused widget. */
     g_event_cb(h10, TGS_EVENT_KEY, "97;0", g_event_ud);
     tgs_frame ek = expect_cmd(TGS_CMD_EVT_KEY);
     ASSERT_EQ(ek.num_args, 4);
@@ -404,7 +404,7 @@ TEST_F(L2Focus, BackendEventsDelivered) {
     EXPECT_EQ(atoi(ek.args[2]), 97);
     EXPECT_EQ(atoi(ek.args[3]), 0);
 
-    /* Simulate LVGL reporting a click on widget 10. */
+    /* Simulate the backend reporting a click on widget 10. */
     g_event_cb(h10, TGS_EVENT_CLICK, nullptr, g_event_ud);
     tgs_frame ec = expect_cmd(TGS_CMD_EVT_CLICK);
     ASSERT_EQ(ec.num_args, 2);
