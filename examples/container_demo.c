@@ -50,7 +50,7 @@ int main(void)
 
     tgs_client_create_widget(TGS_WIDGET_INPUT, ID_NAME_INPUT, ID_HLAYOUT,
                              0, 0, 300, 40, "");
-    tgs_client_create_widget(TGS_WIDGET_BUTTON, ID_OK_BTN, ID_HLAYOUT,
+    tgs_client_create_widget(TGS_WIDGET_CHECKBOX, ID_OK_BTN, ID_HLAYOUT,
                              320, 0, 80, 40, "OK");
 
     /* Result label sits below the nested container. */

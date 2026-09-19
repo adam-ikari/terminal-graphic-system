@@ -302,7 +302,7 @@ protected:
 
 /* 1. WIN_CREATE + first focusable widget → NTF_FOCUS(INIT). */
 TEST_F(L2Focus, FirstFocusableWidgetGetsInitFocus) {
-    void *h10 = mk_widget(10, 1, "button");
+    void *h10 = mk_widget(10, 1, "checkbox");
     ASSERT_NE(h10, nullptr);
 
     tgs_frame f = expect_cmd(TGS_CMD_NTF_FOCUS);
@@ -317,9 +317,9 @@ TEST_F(L2Focus, FirstFocusableWidgetGetsInitFocus) {
 
 /* 2. Tab moves to the next widget; reason TAB. */
 TEST_F(L2Focus, TabMovesFocusForward) {
-    mk_widget(10, 1, "button");
+    mk_widget(10, 1, "checkbox");
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT */
-    void *h11 = mk_widget(11, 1, "button");
+    void *h11 = mk_widget(11, 1, "checkbox");
     ASSERT_NE(h11, nullptr);
 
     EXPECT_EQ(nav(KEY_TAB, 0, 1), TGS_NAV_CONSUMED);
@@ -336,9 +336,9 @@ TEST_F(L2Focus, TabMovesFocusForward) {
 
 /* 3. Shift+Tab moves back; reason SHIFT_TAB. */
 TEST_F(L2Focus, ShiftTabMovesFocusBack) {
-    mk_widget(10, 1, "button");
+    mk_widget(10, 1, "checkbox");
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
-    mk_widget(11, 1, "button");
+    mk_widget(11, 1, "checkbox");
     ASSERT_EQ(nav(KEY_TAB, 0, 1), TGS_NAV_CONSUMED);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* 10 lost */
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* 11 gained */
@@ -355,7 +355,7 @@ TEST_F(L2Focus, ShiftTabMovesFocusBack) {
 /* 4. Arrow precedence: non-consuming widget → residual forward (EVT_KEY);
  *    arrow-consuming widget (slider) → TGS_NAV_PASS. */
 TEST_F(L2Focus, ArrowPrecedence) {
-    mk_widget(10, 1, "button");
+    mk_widget(10, 1, "checkbox");
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 (button) */
 
     /* Button does not consume arrows → nav_dir_move; fake focus_dir = NULL →
@@ -385,7 +385,7 @@ TEST_F(L2Focus, ArrowPrecedence) {
 /* 5. EVT_KEY / EVT_CLICK delivered to the client as EVT_* frames. KEY needs
  *    no binding (input transport); CLICK is gated by EVT_BIND (D6). */
 TEST_F(L2Focus, BackendEventsDelivered) {
-    void *h10 = mk_widget(10, 1, "button");
+    void *h10 = mk_widget(10, 1, "checkbox");
     ASSERT_NE(h10, nullptr);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
 
@@ -435,7 +435,7 @@ TEST_F(L2Focus, ResizeReportsLiveDisplaySize) {
  * gates only its own widget. KEY is input transport: it always arrives, bound
  * or not. Focus (NTF_FOCUS) is never gated. */
 TEST_F(L2Focus, EventBindingGatesDelivery) {
-    void *h10 = mk_widget(10, 1, "button");
+    void *h10 = mk_widget(10, 1, "checkbox");
     ASSERT_NE(h10, nullptr);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
     std::string p;
@@ -482,7 +482,7 @@ TEST_F(L2Focus, EventBindingGatesDelivery) {
     expect_cmd(TGS_CMD_EVT_HOVER_ENTER);
 
     /* Binding widget 10 does not open widget 20's events. */
-    void *h20 = mk_widget(20, 1, "button");
+    void *h20 = mk_widget(20, 1, "checkbox");
     ASSERT_NE(h20, nullptr);
     g_event_cb(h20, TGS_EVENT_CLICK, nullptr, g_event_ud);
     EXPECT_LT(read_frame(pty_rd, p, 120), 0);
@@ -505,7 +505,7 @@ TEST_F(L2Focus, CharacterDemuxSurvivesWindow) {
                               wa, 3, win_payload, (int)sizeof(win_payload));
 
 
-    const char *ga[] = {"30", "2", "button", "0", "0", "10", "10", ""};
+    const char *ga[] = {"30", "2", "checkbox", "0", "0", "10", "10", ""};
     char wgt_payload[128];
     int gl = tgs_frame_encode(TGS_STREAM_COMMAND, 0, TGS_CMD_WGT_CREATE,
                               ga, 8, wgt_payload, (int)sizeof(wgt_payload));
@@ -536,8 +536,8 @@ TEST_F(L2Focus, CharacterDemuxSurvivesWindow) {
  * explicit WGT_CREATE rect args. A non-dirty flush emits nothing. */
 TEST_F(L2Focus, LayoutContainerEmitsGeometry) {
     void *h10 = mk_widget(10, 1, "vlayout");
-    void *h11 = mk_widget(11, 10, "button");
-    void *h12 = mk_widget(12, 10, "button");
+    void *h11 = mk_widget(11, 10, "checkbox");
+    void *h12 = mk_widget(12, 10, "checkbox");
     ASSERT_NE(h10, nullptr);
     ASSERT_NE(h11, nullptr);
     ASSERT_NE(h12, nullptr);
@@ -585,7 +585,7 @@ TEST_F(L2Focus, LayoutContainerEmitsGeometry) {
 
 /* P4: WIN_DESTROY emits NTF_DESTROY [win_id] for the window that went away. */
 TEST_F(L2Focus, WinDestroyEmitsNtfDestroy) {
-    mk_widget(10, 1, "button");
+    mk_widget(10, 1, "checkbox");
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
 
     tgs_frame f;
@@ -600,7 +600,7 @@ TEST_F(L2Focus, WinDestroyEmitsNtfDestroy) {
 /* P4: switching activation emits NTF_STATE [old,INACTIVE] then
  * [new,ACTIVE]. Destroy-side auto-activate covers the same pair. */
 TEST_F(L2Focus, WinSwitchEmitsNtfStatePair) {
-    void *h10 = mk_widget(10, 1, "button");
+    void *h10 = mk_widget(10, 1, "checkbox");
     ASSERT_NE(h10, nullptr);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
 
@@ -620,12 +620,12 @@ TEST_F(L2Focus, WinSwitchEmitsNtfStatePair) {
 /* P4: Alt+Tab activates the other window, restores its remembered focus,
  * and consumes the key. Release of a consumed key is consumed too. */
 TEST_F(L2Focus, AltTabSwitchesWindowAndRestoresFocus) {
-    void *h10 = mk_widget(10, 1, "button");
+    void *h10 = mk_widget(10, 1, "checkbox");
     ASSERT_NE(h10, nullptr);
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
 
     do_win_create(2, "0", true);
-    void *h20 = mk_widget(20, 2, "button");
+    void *h20 = mk_widget(20, 2, "checkbox");
     ASSERT_NE(h20, nullptr);
     expect_cmd(TGS_CMD_NTF_STATE);             /* 1 → INACTIVE */
     expect_cmd(TGS_CMD_NTF_STATE);             /* 2 → ACTIVE */
@@ -660,7 +660,7 @@ TEST_F(L2Focus, AltTabSwitchesWindowAndRestoresFocus) {
 /* P4: Alt+Tab with a single window is a no-op — key still consumed? No:
  * nothing to switch to, the compositor passes the key through (§G.2). */
 TEST_F(L2Focus, AltTabSingleWindowNoop) {
-    mk_widget(10, 1, "button");
+    mk_widget(10, 1, "checkbox");
     expect_cmd(TGS_CMD_NTF_FOCUS);             /* INIT on 10 */
 
     EXPECT_EQ(nav(KEY_TAB, MOD_ALT, 1), TGS_NAV_PASS);

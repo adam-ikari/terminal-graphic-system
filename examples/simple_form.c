@@ -40,7 +40,7 @@ int main(void)
                              20, 60, 300, 40, "");
 
     /* Submit button */
-    tgs_client_create_widget(TGS_WIDGET_BUTTON, ID_SUBMIT_BTN, win.window_id,
+    tgs_client_create_widget(TGS_WIDGET_CHECKBOX, ID_SUBMIT_BTN, win.window_id,
                              20, 110, 120, 40, "Submit");
 
     /* Result label (initially empty) */

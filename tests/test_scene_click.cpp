@@ -78,13 +78,13 @@ TEST_F(SceneBackend, ClickAtKnownPixelHitsExpectedWidget)
     be->set_event_callback(record_event, &events);
 
     /* Button at (20, 110), 120x40 — absolute screen pixels. */
-    void *btn = be->create_widget(win, TGS_WIDGET_BUTTON);
+    void *btn = be->create_widget(win, TGS_WIDGET_CHECKBOX);
     ASSERT_NE(btn, nullptr);
     be->set_widget_rect(btn, 20, 110, 120, 40);
     be->set_widget_content(btn, "OK");
 
     /* A second clickable widget well away from the click point. */
-    void *btn2 = be->create_widget(win, TGS_WIDGET_BUTTON);
+    void *btn2 = be->create_widget(win, TGS_WIDGET_CHECKBOX);
     ASSERT_NE(btn2, nullptr);
     be->set_widget_rect(btn2, 400, 300, 100, 30);
     be->set_widget_content(btn2, "No");
@@ -138,9 +138,9 @@ TEST_F(SceneBackend, ContainerHoldsProgramComputedRects)
     ASSERT_NE(box, nullptr);
     be->set_widget_rect(box, 0, 0, 400, 300);
 
-    void *c0 = be->create_widget(box, TGS_WIDGET_BUTTON);
-    void *c1 = be->create_widget(box, TGS_WIDGET_BUTTON);
-    void *c2 = be->create_widget(box, TGS_WIDGET_BUTTON);
+    void *c0 = be->create_widget(box, TGS_WIDGET_CHECKBOX);
+    void *c1 = be->create_widget(box, TGS_WIDGET_CHECKBOX);
+    void *c2 = be->create_widget(box, TGS_WIDGET_CHECKBOX);
     ASSERT_NE(c0, nullptr);
     ASSERT_NE(c1, nullptr);
     ASSERT_NE(c2, nullptr);
@@ -201,7 +201,7 @@ TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
     std::vector<ClickRec> events;
     be->set_event_callback(record_event, &events);
 
-    void *btn = be->create_widget(win, TGS_WIDGET_BUTTON);
+    void *btn = be->create_widget(win, TGS_WIDGET_CHECKBOX);
     ASSERT_NE(btn, nullptr);
     be->set_widget_rect(btn, 20, 20, 120, 40);
     be->set_widget_content(btn, "Hover me");
@@ -257,7 +257,7 @@ TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
     }
 
     /* Motion back onto another widget: fresh ENTER for it. */
-    void *btn2 = be->create_widget(win, TGS_WIDGET_BUTTON);
+    void *btn2 = be->create_widget(win, TGS_WIDGET_CHECKBOX);
     ASSERT_NE(btn2, nullptr);
     be->set_widget_rect(btn2, 200, 20, 100, 40);
     for (int i = 0; i < 5; i++) {

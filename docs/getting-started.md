@@ -90,7 +90,7 @@ int main(void)
                              20, 20, 200, 30, "Hello:");
     tgs_client_create_widget(TGS_WIDGET_INPUT, ID_INPUT, win.window_id,
                              20, 60, 300, 40, "");
-    tgs_client_create_widget(TGS_WIDGET_BUTTON, ID_BUTTON, win.window_id,
+    tgs_client_create_widget(TGS_WIDGET_CONTAINER, ID_BUTTON, win.window_id,
                              20, 120, 120, 40, "Click Me");
 
     /* 4. Bind events */

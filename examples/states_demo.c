@@ -53,7 +53,7 @@ int main(void)
      * style/attr compositions: radio = round checkbox, "switch" = wide
      * round checkbox. Compound widgets (list/table/tab/dropdown/pickers)
      * are CONTAINER + child widgets at program-computed rects. */
-    add_widget(&win, TGS_WIDGET_BUTTON,    20,  20, 140, 56, "Button");
+    add_widget(&win, TGS_WIDGET_CHECKBOX,    20,  20, 140, 56, "Button");
     add_widget(&win, TGS_WIDGET_INPUT,     20,  96, 140, 56, "");
     add_widget(&win, TGS_WIDGET_CHECKBOX,  20, 172, 140, 40, "Check");
     add_widget(&win, TGS_WIDGET_CHECKBOX,  20, 232, 140, 40, "Radio");

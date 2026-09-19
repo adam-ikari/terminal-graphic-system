@@ -43,7 +43,7 @@ int main(void)
                              60, 40, 500, 30, "Name:");
     tgs_client_create_widget(TGS_WIDGET_INPUT, ID_INPUT, win.window_id,
                              60, 80, 300, 40, "");
-    tgs_client_create_widget(TGS_WIDGET_BUTTON, ID_BUTTON, win.window_id,
+    tgs_client_create_widget(TGS_WIDGET_CHECKBOX, ID_BUTTON, win.window_id,
                              380, 80, 120, 40, "Submit");
     tgs_client_create_widget(TGS_WIDGET_LABEL, ID_STATUS, win.window_id,
                              60, 140, 500, 30, "(widgets above, text below)");

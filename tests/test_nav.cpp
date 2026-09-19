@@ -51,8 +51,8 @@ protected:
  * child of that window — mistaking it for the parent walks the tree forever. */
 TEST_F(NavTest, WidgetIdMayEqualWindowId)
 {
-    add(WIN, WIN, TGS_WIDGET_BUTTON);
-    add(2, WIN, TGS_WIDGET_BUTTON);
+    add(WIN, WIN, TGS_WIDGET_CHECKBOX);
+    add(2, WIN, TGS_WIDGET_CHECKBOX);
 
     focus(WIN);
     EXPECT_EQ(2, step());
@@ -62,11 +62,11 @@ TEST_F(NavTest, WidgetIdMayEqualWindowId)
 TEST_F(NavTest, RingSkipsNonFocusableTypes)
 {
     add(100, WIN, TGS_WIDGET_CONTAINER);
-    add(101, 100, TGS_WIDGET_BUTTON);
+    add(101, 100, TGS_WIDGET_CHECKBOX);
     add(102, WIN, TGS_WIDGET_LABEL);
-    add(103, 100, TGS_WIDGET_BUTTON);
+    add(103, 100, TGS_WIDGET_CHECKBOX);
     add(104, WIN, TGS_WIDGET_LABEL);
-    add(105, 100, TGS_WIDGET_BUTTON);
+    add(105, 100, TGS_WIDGET_CHECKBOX);
 
     EXPECT_EQ(101, nav_first_focusable(&m, WIN));
     focus(101);
@@ -79,9 +79,9 @@ TEST_F(NavTest, RingSkipsNonFocusableTypes)
 /* §B.2 — explicit FOCUS_INDEX sorts first, ascending, ahead of auto entries. */
 TEST_F(NavTest, FocusIndexReordersRing)
 {
-    add(200, WIN, TGS_WIDGET_BUTTON);
-    add(201, WIN, TGS_WIDGET_BUTTON);
-    add(202, WIN, TGS_WIDGET_BUTTON);
+    add(200, WIN, TGS_WIDGET_CHECKBOX);
+    add(201, WIN, TGS_WIDGET_CHECKBOX);
+    add(202, WIN, TGS_WIDGET_CHECKBOX);
 
     ASSERT_EQ(1, nav_attr_set(&m, 200, TGS_ATTR_FOCUS_INDEX, 5));
     ASSERT_EQ(1, nav_attr_set(&m, 201, TGS_ATTR_FOCUS_INDEX, 1));
@@ -100,7 +100,7 @@ TEST_F(NavTest, AttributeOverridesAndRangeValidation)
 
     add(300, WIN, TGS_WIDGET_LABEL);
     add(301, WIN, TGS_WIDGET_SLIDER);
-    add(302, WIN, TGS_WIDGET_BUTTON);
+    add(302, WIN, TGS_WIDGET_CHECKBOX);
     add(303, WIN, TGS_WIDGET_CONTAINER);
 
     label = nav_widget_find(&m, 300);
@@ -138,9 +138,9 @@ TEST_F(NavTest, GroupScopeIsSingleTabStop)
     int reason = TGS_REASON_NONE;
 
     add(400, WIN, TGS_WIDGET_SCROLL);
-    add(401, 400, TGS_WIDGET_BUTTON);
-    add(402, 400, TGS_WIDGET_BUTTON);
-    add(403, WIN, TGS_WIDGET_BUTTON);
+    add(401, 400, TGS_WIDGET_CHECKBOX);
+    add(402, 400, TGS_WIDGET_CHECKBOX);
+    add(403, WIN, TGS_WIDGET_CHECKBOX);
     ASSERT_EQ(1, nav_attr_set(&m, 400, TGS_ATTR_FOCUS_SCOPE, 1));
 
     /* The ring is [scope(400), 403]: first member resolves inside the scope. */
@@ -171,9 +171,9 @@ TEST_F(NavTest, GroupScopeIsSingleTabStop)
 TEST_F(NavTest, TrapScopeWrapsInside)
 {
     add(500, WIN, TGS_WIDGET_CONTAINER);
-    add(501, 500, TGS_WIDGET_BUTTON);
-    add(502, 500, TGS_WIDGET_BUTTON);
-    add(503, WIN, TGS_WIDGET_BUTTON);
+    add(501, 500, TGS_WIDGET_CHECKBOX);
+    add(502, 500, TGS_WIDGET_CHECKBOX);
+    add(503, WIN, TGS_WIDGET_CHECKBOX);
     ASSERT_EQ(1, nav_attr_set(&m, 500, TGS_ATTR_FOCUS_SCOPE, 2));
 
     focus(501);
@@ -187,10 +187,10 @@ TEST_F(NavTest, DialogWindowRootIsTrap)
 {
     void *handles[NAV_RING_MAX];
 
-    add(600, WIN, TGS_WIDGET_BUTTON);
+    add(600, WIN, TGS_WIDGET_CHECKBOX);
     ASSERT_EQ(0, nav_add_window(&m, 2, TGS_WINDOW_DIALOG, (void *)2));
-    ASSERT_EQ(0, nav_add_widget(&m, 601, 2, 2, 1, TGS_WIDGET_BUTTON, (void *)601));
-    ASSERT_EQ(0, nav_add_widget(&m, 602, 2, 2, 1, TGS_WIDGET_BUTTON, (void *)602));
+    ASSERT_EQ(0, nav_add_widget(&m, 601, 2, 2, 1, TGS_WIDGET_CHECKBOX, (void *)601));
+    ASSERT_EQ(0, nav_add_widget(&m, 602, 2, 2, 1, TGS_WIDGET_CHECKBOX, (void *)602));
 
     focus(600);
     EXPECT_EQ(601, nav_first_focusable(&m, 2));
@@ -202,8 +202,8 @@ TEST_F(NavTest, ReasonMap)
 {
     int reason = TGS_REASON_NONE;
 
-    add(700, WIN, TGS_WIDGET_BUTTON);
-    add(701, WIN, TGS_WIDGET_BUTTON);
+    add(700, WIN, TGS_WIDGET_CHECKBOX);
+    add(701, WIN, TGS_WIDGET_CHECKBOX);
 
     EXPECT_EQ(700, step(0, &reason)); /* nothing focused yet: INIT */
     EXPECT_EQ(TGS_REASON_INIT, reason);
@@ -229,9 +229,9 @@ TEST_F(NavTest, ReasonMap)
 /* §G.2 — destroy moves to the next ring member, else the previous. */
 TEST_F(NavTest, SuccessorAfterDestroy)
 {
-    add(800, WIN, TGS_WIDGET_BUTTON);
-    add(801, WIN, TGS_WIDGET_BUTTON);
-    add(802, WIN, TGS_WIDGET_BUTTON);
+    add(800, WIN, TGS_WIDGET_CHECKBOX);
+    add(801, WIN, TGS_WIDGET_CHECKBOX);
+    add(802, WIN, TGS_WIDGET_CHECKBOX);
 
     focus(801);
     EXPECT_EQ(802, nav_successor(&m, WIN, 801));
@@ -246,8 +246,8 @@ TEST_F(NavTest, RestoreRemembersLastFocus)
 {
     int target = 0;
 
-    add(900, WIN, TGS_WIDGET_BUTTON);
-    add(901, WIN, TGS_WIDGET_BUTTON);
+    add(900, WIN, TGS_WIDGET_CHECKBOX);
+    add(901, WIN, TGS_WIDGET_CHECKBOX);
 
     focus(901);
     nav_set_focus(&m, WIN, 0);
@@ -263,8 +263,8 @@ TEST_F(NavTest, RestoreRemembersLastFocus)
  * recovers instead of stalling on it (§J.4). */
 TEST_F(NavTest, UnfocusableFocusedWidgetRecoversOnNextStep)
 {
-    add(1000, WIN, TGS_WIDGET_BUTTON);
-    add(1001, WIN, TGS_WIDGET_BUTTON);
+    add(1000, WIN, TGS_WIDGET_CHECKBOX);
+    add(1001, WIN, TGS_WIDGET_CHECKBOX);
 
     focus(1000);
     ASSERT_EQ(1, nav_attr_set(&m, 1000, TGS_ATTR_FOCUSABLE, 0));

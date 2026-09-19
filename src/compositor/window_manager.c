@@ -480,7 +480,7 @@ void wm_flush_geometry(window_manager *wm)
 
 static tgs_widget_type str_to_widget_type(const char *s)
 {
-    if (strcmp(s, "button") == 0)   return TGS_WIDGET_BUTTON;
+    if (strcmp(s, "button") == 0)  return TGS_WIDGET_CONTAINER; /* retired: click lands on the box */
     if (strcmp(s, "label") == 0)    return TGS_WIDGET_LABEL;
     if (strcmp(s, "input") == 0)    return TGS_WIDGET_INPUT;
     if (strcmp(s, "checkbox") == 0) return TGS_WIDGET_CHECKBOX;
@@ -513,7 +513,8 @@ static tgs_widget_type str_to_widget_type(const char *s)
         int v = atoi(s);
 
         switch (v) {
-        case 4: case 7: return TGS_WIDGET_CHECKBOX;   /* radio, switch */
+        case 0:                                       /* button */
+        case 4: case 7: return TGS_WIDGET_CONTAINER;   /* button, radio, switch */
         case 6:         return TGS_WIDGET_SLIDER;     /* progress */
         case 9: case 10: case 12: case 13: case 14:
         case 15: case 16: case 18: case 19:
@@ -522,7 +523,7 @@ static tgs_widget_type str_to_widget_type(const char *s)
             if (v >= 0 && v < (int)TGS_WIDGET_COUNT) return (tgs_widget_type)v;
         }
     }
-    return TGS_WIDGET_BUTTON;
+    return TGS_WIDGET_CONTAINER;
 }
 
 static tgs_window_type str_to_window_type(const char *s)

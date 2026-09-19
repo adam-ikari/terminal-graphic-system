@@ -39,7 +39,7 @@ static void build_simple_form(tgs_backend *be, void *win)
     be->set_widget_rect(w, 20, 60, 300, 40);
     be->set_widget_content(w, "");
 
-    w = be->create_widget(win, TGS_WIDGET_BUTTON);
+    w = be->create_widget(win, TGS_WIDGET_CHECKBOX);
     be->set_widget_rect(w, 20, 110, 120, 40);
     be->set_widget_content(w, "Submit");
 
@@ -67,7 +67,7 @@ static void build_container_demo(tgs_backend *be, void *win)
     be->set_widget_rect(input, 0, 0, 300, 40);
     be->set_widget_content(input, "");
 
-    void *btn = be->create_widget(hlayout, TGS_WIDGET_BUTTON);
+    void *btn = be->create_widget(hlayout, TGS_WIDGET_CHECKBOX);
     be->set_widget_rect(btn, 320, 0, 80, 40);
     be->set_widget_content(btn, "OK");
 
@@ -81,7 +81,7 @@ static void build_library(tgs_backend *be, void *win)
 {
     static const struct { tgs_widget_type type; const char *text; } items[] = {
         { TGS_WIDGET_LABEL,    "label" },
-        { TGS_WIDGET_BUTTON,   "button" },
+        { TGS_WIDGET_CHECKBOX,   "button" },
         { TGS_WIDGET_INPUT,    "input" },
         { TGS_WIDGET_CHECKBOX, "checkbox" },
         { TGS_WIDGET_SLIDER,   "" },
@@ -154,7 +154,7 @@ static void states_hover(void *handle, tgs_event_type type,
 static void build_states(tgs_backend *be, void *win)
 {
     static const struct { tgs_widget_type type; int x, y, w, h; const char *t; } items[] = {
-        { TGS_WIDGET_BUTTON,    20,  20, 140, 56, "Button" },
+        { TGS_WIDGET_CHECKBOX,    20,  20, 140, 56, "Button" },
         { TGS_WIDGET_INPUT,     20,  96, 140, 56, "" },
         { TGS_WIDGET_CHECKBOX,  20, 172, 140, 40, "Check" },
         { TGS_WIDGET_CHECKBOX,  20, 232, 140, 40, "Radio" },
@@ -228,7 +228,7 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
  * normal / hover / pressed states. Layout containers get children so their
  * arrangement is visible. */
 static const struct { tgs_widget_type type; const char *name; const char *t; } singles[] = {
-    { TGS_WIDGET_BUTTON,    "button",    "Button" },
+    { TGS_WIDGET_CHECKBOX,    "button",    "Button" },
     { TGS_WIDGET_LABEL,     "label",     "Label text" },
     { TGS_WIDGET_INPUT,     "input",     "" },
     { TGS_WIDGET_CHECKBOX,  "checkbox",  "Checkbox" },
@@ -245,8 +245,8 @@ static void populate_single(tgs_backend *be, void *w, tgs_widget_type type)
     case TGS_WIDGET_CONTAINER: {
         /* program-computed layout: label row, then two buttons side by side */
         void *a = be->create_widget(w, TGS_WIDGET_LABEL);
-        void *b = be->create_widget(w, TGS_WIDGET_BUTTON);
-        void *c = be->create_widget(w, TGS_WIDGET_BUTTON);
+        void *b = be->create_widget(w, TGS_WIDGET_CHECKBOX);
+        void *c = be->create_widget(w, TGS_WIDGET_CHECKBOX);
         be->set_widget_rect(a, 0, 0, 250, 24);
         be->set_widget_content(a, "row one (program-computed rects)");
         be->set_widget_rect(b, 0, 30, 120, 36);

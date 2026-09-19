@@ -9,7 +9,7 @@ type; swapping the backend only changes that column.
 
 | Widget | TGS Enum | Protocol semantics | Reference mapping (scene backend) |
 |--------|----------|--------------------|----------------------------------|
-| Button | `TGS_WIDGET_BUTTON` | Push button; delivers CLICK when activated | `lv_button` |
+| Button | *retired* (`TGS_WIDGET_BUTTON` value 0 reserved) | A "button" = CONTAINER + LABEL child + CLICK (program composition) | — |
 | Label | `TGS_WIDGET_LABEL` | Static text display; non-interactive | `lv_label` |
 | Input | `TGS_WIDGET_INPUT` | Single-line text input; the IME-eligible type | `lv_textarea` |
 | Checkbox | `TGS_WIDGET_CHECKBOX` | Toggle state; round variant (radio look) via RADIUS style | `lv_checkbox` |

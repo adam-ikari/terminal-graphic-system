@@ -120,16 +120,19 @@ typedef enum {
  * child geometry itself; the renderer holds no flex/grid engine for app
  * content. Values are stable: retired kinds keep their numbers reserved. */
 typedef enum {
-    TGS_WIDGET_BUTTON = 0,
+    /* 0 reserved: BUTTON retired — activation is program policy. A click
+     * lands on any widget (hit-testing is renderer mechanism); a "button"
+     * is a CONTAINER + LABEL child whose CLICK the program consumes. */
     TGS_WIDGET_LABEL = 1,
     TGS_WIDGET_INPUT = 2,
     TGS_WIDGET_CHECKBOX = 3,   /* bool + label; RADIUS style makes it round */
     TGS_WIDGET_SLIDER = 5,     /* value + range + drag */
     TGS_WIDGET_CONTAINER = 8,  /* plain box; children at app-computed rects */
-    /* 4, 6, 7, 9, 10, 12-19 reserved: retired kinds (RADIO=CHECKBOX+round
-     * style, SWITCH=CHECKBOX+capsule, PROGRESS=SLIDER read-only, LIST/TABLE/
-     * MENU=CONTAINER+child widgets, TAB/DROPDOWN/TIMEPICK/DATEPICK need a
-     * popup layer — all are app-side compositions now, see spec §5.2.1) */
+    /* 0, 4, 6, 7, 9, 10, 12-19 reserved: retired kinds (BUTTON=CONTAINER+
+     * LABEL child, RADIO=CHECKBOX+round style, SWITCH=CHECKBOX+capsule,
+     * PROGRESS=SLIDER read-only, LIST/TABLE/MENU=CONTAINER+child widgets,
+     * TAB/DROPDOWN/TIMEPICK/DATEPICK need a popup layer — all are
+     * app-side compositions now, see spec §5.2.1) */
     TGS_WIDGET_SCROLL = 11,
     TGS_WIDGET_IMAGE = 17,
     TGS_WIDGET_COUNT = 20,

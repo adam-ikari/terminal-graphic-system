@@ -84,7 +84,7 @@
   <p>绘制语义（类 SVG）终端图形协议：渲染器只画原语，一切控件语义在程序侧组合</p>
   <div class="meta">
     <span>测试 74/74 通过（SDL2 + Skia 双后端）</span>
-    <span>协议 = 绘制语义（类 SVG）· 8 原语 kind</span>
+    <span>协议 = 绘制语义（类 SVG）· 7 原语 kind</span>
     <span>渲染器 = scene painter（SDL2 / Skia 双参考后端）</span>
     <span>控件语义已放弃，图形原语为纲</span>
   </div>
@@ -115,6 +115,11 @@
       <td>保留模式控件树、布局引擎、控件目录映射整体删除（依赖目录 + 后端模块物理移除）——渲染器不再持任何控件语义</td>
       <td><span class="tag done">完成</span></td>
     </tr>
+    <tr>
+      <td><strong>BUTTON 退役</strong></td>
+      <td>按钮不是原语：激活是程序策略（点击命中已对任何控件生效）。BUTTON = CONTAINER + LABEL 子控件 + 程序消费 CLICK。值 0 保留，wire 兼容映射到 CONTAINER</td>
+      <td><span class="tag done">完成</span></td>
+    </tr>
   </table>
   <div class="callout">
     <strong>第一性判据：</strong>一个 kind 是原语 ⟺ 渲染器必须原生持有某种状态/能力，无法用其他 kind 组合表达。按此判据，控件语义整体放弃——协议层只承载机制（server holds mechanism），程序承担全部策略（program holds policy）。
@@ -122,10 +127,9 @@
 </section>
 
 <section class="card">
-  <h2><span class="no">2</span>协议原语目录（8 kind）</h2>
+  <h2><span class="no">2</span>协议原语目录（7 kind）</h2>
   <table>
     <tr><th>值</th><th>Kind</th><th>渲染器原生持有</th><th>组合说明</th></tr>
-    <tr><td>0</td><td><code>BUTTON</code></td><td>激活语义</td><td>label 由程序用 LABEL 子控件画</td></tr>
     <tr><td>1</td><td><code>LABEL</code></td><td>静态文本渲染</td><td>—</td></tr>
     <tr><td>2</td><td><code>INPUT</code></td><td>文本编辑缓冲（光标），IME 资格</td><td>—</td></tr>
     <tr><td>3</td><td><code>CHECKBOX</code></td><td>布尔态</td><td>圆钮外观 = RADIUS 样式组合</td></tr>
@@ -134,7 +138,7 @@
     <tr><td>11</td><td><code>SCROLL</code></td><td>视口状态（滚动偏移、边缘消费）</td><td>—</td></tr>
     <tr><td>17</td><td><code>IMAGE</code></td><td>像素显示</td><td>资源源待 stream 2（L3 P5）</td></tr>
   </table>
-  <p>退役值（4, 6, 7, 9, 10, 12-19）永久保留，合成器解码映射到原语替换——旧程序不炸。</p>
+  <p>退役值（0, 4, 6, 7, 9, 10, 12-19；0=BUTTON：激活是程序策略，按钮 = CONTAINER+LABEL+CLICK 组合）永久保留，合成器解码映射到原语替换——旧程序不炸。</p>
 </section>
 
 <section class="card">
@@ -173,10 +177,10 @@
 
   <h3>4.5 控件分列展示（每原语独立渲染 × 三状态）</h3>
   <div class="srow">
-    <div class="sname"><strong>Button</strong><br><small>按钮</small></div>
-    <figure><img src="screenshots/singles/button_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/button_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/button_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
+    <div class="sname"><strong>Button</strong><br><small>已退役（= CONTAINER + LABEL）</small></div>
+    <figure><img src="screenshots/singles/checkbox_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
+    <figure><img src="screenshots/singles/checkbox_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
+    <figure><img src="screenshots/singles/checkbox_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
   </div>
   <div class="srow">
     <div class="sname"><strong>Input</strong><br><small>输入框</small></div>

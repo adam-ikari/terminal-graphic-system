@@ -51,7 +51,6 @@ scene_node *scene_create_node(tgs_scene *s, tgs_widget_type type,
     n->visible = 1;
     /* Interactive kinds take focus by default; structure/paint kinds don't. */
     switch (type) {
-    case TGS_WIDGET_BUTTON:
     case TGS_WIDGET_INPUT:
     case TGS_WIDGET_CHECKBOX:
     case TGS_WIDGET_SLIDER:
@@ -173,7 +172,6 @@ void scene_pump_events(tgs_scene *s)
 uint32_t scene_default_bg(tgs_widget_type t)
 {
     switch (t) {
-    case TGS_WIDGET_BUTTON:   return 0xFF2D5AA8;
     case TGS_WIDGET_INPUT:    return 0xFF1E1E1E;
     case TGS_WIDGET_CHECKBOX: return 0x00000000;
     case TGS_WIDGET_SLIDER:   return 0xFF3A3A3A;
@@ -214,11 +212,6 @@ static void paint_node(tgs_scene *s, scene_node *n, int ox, int oy)
 
     if (!n->visible || !p) return;
     switch (n->type) {
-    case TGS_WIDGET_BUTTON:
-        p->box(p, x, y, n->w, n->h, radius ? radius : 4,
-               bg, 1, bc, 0);
-        p->text(p, x, y, n->w, n->h, n->text ? n->text : "", fsize, fg, 1);
-        break;
     case TGS_WIDGET_LABEL:
         p->text(p, x, y, n->w, n->h, n->text ? n->text : "", fsize, fg, 0);
         break;

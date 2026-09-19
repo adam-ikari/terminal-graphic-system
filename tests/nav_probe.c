@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
                              20, 60, 320, 30, "");
     tgs_client_create_widget(TGS_WIDGET_LABEL, ID_SLIDER_LABEL, win.window_id,
                              20, 100, 320, 30, "slider");
-    tgs_client_create_widget(TGS_WIDGET_BUTTON, ID_BUTTON, win.window_id,
+    tgs_client_create_widget(TGS_WIDGET_CHECKBOX, ID_BUTTON, win.window_id,
                              380, 60, 200, 40, "Second");
     tgs_client_bind_event(ID_BUTTON, TGS_EVENT_CLICK);
 

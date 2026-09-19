@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-19T14:38:56"
+updated: "2026-09-19T15:22:43"
 ---
 
 <!-- compiled_truth -->
@@ -73,5 +73,11 @@ updated: "2026-09-19T14:38:56"
 - time: 2026-09-19T14:38:56
   kind: decision
   summary: "Decision (2026-09-19): control semantics is abandoned; graphics primitives are the protocol and the renderer. No widget catalog on the wire (8 drawing-primitive kinds), the renderer is a scene painter with two reference paint ports (SDL2, Skia), and all engine history is purged from docs/brain — the record keeps only the principle."
+  source: user directive
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-19T15:22:43
+  kind: decision
+  summary: "BUTTON retired (2026-09-19): activation is program policy, not a renderer primitive. A button = CONTAINER + LABEL child + CLICK the program consumes. Value 0 reserved; wire-compat decode maps button/0 to CONTAINER. 7 primitive kinds remain: LABEL, INPUT, CHECKBOX, SLIDER, CONTAINER, SCROLL, IMAGE. 74/74 green on both backends; vision-verified renders."
   source: user directive
   affects: [backend-sdl2-skia]
