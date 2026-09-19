@@ -488,9 +488,10 @@ static tgs_widget_type str_to_widget_type(const char *s)
     if (strcmp(s, "slider") == 0)   return TGS_WIDGET_SLIDER;
     if (strcmp(s, "progress") == 0) return TGS_WIDGET_PROGRESS;
     if (strcmp(s, "switch") == 0)   return TGS_WIDGET_SWITCH;
-    if (strcmp(s, "vlayout") == 0)  return TGS_WIDGET_VLAYOUT;
-    if (strcmp(s, "hlayout") == 0)  return TGS_WIDGET_HLAYOUT;
-    if (strcmp(s, "glayout") == 0)  return TGS_WIDGET_GLAYOUT;
+    /* layout names retired: they map to the plain CONTAINER (app computes
+     * child geometry); kept for wire compat with older programs */
+    if (strcmp(s, "vlayout") == 0 || strcmp(s, "hlayout") == 0 ||
+        strcmp(s, "glayout") == 0)  return TGS_WIDGET_CONTAINER;
     if (strcmp(s, "scroll") == 0)   return TGS_WIDGET_SCROLL;
     if (strcmp(s, "list") == 0)     return TGS_WIDGET_LIST;
     if (strcmp(s, "table") == 0)    return TGS_WIDGET_TABLE;

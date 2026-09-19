@@ -126,30 +126,28 @@ TEST_F(LvglBackend, ClickAtKnownPixelHitsExpectedWidget)
     be->destroy_window(win);
 }
 
-/* P3: runtime TGS_LAYOUT_GRID must actually grid children into distinct
- * cells, not silently degrade to a row flex (the pre-fix stub). Three
- * children in a 2-column grid land in two rows: c0 top-left, c1 top-right,
- * c2 bottom-left — so c0 and c1 share a row (same y) with different x, and
- * c2 sits below (larger y). */
-TEST_F(LvglBackend, GridLayoutPlacesChildrenInDistinctCells)
+/* SVG-scene semantics: a plain CONTAINER does no layout — children render at
+ * exactly the rects the program set. This is the contract that replaced the
+ * renderer-side flex/grid engines (layout is program policy). */
+TEST_F(LvglBackend, ContainerHoldsProgramComputedRects)
 {
     void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
     ASSERT_NE(win, nullptr);
 
-    /* A grid container (GLAYOUT), then three children dropped into it. */
-    void *grid = be->create_widget(win, TGS_WIDGET_GLAYOUT);
-    ASSERT_NE(grid, nullptr);
-    be->set_widget_rect(grid, 0, 0, 400, 300);
+    void *box = be->create_widget(win, TGS_WIDGET_CONTAINER);
+    ASSERT_NE(box, nullptr);
+    be->set_widget_rect(box, 0, 0, 400, 300);
 
-    void *c0 = be->create_widget(grid, TGS_WIDGET_BUTTON);
-    void *c1 = be->create_widget(grid, TGS_WIDGET_BUTTON);
-    void *c2 = be->create_widget(grid, TGS_WIDGET_BUTTON);
+    void *c0 = be->create_widget(box, TGS_WIDGET_BUTTON);
+    void *c1 = be->create_widget(box, TGS_WIDGET_BUTTON);
+    void *c2 = be->create_widget(box, TGS_WIDGET_BUTTON);
     ASSERT_NE(c0, nullptr);
     ASSERT_NE(c1, nullptr);
     ASSERT_NE(c2, nullptr);
+    be->set_widget_rect(c0, 10, 10, 120, 40);
+    be->set_widget_rect(c1, 150, 10, 120, 40);
+    be->set_widget_rect(c2, 10, 60, 120, 40);
 
-    /* Runtime relayout to a real 2-column grid. */
-    be->set_widget_layout(grid, TGS_LAYOUT_GRID, 2, 0);
     for (int i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
@@ -160,9 +158,12 @@ TEST_F(LvglBackend, GridLayoutPlacesChildrenInDistinctCells)
     ASSERT_EQ(be->widget_geometry(c1, &x1, &y1, &w1, &h1), 0);
     ASSERT_EQ(be->widget_geometry(c2, &x2, &y2, &w2, &h2), 0);
 
-    EXPECT_EQ(y0, y1) << "c0 and c1 share the first grid row";
-    EXPECT_NE(x0, x1) << "c0 and c1 are in different columns";
-    EXPECT_GT(y2, y0) << "c2 wraps to the second row (grid, not row flex)";
+    /* The renderer must not have moved anything: rects round-trip exactly. */
+    EXPECT_EQ(x0, 10); EXPECT_EQ(y0, 10); EXPECT_EQ(w0, 120); EXPECT_EQ(h0, 40);
+    EXPECT_EQ(x1, 150); EXPECT_EQ(y1, 10);
+    EXPECT_EQ(x2, 10); EXPECT_EQ(y2, 60);
+
+    be->set_event_callback(nullptr, nullptr);
     be->destroy_window(win);
 }
 

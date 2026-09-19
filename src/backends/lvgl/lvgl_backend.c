@@ -222,22 +222,10 @@ static lv_obj_t *create_lvgl_widget(tgs_widget_type type, lv_obj_t *parent)
     case TGS_WIDGET_IMAGE:    return lv_image_create(parent);
     case TGS_WIDGET_TIMEPICK: return lv_roller_create(parent);
     case TGS_WIDGET_DATEPICK: return lv_calendar_create(parent);
-    case TGS_WIDGET_VLAYOUT:
-        obj = create_container(parent);
-        lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(obj, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
-                              LV_FLEX_ALIGN_START);
-        return obj;
-    case TGS_WIDGET_HLAYOUT:
-        obj = create_container(parent);
-        lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(obj, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_CENTER);
-        return obj;
-    case TGS_WIDGET_GLAYOUT:
-        obj = create_container(parent);
-        lv_obj_set_grid_dsc_array(obj, grid_col_dsc, grid_row_dsc);
-        return obj;
+    case TGS_WIDGET_CONTAINER:
+        /* Plain box: children sit where the program puts them (SVG-scene
+         * semantics). The renderer runs no layout engine for app content. */
+        return create_container(parent);
     case TGS_WIDGET_SCROLL:
         obj = create_container(parent);
         lv_obj_set_scrollable(obj, true);

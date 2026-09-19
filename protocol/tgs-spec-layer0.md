@@ -97,27 +97,18 @@ Each stream has its own `frame_id` counter. Frame IDs start at 0 and increment p
 
 #### 4.3.1 Container Widgets
 
-容器控件是显式的控件类型；其布局由控件类型决定；子控件通过 `parent_id` 显式引用容器；只有容器可以有子控件。
+**布局是程序策略（SVG 场景语义）。** 渲染器不运行任何布局引擎：程序计算每个子控件的几何（自己的内容、自己的规则），用 `WGT_CREATE` 的 `x,y,w,h` 或 `WGT_LAYOUT` 摆放。容器（`CONTAINER` 8 / `SCROLL` 11）是纯盒子——唯一内建行为是 `SCROLL` 的视口状态（滚动偏移、边缘箭头消费）。
 
-A container is an explicit widget type. Its layout behaviour comes from its **type**, so `WGT_CREATE` alone declares and configures it — no separate layout command is required:
-
-| Container type | Implied layout on creation |
-|----------------|----------------------------|
-| `VLAYOUT` (8)  | Vertical flex flow         |
-| `HLAYOUT` (9)  | Horizontal flex flow       |
-| `GLAYOUT` (10) | Grid layout                |
-| `SCROLL` (11)  | Scrollable container       |
-
-Hierarchy is explicit via `parent_id`:
+层级通过 `parent_id` 显式表达：
 
 ```
-WGT_CREATE;<container_id>;<parent_id=0>;<type=VLAYOUT>;...
+WGT_CREATE;<container_id>;<parent_id=0>;<type=CONTAINER>;...
 WGT_CREATE;<button_id>;<parent_id=container_id>;<type=BUTTON>;...
 ```
 
-**Only containers may have children.** A `WGT_CREATE` whose `parent_id` names a leaf widget (BUTTON, LABEL, INPUT, CHECKBOX, RADIO, SLIDER, PROGRESS, SWITCH, IMAGE, DROPDOWN, TIMEPICK, DATEPICK) is invalid and MUST be rejected by the compositor.
+**只有容器可以有子控件。** `WGT_CREATE` 的 `parent_id` 若指向叶子控件（BUTTON、LABEL、INPUT、CHECKBOX、RADIO、SLIDER、PROGRESS、SWITCH、IMAGE、DROPDOWN、TIMEPICK、DATEPICK）则非法，合成器 MUST 拒绝。
 
-`WGT_LAYOUT` is **optional**. It changes the layout of an existing container at runtime (for example switching a `VLAYOUT` to row flow) without destroying and recreating its subtree. Normal container creation never needs it.
+`WGT_LAYOUT` **保留但语义收窄**：它调整的是渲染器可选的布局提示（对无布局引擎的后端是 no-op），不再是程序布局的规范途径。规范的布局途径 = 程序计算 rect。
 
 ### 4.4 Notifications (stream 4)
 
@@ -177,9 +168,9 @@ The IME application sends `IME_PREEDIT` for in-progress composition text and `IM
 | 5     | SLIDER     | Value slider             |
 | 6     | PROGRESS   | Progress bar             |
 | 7     | SWITCH     | Toggle switch            |
-| 8     | VLAYOUT    | Vertical layout container|
-| 9     | HLAYOUT    | Horizontal layout container|
-| 10    | GLAYOUT    | Grid layout container    |
+| 8     | CONTAINER  | Plain box; children at program-computed rects |
+| 9     | *reserved* | (retired VLAYOUT)        |
+| 10    | *reserved* | (retired HLAYOUT/GLAYOUT) |
 | 11    | SCROLL     | Scrollable container     |
 | 12    | LIST       | List view                |
 | 13    | TABLE      | Table view               |
@@ -192,7 +183,7 @@ The IME application sends `IME_PREEDIT` for in-progress composition text and `IM
 
 Total: 20 widget types.
 
-Container semantics (§4.3.1): `VLAYOUT` (8), `HLAYOUT` (9), `GLAYOUT` (10) and `SCROLL` (11) are the only types valid as a `parent_id`. Every other type is a leaf.
+Container semantics (§4.3.1): `CONTAINER` (8) and `SCROLL` (11) are the only types valid as a `parent_id`. Every other type is a leaf.
 
 #### 5.2.1 Primitive vs derived (design criterion)
 
@@ -208,12 +199,14 @@ Classification of the 20 types:
   `CHECKBOX` (toggle), `SLIDER` (value+range), `PROGRESS` (read-only value),
   `SWITCH` (toggle+animation), `IMAGE` (pixel source), `SCROLL` (scroll offset,
   arrow-consumption).
-- **Derived convenience** (11): `VLAYOUT`/`HLAYOUT`/`GLAYOUT` (pure arrangement
-  — expressible as container + layout attr, kept because L0 installs layout at
-  `WGT_CREATE`), `RADIO` (checkbox + visual policy; exclusivity is app policy),
-  `LIST` (scroll + appended rows), `MENU` (composition; stub — deprecation
-  candidate), `TAB` (page-strip + page stack), `DROPDOWN` (collapsed list +
-  popup), `TIMEPICK`/`DATEPICK` (structured value parsers).
+- **Derived convenience** (10): `RADIO` (checkbox + visual policy; exclusivity
+  is app policy), `LIST` (scroll + appended rows), `MENU` (composition; stub —
+  deprecation candidate), `TAB` (page-strip + page stack), `DROPDOWN`
+  (collapsed list + popup), `TIMEPICK`/`DATEPICK` (structured value parsers).
+- **Collapsed** (2026-09-18): `VLAYOUT`/`HLAYOUT`/`GLAYOUT` retired → plain
+  `CONTAINER` (8). Layout is program policy (SVG-scene semantics): the program
+  computes child rects; the renderer runs no layout engine. `WGT_LAYOUT` is
+  demoted to an optional renderer hint, not the normative layout path.
 
 Rules for new types (normative):
 

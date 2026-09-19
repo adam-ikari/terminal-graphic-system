@@ -19,10 +19,8 @@ type; swapping the backend only changes that column.
 
 | Widget | TGS Enum | Protocol semantics | Reference mapping (LVGL backend) |
 |--------|----------|--------------------|----------------------------------|
-| VLayout | `TGS_WIDGET_VLAYOUT` | Vertical flex container — stacks children top to bottom | flex column container |
-| HLayout | `TGS_WIDGET_HLAYOUT` | Horizontal flex container — stacks children left to right | flex row container |
-| GLayout | `TGS_WIDGET_GLAYOUT` | Grid container — arranges children in rows and columns | grid container |
-| Scroll | `TGS_WIDGET_SCROLL` | Scrollable viewport for overflow content | scrollable container |
+| Container | `TGS_WIDGET_CONTAINER` | Plain box — children at program-computed rects (layout is program policy, SVG-scene semantics) | plain `lv_obj` container, no layout engine |
+| Scroll | `TGS_WIDGET_SCROLL` | Scrollable viewport for overflow content (viewport state = mechanism) | scrollable container |
 
 ## Complex Widgets
 

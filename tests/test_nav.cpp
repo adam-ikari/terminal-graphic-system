@@ -61,7 +61,7 @@ TEST_F(NavTest, WidgetIdMayEqualWindowId)
 /* §A.3, §B.3 — containers, labels and progress are never tab stops. */
 TEST_F(NavTest, RingSkipsNonFocusableTypes)
 {
-    add(100, WIN, TGS_WIDGET_VLAYOUT);
+    add(100, WIN, TGS_WIDGET_CONTAINER);
     add(101, 100, TGS_WIDGET_BUTTON);
     add(102, WIN, TGS_WIDGET_LABEL);
     add(103, 100, TGS_WIDGET_BUTTON);
@@ -101,7 +101,7 @@ TEST_F(NavTest, AttributeOverridesAndRangeValidation)
     add(300, WIN, TGS_WIDGET_LABEL);
     add(301, WIN, TGS_WIDGET_SLIDER);
     add(302, WIN, TGS_WIDGET_BUTTON);
-    add(303, WIN, TGS_WIDGET_VLAYOUT);
+    add(303, WIN, TGS_WIDGET_CONTAINER);
 
     label = nav_widget_find(&m, 300);
     EXPECT_EQ(0, nav_widget_focusable(label));
@@ -170,7 +170,7 @@ TEST_F(NavTest, GroupScopeIsSingleTabStop)
 /* §C.1, criterion L8 — a TRAP wraps inside and never leaks to the outer ring. */
 TEST_F(NavTest, TrapScopeWrapsInside)
 {
-    add(500, WIN, TGS_WIDGET_VLAYOUT);
+    add(500, WIN, TGS_WIDGET_CONTAINER);
     add(501, 500, TGS_WIDGET_BUTTON);
     add(502, 500, TGS_WIDGET_BUTTON);
     add(503, WIN, TGS_WIDGET_BUTTON);

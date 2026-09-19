@@ -115,29 +115,32 @@ typedef enum {
 } tgs_window_type;
 
 
-/* Widget types (>= 20 per FR-5.2.1) */
+/* Widget kinds. Protocol-neutral: names are abstract UI concepts, never a
+ * rendering toolkit's catalog. Layout is PROGRAM policy — the program computes
+ * child geometry itself; the renderer holds no flex/grid engine for app
+ * content. Values are stable: retired kinds keep their numbers reserved. */
 typedef enum {
     TGS_WIDGET_BUTTON = 0,
-    TGS_WIDGET_LABEL,
-    TGS_WIDGET_INPUT,
-    TGS_WIDGET_CHECKBOX,
-    TGS_WIDGET_RADIO,
-    TGS_WIDGET_SLIDER,
-    TGS_WIDGET_PROGRESS,
-    TGS_WIDGET_SWITCH,
-    TGS_WIDGET_VLAYOUT,
-    TGS_WIDGET_HLAYOUT,
-    TGS_WIDGET_GLAYOUT,
-    TGS_WIDGET_SCROLL,
-    TGS_WIDGET_LIST,
-    TGS_WIDGET_TABLE,
-    TGS_WIDGET_MENU,
-    TGS_WIDGET_TAB,
-    TGS_WIDGET_DROPDOWN,
-    TGS_WIDGET_IMAGE,
-    TGS_WIDGET_TIMEPICK,
-    TGS_WIDGET_DATEPICK,
-    TGS_WIDGET_COUNT,
+    TGS_WIDGET_LABEL = 1,
+    TGS_WIDGET_INPUT = 2,
+    TGS_WIDGET_CHECKBOX = 3,
+    TGS_WIDGET_RADIO = 4,
+    TGS_WIDGET_SLIDER = 5,
+    TGS_WIDGET_PROGRESS = 6,
+    TGS_WIDGET_SWITCH = 7,
+    TGS_WIDGET_CONTAINER = 8,  /* plain box; children at app-computed rects */
+    /* 9, 10 reserved (VLAYOUT/HLAYOUT/GLAYOUT retired: layout is program
+     * policy — a renderer-side layout engine was a policy leak) */
+    TGS_WIDGET_SCROLL = 11,
+    TGS_WIDGET_LIST = 12,
+    TGS_WIDGET_TABLE = 13,
+    TGS_WIDGET_MENU = 14,
+    TGS_WIDGET_TAB = 15,
+    TGS_WIDGET_DROPDOWN = 16,
+    TGS_WIDGET_IMAGE = 17,
+    TGS_WIDGET_TIMEPICK = 18,
+    TGS_WIDGET_DATEPICK = 19,
+    TGS_WIDGET_COUNT = 20,
 } tgs_widget_type;
 /* Event types */
 typedef enum {

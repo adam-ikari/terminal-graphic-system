@@ -48,19 +48,19 @@ static void build_simple_form(tgs_backend *be, void *win)
     be->set_widget_content(w, "");
 }
 
-/* Mirrors examples/container_demo.c: VLAYOUT > (LABEL, HLAYOUT > (INPUT, BUTTON), LABEL) */
+/* Mirrors examples/container_demo.c: CONTAINER > (LABEL, CONTAINER > (INPUT, BUTTON)) */
 static void build_container_demo(tgs_backend *be, void *win)
 {
-    void *vlayout = be->create_widget(win, TGS_WIDGET_VLAYOUT);
+    void *vlayout = be->create_widget(win, TGS_WIDGET_CONTAINER);
     be->set_widget_rect(vlayout, 20, 20, 600, 200);
     be->set_widget_content(vlayout, "");
 
     void *label = be->create_widget(vlayout, TGS_WIDGET_LABEL);
-    be->set_widget_rect(label, 0, 0, 200, 30);
+    be->set_widget_rect(label, 10, 10, 200, 30);
     be->set_widget_content(label, "Name:");
 
-    void *hlayout = be->create_widget(vlayout, TGS_WIDGET_HLAYOUT);
-    be->set_widget_rect(hlayout, 0, 0, 560, 40);
+    void *hlayout = be->create_widget(vlayout, TGS_WIDGET_CONTAINER);
+    be->set_widget_rect(hlayout, 10, 50, 560, 40);
     be->set_widget_content(hlayout, "");
 
     void *input = be->create_widget(hlayout, TGS_WIDGET_INPUT);
@@ -68,11 +68,11 @@ static void build_container_demo(tgs_backend *be, void *win)
     be->set_widget_content(input, "");
 
     void *btn = be->create_widget(hlayout, TGS_WIDGET_BUTTON);
-    be->set_widget_rect(btn, 0, 0, 80, 40);
+    be->set_widget_rect(btn, 320, 0, 80, 40);
     be->set_widget_content(btn, "OK");
 
     void *result = be->create_widget(vlayout, TGS_WIDGET_LABEL);
-    be->set_widget_rect(result, 0, 0, 400, 30);
+    be->set_widget_rect(result, 10, 100, 400, 30);
     be->set_widget_content(result, "");
 }
 
@@ -96,9 +96,8 @@ static void build_library(tgs_backend *be, void *win)
         { TGS_WIDGET_IMAGE,    "" },
         { TGS_WIDGET_TIMEPICK, "00\n01\n02" },
         { TGS_WIDGET_DATEPICK, "2026-09-14" },
-        { TGS_WIDGET_VLAYOUT,  "" },
-        { TGS_WIDGET_HLAYOUT,  "" },
-        { TGS_WIDGET_GLAYOUT,  "" },
+        { TGS_WIDGET_CONTAINER, "" },
+        { TGS_WIDGET_SCROLL,   "" },
         { TGS_WIDGET_SCROLL,   "" },
     };
     size_t n = sizeof(items) / sizeof(items[0]);
@@ -259,9 +258,7 @@ static const struct { tgs_widget_type type; const char *name; const char *t; } s
     { TGS_WIDGET_IMAGE,     "image",     "" },
     { TGS_WIDGET_TIMEPICK,  "timepick",  "10\n11\n12\n13\n14" },
     { TGS_WIDGET_DATEPICK,  "datepick",  "2026-09-18" },
-    { TGS_WIDGET_VLAYOUT,   "vlayout",   "" },
-    { TGS_WIDGET_HLAYOUT,   "hlayout",   "" },
-    { TGS_WIDGET_GLAYOUT,   "glayout",   "" },
+    { TGS_WIDGET_CONTAINER, "container", "" },
     { TGS_WIDGET_SCROLL,    "scroll",    "" },
 };
 
@@ -269,33 +266,17 @@ static const struct { tgs_widget_type type; const char *name; const char *t; } s
 static void populate_single(tgs_backend *be, void *w, tgs_widget_type type)
 {
     switch (type) {
-    case TGS_WIDGET_VLAYOUT: {
+    case TGS_WIDGET_CONTAINER: {
+        /* program-computed layout: label row, then two buttons side by side */
         void *a = be->create_widget(w, TGS_WIDGET_LABEL);
         void *b = be->create_widget(w, TGS_WIDGET_BUTTON);
-        be->set_widget_rect(a, 0, 0, 100, 30);
-        be->set_widget_content(a, "row one");
-        be->set_widget_rect(b, 0, 0, 100, 36);
-        be->set_widget_content(b, "row two");
-        break;
-    }
-    case TGS_WIDGET_HLAYOUT: {
-        void *a = be->create_widget(w, TGS_WIDGET_BUTTON);
-        void *b = be->create_widget(w, TGS_WIDGET_INPUT);
-        be->set_widget_rect(a, 0, 0, 100, 40);
-        be->set_widget_content(a, "left");
-        be->set_widget_rect(b, 0, 0, 120, 40);
-        break;
-    }
-    case TGS_WIDGET_GLAYOUT: {
-        void *g1 = be->create_widget(w, TGS_WIDGET_BUTTON);
-        void *g2 = be->create_widget(w, TGS_WIDGET_BUTTON);
-        void *g3 = be->create_widget(w, TGS_WIDGET_BUTTON);
-        be->set_widget_rect(g1, 0, 0, 100, 36);
-        be->set_widget_content(g1, "g1");
-        be->set_widget_rect(g2, 0, 0, 100, 36);
-        be->set_widget_content(g2, "g2");
-        be->set_widget_rect(g3, 0, 0, 100, 36);
-        be->set_widget_content(g3, "g3");
+        void *c = be->create_widget(w, TGS_WIDGET_BUTTON);
+        be->set_widget_rect(a, 0, 0, 250, 24);
+        be->set_widget_content(a, "row one (program-computed rects)");
+        be->set_widget_rect(b, 0, 30, 120, 36);
+        be->set_widget_content(b, "left");
+        be->set_widget_rect(c, 130, 30, 120, 36);
+        be->set_widget_content(c, "right");
         break;
     }
     case TGS_WIDGET_SCROLL: {

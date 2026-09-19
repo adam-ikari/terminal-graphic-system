@@ -81,7 +81,7 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ### 3.6 控件分列展示（每控件独立渲染）
 
-每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 60 张（20 控件 × 3 状态）经**视觉模型逐张验收**。
+每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 54 张（18 控件 × 3 状态）经**视觉模型逐张验收**。布局已归程序（**SVG 场景语义**）：CONTAINER 是纯盒子，子控件 rect 由程序计算，渲染器不跑布局引擎。
 
 | 控件 | 正常 | 悬停 | 按下 |
 |---|---|---|---|
@@ -97,9 +97,7 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 | Tab 标签页 | ![t](screenshots/singles/tab_normal.png) | ![th](screenshots/singles/tab_hover.png) | ![tp](screenshots/singles/tab_pressed.png) |
 | Timepick 时间滚轮 | ![ti](screenshots/singles/timepick_normal.png) | ![tih](screenshots/singles/timepick_hover.png) | ![tip](screenshots/singles/timepick_pressed.png) |
 | Datepick 日历 | ![da](screenshots/singles/datepick_normal.png) | ![dah](screenshots/singles/datepick_hover.png) | ![dap](screenshots/singles/datepick_pressed.png) |
-| VLayout 纵向布局 | ![vl](screenshots/singles/vlayout_normal.png) | ![vlh](screenshots/singles/vlayout_hover.png) | ![vlp](screenshots/singles/vlayout_pressed.png) |
-| HLayout 横向布局 | ![hl](screenshots/singles/hlayout_normal.png) | ![hlh](screenshots/singles/hlayout_hover.png) | ![hlp](screenshots/singles/hlayout_pressed.png) |
-| GLayout 网格布局 | ![gl](screenshots/singles/glayout_normal.png) | ![glh](screenshots/singles/glayout_hover.png) | ![glp](screenshots/singles/glayout_pressed.png) |
+| Container 容器（程序摆位） | ![vl](screenshots/singles/container_normal.png) | ![vlh](screenshots/singles/container_hover.png) | ![vlp](screenshots/singles/container_pressed.png) |
 | Scroll 滚动容器 | ![sc](screenshots/singles/scroll_normal.png) | ![sch](screenshots/singles/scroll_hover.png) | ![scp](screenshots/singles/scroll_pressed.png) |
 
 > 图片由 `render_demo singles` 模式生成：每控件独立窗口、居中渲染，驱动真实 LVGL 后端到内存帧缓冲输出 PNG。

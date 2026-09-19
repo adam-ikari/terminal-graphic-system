@@ -1,9 +1,9 @@
 /*
- * container_demo.c — Explicit container widgets using the TGS client API.
+ * container_demo.c — program-computed layout with plain containers.
  *
- * A container is a widget: the app declares VLAYOUT/HLAYOUT/GLAYOUT/SCROLL by
- * type and passes the container's id as parent_id for its children. Nesting is
- * therefore plain parent_id hierarchy, no separate layout command.
+ * A container is a widget; the program computes child geometry itself (SVG-
+ * scene semantics) and positions each child with its own rect. Nesting is
+ * plain parent_id hierarchy.
  *
  * Writes TGS protocol to stdout; debug output goes to stderr.
  * C99, links against tgs_client.
@@ -36,23 +36,22 @@ int main(void)
         return 1;
     }
 
-    /* Vertical container under the window: children stack top to bottom. */
-    tgs_client_create_widget(TGS_WIDGET_VLAYOUT, ID_VLAYOUT, win.window_id,
+    /* Container under the window: the program places its children. */
+    tgs_client_create_widget(TGS_WIDGET_CONTAINER, ID_VLAYOUT, win.window_id,
                              20, 20, 600, 200, "");
 
-    /* Label is a direct child of the vertical container. */
+    /* Children at program-computed rects, relative to the container. */
     tgs_client_create_widget(TGS_WIDGET_LABEL, ID_NAME_LABEL, ID_VLAYOUT,
-                             0, 0, 200, 30, "Name:");
+                             10, 10, 200, 30, "Name:");
 
-    /* Horizontal container nested inside the vertical one. */
-    tgs_client_create_widget(TGS_WIDGET_HLAYOUT, ID_HLAYOUT, ID_VLAYOUT,
-                             0, 0, 560, 40, "");
+    /* Nested container. */
+    tgs_client_create_widget(TGS_WIDGET_CONTAINER, ID_HLAYOUT, ID_VLAYOUT,
+                             10, 50, 560, 40, "");
 
-    /* Input and button share the horizontal container. */
     tgs_client_create_widget(TGS_WIDGET_INPUT, ID_NAME_INPUT, ID_HLAYOUT,
                              0, 0, 300, 40, "");
     tgs_client_create_widget(TGS_WIDGET_BUTTON, ID_OK_BTN, ID_HLAYOUT,
-                             0, 0, 80, 40, "OK");
+                             320, 0, 80, 40, "OK");
 
     /* Result label sits below the nested container. */
     tgs_client_create_widget(TGS_WIDGET_LABEL, ID_RESULT_LABEL, ID_VLAYOUT,

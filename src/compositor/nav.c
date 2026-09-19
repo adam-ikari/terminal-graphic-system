@@ -15,8 +15,7 @@
 
 int nav_type_is_container(tgs_widget_type t)
 {
-    return t == TGS_WIDGET_VLAYOUT || t == TGS_WIDGET_HLAYOUT ||
-           t == TGS_WIDGET_GLAYOUT || t == TGS_WIDGET_SCROLL;
+    return t == TGS_WIDGET_CONTAINER || t == TGS_WIDGET_SCROLL;
 }
 
 int nav_type_focusable(tgs_widget_type t)
@@ -27,9 +26,7 @@ int nav_type_focusable(tgs_widget_type t)
     case TGS_WIDGET_IMAGE:
     /* Layout containers are transparent for focus (§B.3): their children take
      * part in the enclosing ring, the container itself is never a stop. */
-    case TGS_WIDGET_VLAYOUT:
-    case TGS_WIDGET_HLAYOUT:
-    case TGS_WIDGET_GLAYOUT:
+    case TGS_WIDGET_CONTAINER:
     case TGS_WIDGET_SCROLL:
         return 0;
     default:

@@ -47,7 +47,26 @@ exit criterion — see rule below):
 3. Event model stays interaction-shaped (CLICK/VALUE/KEY/HOVER/FOCUS), never
    widget-shaped — this is what keeps the protocol renderer-neutral.
 
-## Why not collapse now
+## Reversal (2026-09-18): layouts move to the program — collapse NOW
+
+The "why not collapse now" rationale below is OVERTURNED for the layout trio.
+First-principles: the compositor's own charter says "server holds mechanism,
+program holds policy". Layout IS policy — the program knows its content and
+should compute geometry itself. A renderer that runs flex/grid is a policy
+leak: the compositor is doing the program's design work with its own
+hard-coded rules.
+
+DONE (2026-09-18): the user sharpened the direction — the widget protocol is
+DRAWING semantics, like SVG. The renderer is a scene painter: primitives are
+things you draw (box, text, image) and interact with (button, input, toggle,
+value). VLAYOUT/HLAYOUT/GLAYOUT are RETIRED (values 9/10 reserved); a plain
+TGS_WIDGET_CONTAINER (8) holds children at program-computed rects. SCROLL
+survives (scroll offset is viewport mechanism). TGS_LAYOUT_* is demoted to an
+optional renderer hint, not the normative layout path. Spec §4.3.1 and §5.2.1
+rewritten; container_demo rewritten with program-computed rects; a new
+test (ContainerHoldsProgramComputedRects) pins the no-layout contract:
+rects round-trip exactly.
+
 
 L0/L1 shipped the catalog; apps exist. The catalog is already semantic
 (button/label/input are primitives by the criterion). The only true
