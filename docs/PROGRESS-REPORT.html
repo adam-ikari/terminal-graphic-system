@@ -78,8 +78,8 @@
   <div class="meta">
     <span>汇报日期 2026-09-18</span>
     <span>代码基线 b8eca9c</span>
-    <span>测试 74/74 通过</span>
-    <span>截图 65 张 · 视觉模型逐张验收</span>
+    <span>测试 74/74 通过</span><span>协议 = 绘制语义（类 SVG）</span>
+    <span>截图 59 张 · 视觉模型逐张验收</span>
   </div>
 </header>
 
@@ -138,7 +138,7 @@
   <div class="shot"><img src="screenshots/states_slider_hover.png" alt="Slider 悬停"></div>
 
   <h3>3.6 控件分列展示（每控件独立渲染 × 三状态）</h3>
-  <p>每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 60 张（20 控件 × 3 状态）经<strong>视觉模型逐张验收</strong>。</p>
+  <p>每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 54 张（18 控件 × 3 状态）经<strong>视觉模型逐张验收</strong>。布局已归程序（SVG 场景语义）：CONTAINER 是纯盒子，子控件 rect 由程序计算，渲染器不跑布局引擎。</p>
   <div class="singles">
     <div class="srow">
       <div class="sname"><strong>Button</strong><br><small>按钮</small></div>
@@ -213,22 +213,10 @@
       <figure><img src="screenshots/singles/datepick_pressed.png" alt="Datepick pressed"><figcaption>按下</figcaption></figure>
     </div>
     <div class="srow">
-      <div class="sname"><strong>VLayout</strong><br><small>纵向布局</small></div>
-      <figure><img src="screenshots/singles/vlayout_normal.png" alt="VLayout normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/vlayout_hover.png" alt="VLayout hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/vlayout_pressed.png" alt="VLayout pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>HLayout</strong><br><small>横向布局</small></div>
-      <figure><img src="screenshots/singles/hlayout_normal.png" alt="HLayout normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/hlayout_hover.png" alt="HLayout hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/hlayout_pressed.png" alt="HLayout pressed"><figcaption>按下</figcaption></figure>
-    </div>
-    <div class="srow">
-      <div class="sname"><strong>GLayout</strong><br><small>网格布局</small></div>
-      <figure><img src="screenshots/singles/glayout_normal.png" alt="GLayout normal"><figcaption>正常</figcaption></figure>
-      <figure><img src="screenshots/singles/glayout_hover.png" alt="GLayout hover"><figcaption>悬停</figcaption></figure>
-      <figure><img src="screenshots/singles/glayout_pressed.png" alt="GLayout pressed"><figcaption>按下</figcaption></figure>
+      <div class="sname"><strong>Container</strong><br><small>容器（程序摆位）</small></div>
+      <figure><img src="screenshots/singles/container_normal.png" alt="Container normal"><figcaption>正常</figcaption></figure>
+      <figure><img src="screenshots/singles/container_hover.png" alt="Container hover"><figcaption>悬停</figcaption></figure>
+      <figure><img src="screenshots/singles/container_pressed.png" alt="Container pressed"><figcaption>按下</figcaption></figure>
     </div>
     <div class="srow">
       <div class="sname"><strong>Scroll</strong><br><small>滚动容器</small></div>
