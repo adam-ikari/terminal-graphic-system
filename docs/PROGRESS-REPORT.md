@@ -67,7 +67,7 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 
 ![悬停态](screenshots/states_hover.png)
 
-**按下 Button**——LVGL 按压态外观：
+**按下 Button**——后端按压态外观：
 
 ![按下态](screenshots/states_pressed.png)
 
@@ -92,7 +92,7 @@ TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 
 | Container 容器（程序摆位） | ![vl](screenshots/singles/container_normal.png) | ![vlh](screenshots/singles/container_hover.png) | ![vlp](screenshots/singles/container_pressed.png) |
 | Scroll 滚动容器 | ![sc](screenshots/singles/scroll_normal.png) | ![sch](screenshots/singles/scroll_hover.png) | ![scp](screenshots/singles/scroll_pressed.png) |
 
-> 图片由 `render_demo singles` 模式生成：每控件独立窗口、居中渲染，驱动真实 LVGL 后端到内存帧缓冲输出 PNG。
+> 图片由 `render_demo singles` 模式生成：每控件独立窗口、居中渲染，驱动真实 场景后端（SDL2 paint 端口；Skia 参考后端已接入）到内存帧缓冲输出 PNG。
 
 ---
 
@@ -108,7 +108,7 @@ button、input、checkbox、slider（含悬停蓝描边）、switch（修复后 
 
 | 缺陷 | 视觉评分 | 根因 | 修复 | 复验 |
 |---|---|---|---|---|
-| switch 滑块溢出轨道 | 3-5/10（"像渲染错误"） | LVGL 把 knob 画在开关全高，小圆角轨道挡不住四角 | 轨道改胶囊形（radius=高度/2） | **9/10** "全在轨道内，垂直居中" |
+| switch 滑块溢出轨道 | 3-5/10（"像渲染错误"） | 旧后端把 knob 画在开关全高，小圆角轨道挡不住四角（该 look 已随控件退役） | 轨道改胶囊形（radius=高度/2） | **9/10** "全在轨道内，垂直居中" |
 | radio 方框与 checkbox 不可区分 | 外观重复 | 圆角设在 main part，方块画在 `LV_PART_INDICATOR` | 圆角移到 INDICATOR part | ✅ "圆钮白心蓝环，可区分" |
 | button hover/press 无反馈 | 交互缺失 | 内容 label 继承 CLICKABLE 拦截指针 + user_data 编码冲突 | label 去 CLICKABLE + `type+1` 编码 | ✅ hover 蓝框 1067px、按下 diff 8404px |
 
@@ -125,26 +125,26 @@ button、input、checkbox、slider（含悬停蓝描边）、switch（修复后 
 
 ### 5.1 字符终端（L0）
 
-- PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。
+- PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → 场景 underlay（字符基像素）。
 - 验证：`htop`、`ls` 以零 TGS 代码运行；`test_term.cpp` 覆盖模拟器与解复用。
 
 ### 5.2 图形控件与布局（L0–L3）
 
-- **widget 原语集**：8 种绘制原语映射到真实 LVGL 对象；派生外观是程序侧组合；事件经 `wm_backend_event` 单一门控转发。
+- **widget 原语集**：8 种绘制原语映射到真实 场景节点；派生外观是程序侧组合；事件经 `wm_backend_event` 单一门控转发。
 - **焦点/键盘导航**（L2）：合成器持有焦点权（`NTF_FOCUS` + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。
-- **容器布局**（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；**运行时 GRID 真布局**——`WGT_LAYOUT` 支持 `[cols, rows]`。
+- **容器布局**（L3 P3）：（历史记录）布局引擎已随旧后端（LVGL）退役——布局归程序（SVG 场景语义）。**运行时 GRID 真布局**——`WGT_LAYOUT` 支持 `[cols, rows]`。
 - **容器几何回传**（L2）：`NTF_GEOMETRY`(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。
 
 ### 5.3 多窗口（L3 P4）
 
-- 每窗口独立 LVGL root + 焦点组；指针点击后台窗口激活。
+- 每窗口独立场景 root + 焦点环；指针点击后台窗口激活。
 - **Alt+Tab / Alt+Shift+Tab** 循环窗口，恢复各窗口记住的焦点（`WINDOW_RESTORE`）。
 - `NTF_DESTROY`(66)、`NTF_STATE`(67)（激活切换成对通知）落地发射。
 
 ### 5.4 指针交互全模型（新增）
 
 - **鼠标悬停**：`TGS_EVENT_HOVER_ENTER/LEAVE`（7/8）——backend 递归 hit-test 窗口 root，只报状态变化；订阅门控（同 CLICK）；触摸不产生悬停（无 hover 语义）。
-- **点击/按压**：CLICK 事件 + LVGL 原生按压/聚焦视觉。
+- **点击/按压**：CLICK 事件 + 后端按压/聚焦视觉。
 - **事件订阅模型**（L2 D6）：CLICK/VALUE/HOVER 走 opt-in 订阅；KEY 是输入传输始终送达；焦点永不门控。
 
 ### 5.5 字符 + 控件混排（L1）
@@ -163,7 +163,7 @@ button、input、checkbox、slider（含悬停蓝描边）、switch（修复后 
 | 项 | 值 |
 |---|---|
 | 自动化测试 | **74/74 通过**（gtest，11 套件），ctest 1/1 |
-| 覆盖 | 帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、LVGL 点击命中、GRID 布局 |
+| 覆盖 | 帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、点击命中、GRID 布局 |
 | 证据链 | 每个修复红→绿（stash 前失败/恢复后通过） |
 | 视觉验收 | 60 张控件截图 + 5 张交互状态图，视觉模型逐张评审，缺陷闭环 |
 | 工作树 | 干净 |

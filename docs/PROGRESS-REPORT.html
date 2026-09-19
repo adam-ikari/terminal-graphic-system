@@ -78,7 +78,7 @@
   <div class="meta">
     <span>汇报日期 2026-09-18</span>
     <span>代码基线 b8eca9c</span>
-    <span>测试 74/74 通过</span><span>协议 = 绘制语义（类 SVG）</span>
+    <span>测试 74/74 通过（SDL2 与 Skia 双后端均绿）</span><span>协议 = 绘制语义（类 SVG）</span><span>渲染器 = scene painter（SDL2 + Skia）</span>
     <span>截图 29 张 · 视觉模型逐张验收</span>
   </div>
 </header>
@@ -130,7 +130,7 @@
   <div class="shot"><img src="screenshots/states_normal.png" alt="正常态"></div>
   <h4>悬停 Button（程序收到 HOVER_ENTER，画蓝色边框）</h4>
   <div class="shot"><img src="screenshots/states_hover.png" alt="悬停态"></div>
-  <h4>按下 Button（LVGL 按压态）</h4>
+  <h4>按下 Button（后端按压态）</h4>
   <div class="shot"><img src="screenshots/states_pressed.png" alt="按下态"></div>
   <h4>点击后（焦点轮廓 + CLICK 事件）</h4>
   <div class="shot"><img src="screenshots/states_clicked.png" alt="点击态"></div>
@@ -177,7 +177,7 @@
       <figure><img src="screenshots/singles/scroll_pressed.png" alt="Scroll pressed"><figcaption>按下</figcaption></figure>
     </div>
   </div>
-  <div class="note">每张截图：800×600 深色背景，控件居中，由 <code>render_demo singles</code> 模式驱动真实 LVGL 后端渲染。悬停 = 程序响应 HOVER_ENTER 画的蓝色边框；按下 = LVGL 原生按压态。image 空白（resources 未做）与 menu stub（L3 P2）为已知待办。</div>
+  <div class="note">每张截图：800×600 深色背景，控件居中，由 <code>render_demo singles</code> 模式驱动真实 场景后端（SDL2 paint 端口；Skia 参考后端已接入）渲染。悬停 = 程序响应 HOVER_ENTER 画的蓝色边框；按下 = 后端按压态。image 空白（resources 未做）与 menu stub（L3 P2）为已知待办。</div>
 </section>
 
 <section class="card">
@@ -187,7 +187,7 @@
   <h3>4.1 评审抓出并修复的渲染缺陷</h3>
   <table>
     <tr><th>缺陷</th><th>视觉评分</th><th>根因</th><th>修复</th><th>复验</th></tr>
-    <tr><td>switch 滑块溢出轨道</td><td>3-5/10（"像渲染错误"）</td><td>LVGL 把 knob 画在开关全高，小圆角轨道挡不住四角</td><td>轨道改胶囊形（radius=高度/2）</td><td><strong>9/10</strong> "全在轨道内，垂直居中"</td></tr>
+    <tr><td>switch 滑块溢出轨道</td><td>3-5/10（"像渲染错误"）</td><td>旧后端把 knob 画在开关全高，小圆角轨道挡不住四角（该 look 已随控件退役）</td><td>轨道改胶囊形（radius=高度/2）</td><td><strong>9/10</strong> "全在轨道内，垂直居中"</td></tr>
     <tr><td>radio 方框与 checkbox 不可区分</td><td>外观重复</td><td>圆角设在 main part，方块画在 <code>LV_PART_INDICATOR</code></td><td>圆角移到 INDICATOR part</td><td>✅ "圆钮白心蓝环，可区分"</td></tr>
     <tr><td>button hover/press 无反馈</td><td>交互缺失</td><td>内容 label 继承 CLICKABLE 拦截指针 + user_data 编码冲突</td><td>label 去 CLICKABLE + <code>type+1</code> 编码</td><td>✅ hover 蓝框 1067px、按下 diff 8404px</td></tr>
   </table>
@@ -204,26 +204,26 @@
   <h2><span class="no">5</span>已交付能力</h2>
   <h3>5.1 字符终端（L0）</h3>
   <ul>
-    <li>PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → LVGL canvas。</li>
+    <li>PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → 场景 underlay（字符基像素）。</li>
     <li>验证：<code>htop</code>、<code>ls</code> 以零 TGS 代码运行；<code>test_term.cpp</code> 覆盖模拟器与解复用。</li>
   </ul>
   <h3>5.2 图形控件与布局（L0–L3）</h3>
   <ul>
-    <li><strong>widget 集</strong>：20/20 类型映射到真实 LVGL 对象；事件经 <code>wm_backend_event</code> 单一门控转发。</li>
+    <li><strong>widget 集</strong>：20/20 类型映射到真实 场景节点；事件经 <code>wm_backend_event</code> 单一门控转发。</li>
     <li><strong>焦点/键盘导航</strong>（L2）：合成器持有焦点权（<code>NTF_FOCUS</code> + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。</li>
-    <li><strong>容器布局</strong>（L3 P3）：VLAYOUT/HLAYOUT/SCROLL 用 LVGL 原生引擎；<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>。</li>
+    <li><strong>容器布局</strong>（L3 P3）：（历史记录）布局引擎已随旧后端（LVGL）退役——布局归程序（SVG 场景语义）。<strong>运行时 GRID 真布局</strong>——<code>WGT_LAYOUT</code> 支持 <code>[cols, rows]</code>。</li>
     <li><strong>容器几何回传</strong>（L2）：<code>NTF_GEOMETRY</code>(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。</li>
   </ul>
   <h3>5.3 多窗口（L3 P4）</h3>
   <ul>
-    <li>每窗口独立 LVGL root + 焦点组；指针点击后台窗口激活。</li>
+    <li>每窗口独立场景 root + 焦点环；指针点击后台窗口激活。</li>
     <li><strong>Alt+Tab / Alt+Shift+Tab</strong> 循环窗口，恢复各窗口记住的焦点（<code>WINDOW_RESTORE</code>）。</li>
     <li><code>NTF_DESTROY</code>(66)、<code>NTF_STATE</code>(67)（激活切换成对通知）落地发射。</li>
   </ul>
   <h3>5.4 指针交互全模型（新增）</h3>
   <ul>
     <li><strong>鼠标悬停</strong>：<code>TGS_EVENT_HOVER_ENTER/LEAVE</code>(7/8)——backend 递归 hit-test 窗口 root，只报状态变化；订阅门控（同 CLICK）；触摸不产生悬停（无 hover 语义）。</li>
-    <li><strong>点击/按压</strong>：CLICK 事件 + LVGL 原生按压/聚焦视觉。</li>
+    <li><strong>点击/按压</strong>：CLICK 事件 + 后端按压/聚焦视觉。</li>
     <li><strong>事件订阅模型</strong>（L2 D6）：CLICK/VALUE/HOVER 走 opt-in 订阅；KEY 是输入传输始终送达；焦点永不门控。</li>
   </ul>
   <h3>5.5 字符 + 控件混排（L1）</h3>
@@ -240,7 +240,7 @@
   <table>
     <tr><th>项</th><th>值</th></tr>
     <tr><td>自动化测试</td><td><strong>74/74 通过</strong>（gtest，11 套件），ctest 1/1</td></tr>
-    <tr><td>覆盖</td><td>帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、LVGL 点击命中、GRID 布局</td></tr>
+    <tr><td>覆盖</td><td>帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、点击命中、GRID 布局</td></tr>
     <tr><td>证据链</td><td>每个修复红→绿（stash 前失败 / 恢复后通过）</td></tr>
     <tr><td>视觉验收</td><td>60 张控件截图 + 5 张交互状态图，视觉模型逐张评审，缺陷闭环</td></tr>
     <tr><td>工作树</td><td>干净</td></tr>
