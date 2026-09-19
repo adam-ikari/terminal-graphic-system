@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/nav_probe.dir/tests/nav_probe.c.o -o nav_probe  libtgs_client.a libtgs_common.a

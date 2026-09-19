@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/term_probe.dir/tests/term_probe.c.o -o term_probe  libtgs_compositor.a libtgs_common.a libvterm.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtgs_common.a CMakeFiles/tgs_common.dir/src/common/tgs_frame.c.o CMakeFiles/tgs_common.dir/src/common/tgs_backend.c.o
+/usr/bin/ranlib libtgs_common.a

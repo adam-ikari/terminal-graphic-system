@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtgs_compositor.a CMakeFiles/tgs_compositor.dir/src/compositor/parser.c.o CMakeFiles/tgs_compositor.dir/src/compositor/nav.c.o CMakeFiles/tgs_compositor.dir/src/compositor/term.c.o CMakeFiles/tgs_compositor.dir/src/compositor/window_manager.c.o
+/usr/bin/ranlib libtgs_compositor.a

@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/states_demo.dir/examples/states_demo.c.o -o states_demo  libtgs_client.a libtgs_common.a

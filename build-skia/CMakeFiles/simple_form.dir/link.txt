@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/simple_form.dir/examples/simple_form.c.o -o simple_form  libtgs_client.a libtgs_common.a

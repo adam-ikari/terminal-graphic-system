@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtgs_client.a CMakeFiles/tgs_client.dir/src/client/tgs_client.c.o
+/usr/bin/ranlib libtgs_client.a

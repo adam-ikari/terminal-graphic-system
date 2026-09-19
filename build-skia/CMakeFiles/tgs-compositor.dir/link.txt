@@ -1,0 +1,1 @@
+/usr/bin/c++ "CMakeFiles/tgs-compositor.dir/src/compositor/main.c.o" -o tgs-compositor  libtgs_compositor.a libtgs_scene_backend.a -lutil libvterm.a libtgs_common.a /home/gem/deps/skia/out/Release/libskia.a -lpthread -ldl -lstdc++ -lm -lz -lpng16 -L/usr/lib/x86_64-linux-gnu  -lSDL2 /usr/lib/x86_64-linux-gnu/libSDL2.so -lSDL2_ttf

@@ -14,6 +14,7 @@ enable_testing()
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Display backend option
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+option(TGS_USE_SKIA "Build the Skia paint port into the scene backend" OFF)
 option(TGS_USE_SDL "Use SDL2 for desktop display (recommended)" ON)
 option(TGS_USE_SIXEL "Use sixel for terminal display (fallback)" OFF)
 
@@ -176,13 +177,25 @@ if(NOT TGS_USE_SDL)
     list(APPEND BACKEND_SOURCES src/backends/output_fb.c src/backends/input_fb.c)
 endif()
 
+if(TGS_USE_SKIA)
+    list(APPEND BACKEND_SOURCES src/backends/scene/paint_skia.cpp)
+endif()
+
 add_library(tgs_scene_backend STATIC ${BACKEND_SOURCES})
 target_include_directories(tgs_scene_backend PUBLIC
     src/backends/scene src/compositor)
+if(TGS_USE_SKIA)
+    set(SKIA_DIR /home/gem/deps/skia CACHE PATH "Skia checkout with out/Release/libskia.a")
+    target_compile_definitions(tgs_scene_backend PUBLIC TGS_USE_SKIA=1)
+    target_include_directories(tgs_scene_backend PUBLIC ${SKIA_DIR} ${SKIA_DIR}/include ${SKIA_DIR}/include/core ${SKIA_DIR}/include/config ${SKIA_DIR}/include/utils ${SKIA_DIR}/include/private ${SKIA_DIR}/include/ports ${SKIA_DIR}/src/core)
+    target_link_libraries(tgs_scene_backend PUBLIC ${SKIA_DIR}/out/Release/libskia.a -lpthread -ldl -lstdc++ -lm -lz -lpng16)
+endif()
+
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(SDL2 QUIET sdl2 SDL2_ttf)
 endif()
+
 if(TGS_USE_SDL)
     target_link_libraries(tgs_scene_backend PUBLIC tgs_common ${SDL2_LIBRARIES} SDL2::SDL2 SDL2_ttf)
     target_include_directories(tgs_scene_backend PUBLIC ${SDL2_INCLUDE_DIRS})

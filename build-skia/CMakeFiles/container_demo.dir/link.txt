@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/container_demo.dir/examples/container_demo.c.o -o container_demo  libtgs_client.a libtgs_common.a

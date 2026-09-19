@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/char_and_graphics.dir/examples/char_and_graphics.c.o -o char_and_graphics  libtgs_client.a libtgs_common.a

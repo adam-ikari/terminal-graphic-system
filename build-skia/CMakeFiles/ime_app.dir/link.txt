@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/ime_app.dir/examples/ime_app.c.o -o ime_app  libtgs_client.a libtgs_common.a

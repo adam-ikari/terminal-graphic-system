@@ -1,0 +1,2 @@
+/usr/bin/ar qc libvterm.a CMakeFiles/vterm.dir/deps/libvterm/src/encoding.c.o CMakeFiles/vterm.dir/deps/libvterm/src/keyboard.c.o CMakeFiles/vterm.dir/deps/libvterm/src/mouse.c.o CMakeFiles/vterm.dir/deps/libvterm/src/parser.c.o CMakeFiles/vterm.dir/deps/libvterm/src/pen.c.o CMakeFiles/vterm.dir/deps/libvterm/src/screen.c.o CMakeFiles/vterm.dir/deps/libvterm/src/state.c.o CMakeFiles/vterm.dir/deps/libvterm/src/unicode.c.o CMakeFiles/vterm.dir/deps/libvterm/src/vterm.c.o
+/usr/bin/ranlib libvterm.a

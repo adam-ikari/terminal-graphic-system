@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtgs_scene_backend.a CMakeFiles/tgs_scene_backend.dir/src/backends/scene/scene_core.c.o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/scene_backend.c.o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/paint_sdl2.c.o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/term_view.c.o CMakeFiles/tgs_scene_backend.dir/src/backends/output_sdl.c.o CMakeFiles/tgs_scene_backend.dir/src/backends/input_sdl.c.o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/paint_skia.cpp.o
+/usr/bin/ranlib libtgs_scene_backend.a

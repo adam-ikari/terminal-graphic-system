@@ -1,0 +1,290 @@
+[
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/encoding.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/encoding.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/encoding.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/encoding.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/keyboard.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/keyboard.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/keyboard.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/keyboard.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/mouse.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/mouse.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/mouse.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/mouse.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/parser.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/parser.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/parser.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/parser.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/pen.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/pen.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/pen.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/pen.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/screen.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/screen.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/screen.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/screen.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/state.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/state.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/state.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/state.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/unicode.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/unicode.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/unicode.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/unicode.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/vterm.dir/deps/libvterm/src/vterm.c.o -c /home/gem/project/terminal-graphic-system/deps/libvterm/src/vterm.c",
+  "file": "/home/gem/project/terminal-graphic-system/deps/libvterm/src/vterm.c",
+  "output": "CMakeFiles/vterm.dir/deps/libvterm/src/vterm.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_common.dir/src/common/tgs_frame.c.o -c /home/gem/project/terminal-graphic-system/src/common/tgs_frame.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/common/tgs_frame.c",
+  "output": "CMakeFiles/tgs_common.dir/src/common/tgs_frame.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_common.dir/src/common/tgs_backend.c.o -c /home/gem/project/terminal-graphic-system/src/common/tgs_backend.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/common/tgs_backend.c",
+  "output": "CMakeFiles/tgs_common.dir/src/common/tgs_backend.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_client.dir/src/client/tgs_client.c.o -c /home/gem/project/terminal-graphic-system/src/client/tgs_client.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/client/tgs_client.c",
+  "output": "CMakeFiles/tgs_client.dir/src/client/tgs_client.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/scene_core.c.o -c /home/gem/project/terminal-graphic-system/src/backends/scene/scene_core.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/scene/scene_core.c",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/scene/scene_core.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/scene_backend.c.o -c /home/gem/project/terminal-graphic-system/src/backends/scene/scene_backend.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/scene/scene_backend.c",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/scene/scene_backend.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/paint_sdl2.c.o -c /home/gem/project/terminal-graphic-system/src/backends/scene/paint_sdl2.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/scene/paint_sdl2.c",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/scene/paint_sdl2.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/term_view.c.o -c /home/gem/project/terminal-graphic-system/src/backends/scene/term_view.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/scene/term_view.c",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/scene/term_view.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/output_sdl.c.o -c /home/gem/project/terminal-graphic-system/src/backends/output_sdl.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/output_sdl.c",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/output_sdl.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/input_sdl.c.o -c /home/gem/project/terminal-graphic-system/src/backends/input_sdl.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/input_sdl.c",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/input_sdl.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_scene_backend.dir/src/backends/scene/paint_skia.cpp.o -c /home/gem/project/terminal-graphic-system/src/backends/scene/paint_skia.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/src/backends/scene/paint_skia.cpp",
+  "output": "CMakeFiles/tgs_scene_backend.dir/src/backends/scene/paint_skia.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_compositor.dir/src/compositor/parser.c.o -c /home/gem/project/terminal-graphic-system/src/compositor/parser.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/compositor/parser.c",
+  "output": "CMakeFiles/tgs_compositor.dir/src/compositor/parser.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_compositor.dir/src/compositor/nav.c.o -c /home/gem/project/terminal-graphic-system/src/compositor/nav.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/compositor/nav.c",
+  "output": "CMakeFiles/tgs_compositor.dir/src/compositor/nav.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_compositor.dir/src/compositor/term.c.o -c /home/gem/project/terminal-graphic-system/src/compositor/term.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/compositor/term.c",
+  "output": "CMakeFiles/tgs_compositor.dir/src/compositor/term.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_compositor.dir/src/compositor/window_manager.c.o -c /home/gem/project/terminal-graphic-system/src/compositor/window_manager.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/compositor/window_manager.c",
+  "output": "CMakeFiles/tgs_compositor.dir/src/compositor/window_manager.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs-compositor.dir/src/compositor/main.c.o -c /home/gem/project/terminal-graphic-system/src/compositor/main.c",
+  "file": "/home/gem/project/terminal-graphic-system/src/compositor/main.c",
+  "output": "CMakeFiles/tgs-compositor.dir/src/compositor/main.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/simple_form.dir/examples/simple_form.c.o -c /home/gem/project/terminal-graphic-system/examples/simple_form.c",
+  "file": "/home/gem/project/terminal-graphic-system/examples/simple_form.c",
+  "output": "CMakeFiles/simple_form.dir/examples/simple_form.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/container_demo.dir/examples/container_demo.c.o -c /home/gem/project/terminal-graphic-system/examples/container_demo.c",
+  "file": "/home/gem/project/terminal-graphic-system/examples/container_demo.c",
+  "output": "CMakeFiles/container_demo.dir/examples/container_demo.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/render_demo.dir/tools/render_demo.c.o -c /home/gem/project/terminal-graphic-system/tools/render_demo.c",
+  "file": "/home/gem/project/terminal-graphic-system/tools/render_demo.c",
+  "output": "CMakeFiles/render_demo.dir/tools/render_demo.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/char_and_graphics.dir/examples/char_and_graphics.c.o -c /home/gem/project/terminal-graphic-system/examples/char_and_graphics.c",
+  "file": "/home/gem/project/terminal-graphic-system/examples/char_and_graphics.c",
+  "output": "CMakeFiles/char_and_graphics.dir/examples/char_and_graphics.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/mixed_demo.dir/examples/mixed_demo.c.o -c /home/gem/project/terminal-graphic-system/examples/mixed_demo.c",
+  "file": "/home/gem/project/terminal-graphic-system/examples/mixed_demo.c",
+  "output": "CMakeFiles/mixed_demo.dir/examples/mixed_demo.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/states_demo.dir/examples/states_demo.c.o -c /home/gem/project/terminal-graphic-system/examples/states_demo.c",
+  "file": "/home/gem/project/terminal-graphic-system/examples/states_demo.c",
+  "output": "CMakeFiles/states_demo.dir/examples/states_demo.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/ime_app.dir/examples/ime_app.c.o -c /home/gem/project/terminal-graphic-system/examples/ime_app.c",
+  "file": "/home/gem/project/terminal-graphic-system/examples/ime_app.c",
+  "output": "CMakeFiles/ime_app.dir/examples/ime_app.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_frame.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_frame.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_frame.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_frame.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_nav.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_nav.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_nav.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_nav.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_protocol.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_protocol.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_protocol.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_protocol.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_term.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_term.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_term.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_term.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_pty.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_pty.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_pty.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_pty.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_snapshot.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_snapshot.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_snapshot.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_snapshot.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_l1.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_l1.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_l1.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_l1.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_l2_focus.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_l2_focus.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_l2_focus.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_l2_focus.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_geometry.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_geometry.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_geometry.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_geometry.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/c++ -DTGS_SNAPSHOT_DIR=\\\"/home/gem/project/terminal-graphic-system/tests/snapshots\\\" -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -isystem /usr/include/SDL2 -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles/tgs_tests.dir/tests/test_scene_click.cpp.o -c /home/gem/project/terminal-graphic-system/tests/test_scene_click.cpp",
+  "file": "/home/gem/project/terminal-graphic-system/tests/test_scene_click.cpp",
+  "output": "CMakeFiles/tgs_tests.dir/tests/test_scene_click.cpp.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/client -I/home/gem/project/terminal-graphic-system/src/common -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/nav_probe.dir/tests/nav_probe.c.o -c /home/gem/project/terminal-graphic-system/tests/nav_probe.c",
+  "file": "/home/gem/project/terminal-graphic-system/tests/nav_probe.c",
+  "output": "CMakeFiles/nav_probe.dir/tests/nav_probe.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/project/terminal-graphic-system/src/common -I/home/gem/project/terminal-graphic-system/deps/libvterm/include -I/home/gem/project/terminal-graphic-system/deps/libvterm/src -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/term_probe.dir/tests/term_probe.c.o -c /home/gem/project/terminal-graphic-system/tests/term_probe.c",
+  "file": "/home/gem/project/terminal-graphic-system/tests/term_probe.c",
+  "output": "CMakeFiles/term_probe.dir/tests/term_probe.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia",
+  "command": "/usr/bin/cc -DTGS_USE_SDL -DTGS_USE_SKIA=1 -I/home/gem/project/terminal-graphic-system/src/backends/scene -I/home/gem/project/terminal-graphic-system/src/compositor -I/home/gem/deps/skia -I/home/gem/deps/skia/include -I/home/gem/deps/skia/include/core -I/home/gem/deps/skia/include/config -I/home/gem/deps/skia/include/utils -I/home/gem/deps/skia/include/private -I/home/gem/deps/skia/include/ports -I/home/gem/deps/skia/src/core -I/home/gem/project/terminal-graphic-system/src/common -isystem /usr/include/SDL2 -std=gnu99 -Wall -Wextra -Wpedantic -o CMakeFiles/d2_repro.dir/tests/d2_repro.c.o -c /home/gem/project/terminal-graphic-system/tests/d2_repro.c",
+  "file": "/home/gem/project/terminal-graphic-system/tests/d2_repro.c",
+  "output": "CMakeFiles/d2_repro.dir/tests/d2_repro.c.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia/deps/googletest/googlemock",
+  "command": "/usr/bin/c++ -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/googletest/googlemock/include -I/home/gem/project/terminal-graphic-system/deps/googletest/googlemock -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=c++17 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wall -Wextra -Wpedantic -o CMakeFiles/gmock.dir/src/gmock-all.cc.o -c /home/gem/project/terminal-graphic-system/deps/googletest/googlemock/src/gmock-all.cc",
+  "file": "/home/gem/project/terminal-graphic-system/deps/googletest/googlemock/src/gmock-all.cc",
+  "output": "deps/googletest/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia/deps/googletest/googlemock",
+  "command": "/usr/bin/c++ -DTGS_USE_SDL -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googlemock/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googlemock -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=c++17 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wall -Wextra -Wpedantic -o CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c /home/gem/project/terminal-graphic-system/deps/googletest/googlemock/src/gmock_main.cc",
+  "file": "/home/gem/project/terminal-graphic-system/deps/googletest/googlemock/src/gmock_main.cc",
+  "output": "deps/googletest/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia/deps/googletest/googletest",
+  "command": "/usr/bin/c++ -DTGS_USE_SDL -I/home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -I/home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=c++17 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wall -Wextra -Wpedantic -o CMakeFiles/gtest.dir/src/gtest-all.cc.o -c /home/gem/project/terminal-graphic-system/deps/googletest/googletest/src/gtest-all.cc",
+  "file": "/home/gem/project/terminal-graphic-system/deps/googletest/googletest/src/gtest-all.cc",
+  "output": "deps/googletest/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o"
+},
+{
+  "directory": "/home/gem/project/terminal-graphic-system/build-skia/deps/googletest/googletest",
+  "command": "/usr/bin/c++ -DTGS_USE_SDL -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest/include -isystem /home/gem/project/terminal-graphic-system/deps/googletest/googletest -std=c++17 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wall -Wextra -Wpedantic -o CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c /home/gem/project/terminal-graphic-system/deps/googletest/googletest/src/gtest_main.cc",
+  "file": "/home/gem/project/terminal-graphic-system/deps/googletest/googletest/src/gtest_main.cc",
+  "output": "deps/googletest/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o"
+}
+]

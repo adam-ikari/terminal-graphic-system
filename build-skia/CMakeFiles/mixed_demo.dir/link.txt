@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/mixed_demo.dir/examples/mixed_demo.c.o -o mixed_demo  libtgs_client.a libtgs_common.a

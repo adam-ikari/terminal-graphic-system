@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/d2_repro.dir/tests/d2_repro.c.o -o d2_repro  libtgs_scene_backend.a libtgs_common.a /home/gem/deps/skia/out/Release/libskia.a -lpthread -ldl -lstdc++ -lm -lz -lpng16 -L/usr/lib/x86_64-linux-gnu  -lSDL2 /usr/lib/x86_64-linux-gnu/libSDL2.so -lSDL2_ttf
