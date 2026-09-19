@@ -26,10 +26,10 @@ typedef enum {
 
 /* What the backend does with one key edge, decided by the compositor's
  * navigation precedence hook (docs/navigation.md §D.3):
- *   TGS_NAV_PASS     — not navigation: LVGL's usual indev path delivers it;
+ *   TGS_NAV_PASS     — not navigation: the renderer's usual indev path delivers it;
  *   TGS_NAV_WIDGET   — deliver straight to the focused widget, bypassing the
  *                      indev's own Tab/Enter/ESC group handling;
- *   TGS_NAV_CONSUMED — the compositor acted on it; LVGL must never see it. */
+ *   TGS_NAV_CONSUMED — the compositor acted on it; the renderer must never see it. */
 typedef enum {
     TGS_NAV_PASS = 0,
     TGS_NAV_WIDGET,

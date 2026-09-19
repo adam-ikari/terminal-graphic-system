@@ -6,11 +6,16 @@
 #ifndef TGS_PROTOCOL_H
 #define TGS_PROTOCOL_H
 
-/* Protocol version and capabilities */
+/* Protocol version and capabilities.
+ * The wire protocol is toolkit-neutral: it names abstract widget kinds,
+ * style/layout semantics and events, never a rendering engine. The caps
+ * string advertises what this build of the compositor implements, so a
+ * program can negotiate features; it must stay in sync with the enums. */
 #define TGS_PROTOCOL_VERSION "1.0"
 #define TGS_CAPS_LAYER0 \
     "layout.tiled,widget.button,widget.label,widget.input," \
-    "event.click,event.key,event.resize,event.focus"
+    "event.click,event.key,event.resize,event.focus," \
+    "event.hover,layout.grid,multiwindow,window.transparent"
 
 /* Stream IDs */
 #define TGS_STREAM_HANDSHAKE  0
