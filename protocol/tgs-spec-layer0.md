@@ -194,6 +194,40 @@ Total: 20 widget types.
 
 Container semantics (§4.3.1): `VLAYOUT` (8), `HLAYOUT` (9), `GLAYOUT` (10) and `SCROLL` (11) are the only types valid as a `parent_id`. Every other type is a leaf.
 
+#### 5.2.1 Primitive vs derived (design criterion)
+
+A widget type is a **primitive** iff the renderer must natively hold state or
+capability that no composition of other protocol primitives can express
+(edit text, toggle state, a value with range, pixel source, scroll offset,
+page-switch state). Otherwise the type is **derived** — expressible as a
+composition — and is admitted only as a convenience with a stated exit path.
+
+Classification of the 20 types:
+
+- **Primitive** (9): `LABEL`, `BUTTON`, `INPUT` (text-edit state, IME-eligible),
+  `CHECKBOX` (toggle), `SLIDER` (value+range), `PROGRESS` (read-only value),
+  `SWITCH` (toggle+animation), `IMAGE` (pixel source), `SCROLL` (scroll offset,
+  arrow-consumption).
+- **Derived convenience** (11): `VLAYOUT`/`HLAYOUT`/`GLAYOUT` (pure arrangement
+  — expressible as container + layout attr, kept because L0 installs layout at
+  `WGT_CREATE`), `RADIO` (checkbox + visual policy; exclusivity is app policy),
+  `LIST` (scroll + appended rows), `MENU` (composition; stub — deprecation
+  candidate), `TAB` (page-strip + page stack), `DROPDOWN` (collapsed list +
+  popup), `TIMEPICK`/`DATEPICK` (structured value parsers).
+
+Rules for new types (normative):
+
+1. A new widget type MUST declare the primitive state the renderer natively
+   holds, or MUST be rejected as mere composition (build it in the app from
+   existing primitives).
+2. A derived type MUST NOT accumulate behavior that a primitive cannot reach
+   through `WGT_STYLE` / `WGT_ATTR` / `WGT_LAYOUT` — otherwise the protocol
+   forks into per-widget special cases and stops being renderer-neutral.
+3. Events stay interaction-shaped (`CLICK`, `VALUE_CHANGED`, `KEY`, `HOVER_*`,
+   `FOCUS`), never widget-shaped; this is what keeps the protocol renderer-
+   neutral (a widget-shaped event like "tab changed" would bind the wire to
+   one toolkit's widget catalog).
+
 ### 5.3 Event Types
 
 | Value | Name            | Description                  |
