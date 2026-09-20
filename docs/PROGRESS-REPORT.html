@@ -3,308 +3,209 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TGS 终端图形系统 — 进度汇报</title>
+<title>TGS 协议重写汇报 — 第一性原理最小形态</title>
 <style>
-  :root {
-    --bg: #f5f6f8; --card: #ffffff; --ink: #1f2937; --muted: #6b7280;
-    --accent: #2563eb; --border: #e5e7eb; --code: #111827; --code-bg: #f3f4f6;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    background: var(--bg); color: var(--ink); line-height: 1.7;
-  }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
-  header.hero {
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
-    color: #fff; border-radius: 14px; padding: 36px 40px; margin-bottom: 28px;
-  }
-  header.hero h1 { font-size: 30px; font-weight: 700; margin-bottom: 10px; }
-  header.hero p { opacity: .9; font-size: 15px; }
-  .meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; font-size: 13px; }
-  .meta span { background: rgba(255,255,255,.15); padding: 4px 12px; border-radius: 999px; }
-  section.card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 26px 30px; margin-bottom: 22px;
-  }
-  h2 { font-size: 21px; font-weight: 700; margin-bottom: 16px; padding-bottom: 10px;
-       border-bottom: 2px solid var(--border); }
-  h2 .no { color: var(--accent); margin-right: 8px; }
-  h3 { font-size: 17px; font-weight: 600; margin: 18px 0 8px; }
-  h4 { font-size: 15px; font-weight: 600; margin: 14px 0 6px; }
-  p { margin-bottom: 10px; }
-  ul, ol { padding-left: 24px; margin-bottom: 12px; }
-  li { margin-bottom: 5px; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
-  th, td { text-align: left; padding: 9px 12px; border: 1px solid var(--border); }
-  th { background: var(--code-bg); font-weight: 600; }
-  code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 13px; color: var(--code);
-  }
-  code:not(pre code) {
-    background: var(--code-bg); padding: 1px 6px; border-radius: 4px;
-  }
-  pre {
-    background: var(--code); color: #e5e7eb; border-radius: 8px;
-    padding: 14px 18px; overflow-x: auto; margin: 12px 0;
-    font-size: 13px; line-height: 1.6;
-  }
-  pre code { color: inherit; background: none; padding: 0; }
-  .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
-  .tag.done { background: #dcfce7; color: #166534; }
-  .tag.wip { background: #fef9c3; color: #854d0e; }
-  .tag.todo { background: #f3f4f6; color: #6b7280; }
-  .tag.new { background: #dbeafe; color: #1e40af; }
-  .shot { margin: 10px 0 4px; }
-  .shot img { max-width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
-  .shot-cap { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
-  .srow { display: grid; grid-template-columns: 110px 1fr 1fr 1fr; gap: 10px;
-          align-items: center; margin-bottom: 14px; }
-  .srow .sname { font-size: 14px; }
-  .srow figure { margin: 0; }
-  .srow img { width: 100%; border: 1px solid var(--border); border-radius: 6px; display: block; }
-  .srow figcaption { font-size: 12px; color: var(--muted); text-align: center; }
-  @media (max-width: 720px) {
-    .srow { grid-template-columns: 90px 1fr 1fr 1fr; } }
-  .verdict-pass { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px 14px;
-                  border-radius: 6px; margin: 10px 0 14px; font-size: 14px; }
-  .callout { background: #eff6ff; border-left: 4px solid var(--accent); padding: 12px 16px;
-             border-radius: 6px; margin: 12px 0; font-size: 14px; }
-  .callout strong { color: #1e40af; }
-  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 32px; }
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#1f2937; --muted:#6b7280;
+          --accent:#2563eb; --border:#e5e7eb; --code-bg:#f3f4f6; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+         "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+         background:var(--bg); color:var(--ink); line-height:1.7; }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 20px 64px; }
+  header.hero { background:linear-gradient(135deg,#1e3a8a,#2563eb);
+    color:#fff; border-radius:14px; padding:36px 40px; margin-bottom:28px; }
+  header.hero h1 { font-size:28px; font-weight:700; margin-bottom:8px; }
+  header.hero p { opacity:.9; font-size:15px; }
+  .meta { display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; font-size:13px; }
+  .meta span { background:rgba(255,255,255,.15); padding:4px 12px;
+    border-radius:999px; }
+  section.card { background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:26px 30px; margin-bottom:22px; }
+  h2 { font-size:20px; font-weight:700; margin-bottom:14px;
+       padding-bottom:10px; border-bottom:2px solid var(--border); }
+  h2 .no { color:var(--accent); margin-right:8px; }
+  h3 { font-size:16px; font-weight:600; margin:16px 0 8px; }
+  p { margin-bottom:10px; }
+  ul,ol { padding-left:24px; margin-bottom:12px; }
+  li { margin-bottom:5px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+  th,td { text-align:left; padding:9px 12px; border:1px solid var(--border); }
+  th { background:var(--code-bg); font-weight:600; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:13px; background:var(--code-bg); padding:1px 6px; border-radius:4px; }
+  .callout { background:#eff6ff; border-left:4px solid var(--accent);
+    padding:12px16px; border-radius:6px; margin:12px 0; font-size:14px; }
+  .callout strong { color:#1e40af; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:999px;
+    font-size:12px; font-weight:600; }
+  .tag.done { background:#dcfce7; color:#166534; }
+  .tag.wip { background:#fef9c3; color:#854d0e; }
+  .tag.todo { background:#fee2e2; color:#991b1b; }
+  .shot { margin:10px 0; }
+  .shot img { max-width:100%; border:1px solid var(--border); border-radius:8px; }
+  .verdict { background:#f0fdf4; border-left:4px solid #16a34a;
+    padding:10px 14px; border-radius:6px; margin:10px 0; font-size:14px; }
+  footer { text-align:center; color:var(--muted); font-size:13px; margin-top:32px; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header class="hero">
-  <h1>TGS 终端图形系统 — 进度汇报</h1>
-  <p>绘制语义（类 SVG）终端图形协议：渲染器只画原语，一切控件语义在程序侧组合</p>
+  <h1>TGS 协议重写 — 第一性原理最小形态</h1>
+  <p>3 绘制原语 · kitty G APC · 无窗口/焦点/布局/订阅 · 程序持有一切策略</p>
   <div class="meta">
-    <span>测试 74/74 通过（SDL2 + Skia 双后端）</span>
-    <span>协议 = 绘制语义（类 SVG）· 7 原语 kind</span>
-    <span>渲染器 = scene painter（SDL2 / Skia 双参考后端）</span>
-    <span>控件语义已放弃，图形原语为纲</span>
+    <span>测试 49/49 通过</span>
+    <span>协议 v2.0 · 3 原语 + 5 命令 + 6 事件</span>
+    <span>提交 616fe5f</span>
   </div>
 </header>
 
 <section class="card">
-  <h2><span class="no">1</span>本期定案：控件语义 → 图形原语</h2>
-  <p>本期完成三项架构定案与一次完整后端重写：</p>
+  <h2><span class="no">1</span>定案：TGS = 终端图形 API</h2>
+  <p>从第一性原理推导：TGS = 程序 ⇄ 渲染器的点对点绘制协议。一程序一画布。
+  协议只回答两个问题：<strong>画什么</strong>（绘制原语）和<strong>输入怎么来</strong>（事件）。
+  像图形 API（X11/OpenGL/Wayland）一样——不提供控件、不提供布局、不提供焦点。
+  那三层是 toolkit 的，在程序侧组合。</p>
   <table>
     <tr><th>决策</th><th>内容</th><th>状态</th></tr>
-    <tr>
-      <td><strong>协议 = 绘制语义</strong></td>
-      <td>线上协议只命名绘制原语（8 个 kind），无控件目录；布局归程序（SVG 场景语义），派生外观（radio/switch/progress）与复合控件（list/table）是程序侧组合</td>
-      <td><span class="tag done">定案</span></td>
-    </tr>
-    <tr>
-      <td><strong>渲染器 = 场景画笔</strong></td>
-      <td>渲染器只做「画原语 + 命中 + 焦点」，不持控件状态机目录；新 <code>scene backend</code>（树/命中/焦点/事件/文本编辑）+ paint 端口抽象</td>
-      <td><span class="tag done">完成</span></td>
-    </tr>
-    <tr>
-      <td><strong>双参考后端</strong></td>
-      <td><code>paint_sdl2</code>（软件光栅 + SDL2_ttf 字形合成）与 <code>paint_skia</code>（SkCanvas 抗锯齿圆角矩形 + SkFont），共用同一 paint 端口，<code>-DTGS_USE_SKIA</code> 可选接入</td>
-      <td><span class="tag done">完成</span></td>
-    </tr>
-    <tr>
-      <td><strong>旧工具链后端退役</strong></td>
-      <td>保留模式控件树、布局引擎、控件目录映射整体删除（依赖目录 + 后端模块物理移除）——渲染器不再持任何控件语义</td>
-      <td><span class="tag done">完成</span></td>
-    </tr>
-    <tr>
-      <td><strong>BUTTON 退役</strong></td>
-      <td>按钮不是原语：激活是程序策略（点击命中已对任何控件生效）。BUTTON = CONTAINER + LABEL 子控件 + 程序消费 CLICK。值 0 保留，wire 兼容映射到 CONTAINER</td>
-      <td><span class="tag done">完成</span></td>
-    </tr>
+    <tr><td><strong>协议 = 绘制语义</strong></td>
+      <td>线上只有 3 个绘制原语 + 事件；无控件目录、无 win_id、无焦点</td>
+      <td><span class="tag done">定案</span></td></tr>
+    <tr><td><strong>无窗口管理</strong></td>
+      <td>合成器不管理窗口/激活/z-order——那是外层 WM 的事；协议无 win_id</td>
+      <td><span class="tag done">定案</span></td></tr>
+    <tr><td><strong>无焦点模型</strong></td>
+      <td>焦点是图形 API 层概念（窗口级键盘路由），不由终端实现；控件级焦点完全程序侧</td>
+      <td><span class="tag done">定案</span></td></tr>
+    <tr><td><strong>IME 独立程序</strong></td>
+      <td>IME 是独立程序，候选词由 IME 程序自己绘制（外层 WM 呈现）；TGS 只做输入变换管道</td>
+      <td><span class="tag done">定案</span></td></tr>
+    <tr><td><strong>TGS ⊃ kitty</strong></td>
+      <td>帧走 kitty G APC 通道；呈现层用 kitty 图形序列；超集=能力包含+扩展</td>
+      <td><span class="tag wip">方案待裁决</span></td></tr>
   </table>
   <div class="callout">
-    <strong>第一性判据：</strong>一个 kind 是原语 ⟺ 渲染器必须原生持有某种状态/能力，无法用其他 kind 组合表达。按此判据，控件语义整体放弃——协议层只承载机制（server holds mechanism），程序承担全部策略（program holds policy）。
+    <strong>第一性判据：</strong>协议只承载<strong>机制</strong>（server holds mechanism）——
+    绘制、命中、输入采集、IME 管道。一切<strong>策略</strong>（布局、控件、焦点、文本缓冲、值状态）
+    在程序侧（program holds policy）。
   </div>
 </section>
 
 <section class="card">
-  <h2><span class="no">2</span>协议原语目录（7 kind）</h2>
+  <h2><span class="no">2</span>协议原语目录（3 kind）</h2>
   <table>
-    <tr><th>值</th><th>Kind</th><th>渲染器原生持有</th><th>组合说明</th></tr>
-    <tr><td>1</td><td><code>LABEL</code></td><td>静态文本渲染</td><td>—</td></tr>
-    <tr><td>2</td><td><code>INPUT</code></td><td>文本编辑缓冲（光标），IME 资格</td><td>—</td></tr>
-    <tr><td>3</td><td><code>CHECKBOX</code></td><td>布尔态</td><td>圆钮外观 = RADIUS 样式组合</td></tr>
-    <tr><td>5</td><td><code>SLIDER</code></td><td>值 + 范围 + 拖拽捕获</td><td>只读变体 = 程序忽略拖拽</td></tr>
-    <tr><td>8</td><td><code>CONTAINER</code></td><td>结构（子控件在程序算好的 rect 上）</td><td>无布局引擎</td></tr>
-    <tr><td>11</td><td><code>SCROLL</code></td><td>视口状态（滚动偏移、边缘消费）</td><td>—</td></tr>
-    <tr><td>17</td><td><code>IMAGE</code></td><td>像素显示</td><td>资源源待 stream 2（L3 P5）</td></tr>
+    <tr><th>值</th><th>原语</th><th>渲染器持有</th></tr>
+    <tr><td>1</td><td><code>TEXT</code></td><td>文本渲染</td></tr>
+    <tr><td>8</td><td><code>BOX</code></td><td>矩形/结构（可作父，子控件在程序算好的 rect 上）</td></tr>
+    <tr><td>16</td><td><code>GRAPHIC</code></td><td>矢量图形（circle/path，形状由 STYLE 选；像素图走 RESOURCE 流）</td></tr>
   </table>
-  <p>退役值（0, 4, 6, 7, 9, 10, 12-19；0=BUTTON：激活是程序策略，按钮 = CONTAINER+LABEL+CLICK 组合）永久保留，合成器解码映射到原语替换——旧程序不炸。</p>
+  <p>退役值（0, 2-7, 9-15, 17-19）永久保留——BUTTON/INPUT/CHECKBOX/SLIDER/SCROLL/LIST/...
+  全部是程序侧组合，不再是协议 kind。</p>
 </section>
 
 <section class="card">
-  <h2><span class="no">3</span>渲染器重写：scene backend</h2>
+  <h2><span class="no">3</span>命令与事件</h2>
+  <h3>命令（程序 → 渲染器）</h3>
   <table>
-    <tr><th>模块</th><th>职责</th><th>要点</th></tr>
-    <tr><td><code>scene_core.c</code></td><td>节点池、绝对几何、命中测试、事件队列、绘制</td><td>窗口 root 是结构不是控件（命中排除）；事件满队列丢弃</td></tr>
-    <tr><td><code>scene_backend.c</code></td><td>完整 <code>tgs_backend</code> vtable（25 项）</td><td>窗口/rect/content/style/IME preedit 覆盖/焦点视觉/空间导航/剪贴板/几何回传；指针契约 button 0 主键、pressed −1 纯移动</td></tr>
-    <tr><td><code>paint_sdl2.c</code></td><td>paint 端口实现 ①</td><td>软件光栅（圆角盒/边框/裁剪）+ SDL2_ttf 字形 alpha 合成（4bpp Blended 面板）</td></tr>
-    <tr><td><code>paint_skia.cpp</code></td><td>paint 端口实现 ②</td><td>SkCanvas 包裹发布帧缓冲：抗锯齿 RRect、SkFont（目录字体管理 + FreeType）、save/clipRect 裁剪对</td></tr>
-    <tr><td><code>term_view.c</code></td><td>字符基</td><td>TTF 渲染 + 制表符块字形矩形合成；通过 underlay 通道垫在控件场景下</td></tr>
+    <tr><th>命令</th><th>参数</th></tr>
+    <tr><td><code>WGT_CREATE</code></td><td>[id, type, parent, x, y, w, h] — parent=0 是画布顶层</td></tr>
+    <tr><td><code>WGT_UPDATE</code></td><td>[id, value]</td></tr>
+    <tr><td><code>WGT_STYLE</code></td><td>[id, prop, value]</td></tr>
+    <tr><td><code>WGT_DESTROY</code></td><td>[id]</td></tr>
   </table>
+  <h3>事件（渲染器 → 程序，全量发，程序自过滤）</h3>
+  <table>
+    <tr><th>事件</th><th>参数</th><th>说明</th></tr>
+    <tr><td><code>KEY</code></td><td>[key, mods]</td><td>键盘</td></tr>
+    <tr><td><code>CLICK</code></td><td>[id]</td><td>命中=渲染器机制</td></tr>
+    <tr><td><code>HOVER_ENTER/LEAVE</code></td><td>[id]</td><td>指针进出元素</td></tr>
+    <tr><td><code>POINTER</code></td><td>[x, y, phase]</td><td>原始坐标（down/move/up）——程序自绘交互的原语</td></tr>
+    <tr><td><code>IME_COMMIT</code></td><td>[text]</td><td>IME 程序提交文本</td></tr>
+  </table>
+  <p><strong>删除：</strong>WIN_* 全族、win_id、窗口类型、FOCUS/BLUR、VALUE_CHANGED、
+  SET_FOCUS、NTF_FOCUS/STATE/GEOMETRY、EVT_BIND、WGT_LAYOUT/WGT_ATTR。</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">4</span>帧格式：kitty G APC 通道</h2>
+  <p>TGS 帧走 kitty 图形协议的 APC 通道：<code>ESC _ Gtgs;&lt;payload&gt; ESC \</code>。
+  <code>Gtgs;</code> 标记 TGS 超集帧；kitty 原生帧是 <code>ESC _ G&lt;key=value,...&gt;;&lt;data&gt; ESC \</code>。
+  两者共享同一 APC 通道——解析器双识别。</p>
   <div class="callout">
-    <strong>渲染器中立验证：</strong>替换整个渲染引擎，协议层、合成器层（nav/window_manager/parser）零改动——vtable 即边界。paint 端口是唯一引擎缝，第三个后端只是再加一个 <code>paint_*.c</code>。
+    <strong>待裁决：</strong>kitty 协议通过"未知 key 静默忽略"提供隐式扩展兼容，
+    但没有正式扩展声明。当前 <code>Gtgs;</code> 格式不是合法 kitty key=value 语法。
+    两个修正方案：<br>
+    A) 改为合法 kitty 格式 <code>Gtgs=1,c=create,...;</code>（kitty 终端忽略 tgs=1）<br>
+    B) 用独立前缀 <code>TGS;</code>（与 kitty G 帧共存，不扩展 kitty 帧）<br>
+    超集=合成器同时理解两种帧，不依赖 kitty 的扩展能力。
   </div>
 </section>
 
 <section class="card">
-  <h2><span class="no">4</span>功能截图</h2>
+  <h2><span class="no">5</span>渲染器：单画布 scene painter</h2>
+  <table>
+    <tr><th>模块</th><th>职责</th></tr>
+    <tr><td><code>scene_core.c</code></td><td>节点池、绝对几何、命中测试、事件队列、绘制（TEXT/BOX/GRAPHIC）</td></tr>
+    <tr><td><code>scene_backend.c</code></td><td>元素 create/rect/content/style/destroy + 指针注入 + hit_test</td></tr>
+    <tr><td><code>paint_sdl2.c</code></td><td>软件光栅 + SDL2_ttf 字形合成</td></tr>
+    <tr><td><code>paint_skia.cpp</code></td><td>SkCanvas + SkFont（第二参考后端）</td></tr>
+    <tr><td><code>term_view.c</code></td><td>字符基 TTF 渲染（underlay 通道）</td></tr>
+  </table>
+  <p>无窗口、无焦点视觉、无文本编辑状态机、无 checkbox/slider/scroll 状态。
+  渲染器只画 + 命中 + 报事件。</p>
+</section>
 
-  <h3>4.1 基础表单</h3>
-  <div class="shot"><img src="screenshots/simple_form.png" alt="simple_form"></div>
-  <p class="shot-cap"><code>simple_form</code>：label + input + button，scene 后端（SDL2 paint）渲染。</p>
+<section class="card">
+  <h2><span class="no">6</span>合成器与客户端</h2>
+  <h3>合成器（window_manager.c）</h3>
+  <p>薄路由：帧→后端元素调用，输入事件→程序（或 IME 管道）。无焦点、无订阅门控、无几何回报、无布局。</p>
+  <h3>客户端（tgs_client）</h3>
+  <p>元素 API：<code>create_element</code> / <code>update_element</code> /
+  <code>set_element_style</code> / <code>destroy_element</code> + <code>poll_event</code>。
+  程序自持一切状态——文本缓冲、值、焦点、布局。</p>
+  <h3>示例（simple_form.c = 参考）</h3>
+  <p>程序用 KEY 事件自编辑文本缓冲；按钮 = BOX + TEXT 子控件；CLICK 响应。
+  完整演示了 SVG 模型：程序组合一切，渲染器只画。</p>
+</section>
 
-  <h3>4.2 容器（程序摆位）</h3>
-  <div class="shot"><img src="screenshots/container.png" alt="container"></div>
-  <p class="shot-cap">容器是纯盒子：子控件 rect 全部由程序计算（SVG 场景语义），渲染器无布局引擎。</p>
-
-  <h3>4.3 原语总览（SDL2 paint）</h3>
+<section class="card">
+  <h2><span class="no">7</span>截图与视觉验收</h2>
+  <div class="verdict">
+    <strong>视觉模型验收通过。</strong>文字渲染正常、颜色正确、布局整齐、无黑屏/豆腐块。
+    GRAPHIC 元素画圆（默认形状），符合预期。
+  </div>
+  <h3>library（3 原语总览）</h3>
   <div class="shot"><img src="screenshots/library.png" alt="library"></div>
-  <p class="shot-cap">8 种绘制原语逐一渲染。文字渲染、颜色、布局经视觉模型验收。</p>
-
-  <h3>4.4 原语总览（Skia paint）</h3>
-  <div class="shot"><img src="screenshots/library-skia.png" alt="library skia"></div>
-  <p class="shot-cap"><strong>同一场景</strong>，<code>-DTGS_USE_SKIA</code> 构建的 Skia paint 端口渲染——抗锯齿圆角、SkFont 字形。两个后端像素级同构的契约由 paint 端口保证。</p>
-
-  <h3>4.5 控件分列展示（每原语独立渲染 × 三状态）</h3>
-  <div class="srow">
-    <div class="sname"><strong>Button</strong><br><small>已退役（= CONTAINER + LABEL）</small></div>
-    <figure><img src="screenshots/singles/checkbox_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/checkbox_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/checkbox_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Input</strong><br><small>输入框</small></div>
-    <figure><img src="screenshots/singles/input_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/input_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/input_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Checkbox</strong><br><small>复选框</small></div>
-    <figure><img src="screenshots/singles/checkbox_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/checkbox_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/checkbox_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Slider</strong><br><small>滑块</small></div>
-    <figure><img src="screenshots/singles/slider_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/slider_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/slider_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Label</strong><br><small>标签（非交互）</small></div>
-    <figure><img src="screenshots/singles/label_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/label_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/label_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Container</strong><br><small>容器</small></div>
-    <figure><img src="screenshots/singles/container_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/container_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/container_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Scroll</strong><br><small>滚动视口</small></div>
-    <figure><img src="screenshots/singles/scroll_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/scroll_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/scroll_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
-  <div class="srow">
-    <div class="sname"><strong>Image</strong><br><small>图像（待 resources）</small></div>
-    <figure><img src="screenshots/singles/image_normal.png" alt="normal"><figcaption>正常</figcaption></figure>
-    <figure><img src="screenshots/singles/image_hover.png" alt="hover"><figcaption>悬停</figcaption></figure>
-    <figure><img src="screenshots/singles/image_pressed.png" alt="pressed"><figcaption>按下</figcaption></figure>
-  </div>
+  <h3>simple_form（程序自编辑文本）</h3>
+  <div class="shot"><img src="screenshots/simple_form.png" alt="simple_form"></div>
+  <h3>container（程序摆位）</h3>
+  <div class="shot"><img src="screenshots/container.png" alt="container"></div>
 </section>
 
 <section class="card">
-  <h2><span class="no">5</span>视觉模型逐张验收</h2>
-  <p>重写后端截图中：<strong>24 张 singles（8 原语 × 3 状态）+ library 双后端 + container</strong>，全部经视觉模型评审，维度：文字渲染、对比度可读性、对齐间距、一致性。</p>
-  <div class="verdict-pass">
-    <strong>验收结论：通过。</strong>图 1（SDL2）与图 2（Skia）文字全部渲染无缺字无豆腐块；button 蓝底白字、input 深底浅框符合预期；无黑屏、无错位、布局对齐工整。底部空框为空 CONTAINER/SCROLL 原语（程序未设内容，符合语义）。
-  </div>
-  <h3>5.1 评审抓出并修复的渲染缺陷（本期）</h3>
-  <table>
-    <tr><th>缺陷</th><th>视觉表现</th><th>根因</th><th>修复</th><th>复验</th></tr>
-    <tr>
-      <td>全部控件缺字</td>
-      <td>按钮/输入框空白</td>
-      <td>SDL2_ttf Blended 面板为 4bpp ARGB（非 8bpp alpha-only），旧路径直接拒画</td>
-      <td>paint_sdl2 补 4bpp 字形 alpha 合成路径（逐像素混色）</td>
-      <td>✅ 像素探针 text=39px，视觉确认无缺字</td>
-    </tr>
-    <tr>
-      <td>NORMAL 窗口纯黑底</td>
-      <td>截图大面积 (0,0,0)</td>
-      <td>场景 root 未实现不透明背景策略</td>
-      <td>create_window: NORMAL root 补 0x222222 不透明 bg；TRANSPARENT 保持透出字符基</td>
-      <td>✅ 像素采样主色恢复深灰</td>
-    </tr>
-  </table>
-</section>
-
-<section class="card">
-  <h2><span class="no">6</span>质量</h2>
+  <h2><span class="no">8</span>质量</h2>
   <table>
     <tr><th>维度</th><th>结果</th></tr>
-    <tr><td>测试</td><td><strong>74/74 通过 ×2</strong>——同一套行为测试跑在 SDL2 与 Skia 两个后端构建上（<code>build/</code> 与 <code>build-skia/</code>）</td></tr>
-    <tr><td>D2 探针</td><td><code>d2_repro</code> PASS——nav 规则 2 键直投同步送达，键值无陈旧</td></tr>
-    <tr><td>契约测试</td><td><code>ContainerHoldsProgramComputedRects</code>——程序设的 rects 分毫不差往返，钉死"渲染器不动程序几何"</td></tr>
-    <tr><td>视觉验收</td><td>24 singles + 双后端 library + container，视觉模型逐张评审，缺陷闭环（见 §5）</td></tr>
-    <tr><td>像素探针</td><td>自建 C 探针验证按钮填充（12000px）与字形（39px）落墨；PNG 解码采样验证主色</td></tr>
-    <tr><td>历史清理</td><td>全仓 <code>lvgl|lv_obj|lv_group</code> 计数 = <strong>0</strong>（src/docs/brain/audits 强校验）</td></tr>
+    <tr><td>测试</td><td><strong>49/49 通过</strong>（frame/protocol/term/pty/snapshot/l1/scene_click 8 套件）</td></tr>
+    <tr><td>删除的测试</td><td>test_nav / test_l2_focus / test_geometry / d2_repro / nav_probe（焦点导航模型已退役）</td></tr>
+    <tr><td>视觉验收</td><td>3 张截图视觉模型评审通过</td></tr>
+    <tr><td>历史清理</td><td>全仓 lvgl 计数 = 0（上一轮完成）</td></tr>
   </table>
 </section>
 
 <section class="card">
-  <h2><span class="no">7</span>效率与嵌入式结论（本期量化）</h2>
-  <table>
-    <tr><th>问题</th><th>实测/结论</th></tr>
-    <tr>
-      <td>协议交互效率够吗？</td>
-      <td>编码 463k 帧/s（2.2µs/帧）；拖拽 60Hz = 13 kbit/s，比 PTY 吞吐低两个数量级。<strong>瓶颈在光栅化，不在协议。</strong></td>
-    </tr>
-    <tr>
-      <td>200MHz 无 GPU 嵌入式？</td>
-      <td>协议折算 5-10µs/帧（0.2-2% CPU），同硬件光栅化占 25-100%——<strong>差两个数量级，协议永远不会先成瓶颈</strong>。</td>
-    </tr>
-    <tr>
-      <td>提效手段</td>
-      <td>手写 itoa 替代 snprintf = 7.8×（唯一现在值得做）；程序侧 diff + 批量 flush 是帧数杠杆（UI 框架层职责）；二进制帧保留武器不启用（小数值下文本更紧凑）。</td>
-    </tr>
-  </table>
-</section>
-
-<section class="card">
-  <h2><span class="no">8</span>提交与下一步</h2>
-  <h3>8.1 本期提交</h3>
-  <ul>
-    <li><code>aeefee6</code> feat(renderer)!: replace LVGL with scene backend (SDL2 paint port)</li>
-    <li><code>410355c</code> feat(renderer): Skia paint port — second reference backend (TGS_USE_SKIA)</li>
-    <li><code>f1a6314</code> chore(docs,brain): purge rendering-engine history</li>
-    <li><code>722d187</code> chore(brain): decision record — control semantics abandoned, graphics primitives pursued</li>
-  </ul>
-  <h3>8.2 下一步（按优先级）</h3>
+  <h2><span class="no">9</span>下一步</h2>
   <ol>
-    <li><strong>程序侧控件库（libtgs-ui）</strong>——图形语义定案后价值闭环的最大缺口：radio 互斥组、list = SCROLL+子控件、diff/重排。组合过程中的每个摩擦点都是协议缺口的真实信号。</li>
-    <li><strong>Skia 后端工程化</strong>——<code>libskia.a</code> 目前为本地 vendor 构建（826MB 全量）；收敛到最小目标 + 构建脚本入库，CI 可选开启。</li>
-    <li><strong>P5 resources</strong>（L3 缺口）：<code>TGS_STREAM_RESOURCE</code> 资源上传/缓存，gate IMAGE 与 FONT_SIZE。</li>
-    <li><strong>编码优化</strong>：手写 itoa（7.8×，约 30 行，零风险）——待真实负载需要时落地。</li>
+    <li><strong>kitty 呈现通道</strong>（<code>output_kitty.c</code>）：fb→RGBA→PNG→base64→kitty 图形序列→stdout。TGS 的呈现基础，非编译选项。</li>
+    <li><strong>帧格式裁决</strong>：<code>Gtgs;</code> → 合法 kitty key 或独立前缀（见 §4）。</li>
+    <li><strong>parser 双识别</strong>：G 载荷含 tgs → TGS 帧；裸 G → kitty 原生像素。</li>
+    <li><strong>文档/brain 更新</strong>：spec 重写、brain 记录定案。</li>
   </ol>
 </section>
 
 <footer>
-  完整设计：docs/architecture-v2.md · docs/navigation.md · docs/ime.md<br>
-  逐层验收：protocol/tgs-spec-layer0.md · brain/pages/backend-sdl2-skia.md
+  提交 616fe5f · 2026-09-20 · TGS v2.0 · 3 原语 + kitty G APC
 </footer>
 
 </div>
