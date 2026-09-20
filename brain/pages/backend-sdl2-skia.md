@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-20T01:53:00"
+updated: "2026-09-20T02:27:46"
 ---
 
 <!-- compiled_truth -->
@@ -91,5 +91,11 @@ updated: "2026-09-20T01:53:00"
 - time: 2026-09-20T01:53:00
   kind: decision
   summary: "Spec v2.0 DONE (2026-09-20): protocol/tgs-spec-layer0.md rewritten — drawing semantics, G1 APC dual-identification, no windows/win_id/focus/layout/subscription/geometry. Normative rules: kind admission (renderer-native state or reject), interaction-shaped events only, no subscription gating, kitty presentation pacing (raw RGBA banned). v1.0 archived (tgs-spec-layer0-v1.md.bak). IME spec: separate program, window-level key routing, candidate window is outer WM's job — no PREEDIT/CANDIDATES/SELECT/CANCEL commands."
+  source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-20T02:27:46
+  kind: evidence
+  summary: "Live verification (2026-09-20): kitty round-trip is PIXEL-EXACT — ground truth (render_snapshot direct fb dump) vs kitty presentation capture (compositor stdout APC decode) compare 2242/2242 sampled pixels inside the box, maxdiff=0, antialiased text glyph edges identical (249,249,249). Found+fixed: WGT_CREATE content arg dropped in WM rewrite. Methodology: capture compositor stdout, decode kitty APC per-transmission (a=T boundary groups), reconstruct PNG, pixel compare. 49/49 tests green."
   source: session
   affects: [backend-sdl2-skia]
