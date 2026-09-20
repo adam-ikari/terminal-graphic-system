@@ -19,10 +19,10 @@ int tgs_frame_encode(int stream_id, int frame_id, int command,
     if (out_size <= 0) return -1;
     if (num_args < 0 || num_args > TGS_MAX_ARGS) return -1;
 
-    /* TGS rides the kitty graphics APC: payload = "Gtgs;" + the classic
+    /* TGS rides the kitty graphics APC: payload = "G1;" + the classic
      * semicolon payload. A "G" followed directly by key=value is a kitty-
-     * native frame (pixel placement); "Gtgs;" marks TGS's superset frames. */
-    n = snprintf(out, out_size, "Gtgs;%d;%d;%d",
+     * native frame (pixel placement); "G1;" marks TGS's superset frames. */
+    n = snprintf(out, out_size, "G1;%d;%d;%d",
                  stream_id, frame_id, command);
     if (n < 0 || n >= out_size) return -1;
     written = n;
@@ -75,11 +75,11 @@ int tgs_frame_decode(const char *data, int len, tgs_frame *frame)
 
     cursor = buf;
 
-    /* First field: must be "Gtgs" — the kitty APC carrying a TGS frame.
-     * A bare "G" (kitty-native payload) is not a TGS frame; the parser
+    /* First field: must be "G1" — TGS sub-namespace in the kitty G APC.
+     * A bare "G" (kitty-native pixel) (kitty-native payload) is not a TGS frame; the parser
      * routes those straight to the kitty pixel path. */
     token = next_field(&cursor);
-    if (!token || strcmp(token, "Gtgs") != 0) return -1;
+    if (!token || strcmp(token, "G1") != 0) return -1;
 
     /* stream_id */
     token = next_field(&cursor);

@@ -10,14 +10,14 @@ TEST_F(FrameTest, EncodeBasic) {
     const char *args[] = {"1", "0", "My Window"};
     int len = tgs_frame_encode(1, 42, 32, args, 3, buf, sizeof(buf));
     EXPECT_GT(len, 0);
-    EXPECT_STREQ(buf, "Gtgs;1;42;32;1;0;My Window");
+    EXPECT_STREQ(buf, "G1;1;42;32;1;0;My Window");
 }
 
 TEST_F(FrameTest, EncodeEmptyArgs) {
     char buf[1024];
     int len = tgs_frame_encode(0, 1, 1, NULL, 0, buf, sizeof(buf));
     EXPECT_GT(len, 0);
-    EXPECT_STREQ(buf, "Gtgs;0;1;1");
+    EXPECT_STREQ(buf, "G1;0;1;1");
 }
 
 TEST_F(FrameTest, EncodeOverflow) {
@@ -28,7 +28,7 @@ TEST_F(FrameTest, EncodeOverflow) {
 }
 
 TEST_F(FrameTest, DecodeBasic) {
-    const char *payload = "Gtgs;1;42;32;0;0;My Window";
+    const char *payload = "G1;1;42;32;0;0;My Window";
     tgs_frame f;
     int ret = tgs_frame_decode(payload, strlen(payload), &f);
     EXPECT_EQ(ret, 0);
@@ -70,7 +70,7 @@ TEST_F(FrameTest, Roundtrip) {
 }
 
 TEST_F(FrameTest, DecodeTrailingEmptyArg) {
-    const char *payload = "Gtgs;1;1;32;1;0;2;10;20;100;40;";
+    const char *payload = "G1;1;1;32;1;0;2;10;20;100;40;";
     tgs_frame f;
     ASSERT_EQ(tgs_frame_decode(payload, strlen(payload), &f), 0);
     ASSERT_EQ(f.num_args, 8);
