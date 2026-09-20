@@ -1,53 +1,30 @@
 /*
- * TGS IME Application (Reference Implementation)
- * Direct Input engine: each printable keystroke commits immediately.
- * This is a separate process — NOT part of the compositor.
+ * ime_app.c — the IME program (reference implementation).
+ *
+ * A separate process connected to the compositor as the input front end: it
+ * receives EVT_KEY from the compositor and commits text back via IME_COMMIT.
+ * The candidate window is NOT this protocol's concern — the outer window
+ * manager presents it.
  */
 #include "tgs_client.h"
 #include <string.h>
 #include <stdio.h>
 
-int main(int argc, char *argv[])
+int main(void)
 {
-    (void)argc; (void)argv;
+    if (tgs_client_init() != 0) return 1;
 
-    if (tgs_client_init() != 0) {
-        fprintf(stderr, "IME: init failed\n");
-        return 1;
-    }
-
-    /* Create a hidden tool window */
-    tgs_window_info win;
-    if (tgs_client_create_window(TGS_WINDOW_TOOL, "IME Engine", &win) != 0) {
-        fprintf(stderr, "IME: create window failed\n");
-        return 1;
-    }
-
-    fprintf(stderr, "IME: running (window %d)\n", win.window_id);
-
-    /* Event loop — receive EVT_KEY from compositor, send IME events back */
     tgs_event ev;
     while (tgs_client_poll_event(&ev, -1) == 0) {
-        if (ev.type == TGS_EVENT_KEY) {
-            int key = ev.key;
-
-            /* Direct Input: printable ASCII commits immediately */
-            if (key >= 0x20 && key <= 0x7e) {
-                char committed[2] = { (char)key, '\0' };
-                tgs_client_send_ime_commit(ev.window_id, ev.widget_id,
-                                           committed);
-            }
-            /* Non-printable keys: pass through as-is (commit the key code) */
-            else if (key == 13) { /* Enter — commit newline */
-                tgs_client_send_ime_commit(ev.window_id, ev.widget_id, "\n");
-            }
-            else if (key == 8 || key == 127) { /* Backspace */
-                tgs_client_send_ime_commit(ev.window_id, ev.widget_id, "\b");
-            }
-            /* Arrow keys, Tab, Escape: pass through unchanged */
-            /* (For a full IME, these would control the composition UI) */
+        if (ev.type != TGS_EVENT_KEY) continue;
+        if (ev.key >= 0x20 && ev.key <= 0x7e) {
+            char committed[2] = { (char)ev.key, '\0' };
+            tgs_client_send_ime_commit(committed);
+        } else if (ev.key == 10 || ev.key == 13) {
+            tgs_client_send_ime_commit("\n");
+        } else if (ev.key == 8) {
+            tgs_client_send_ime_commit("\b");
         }
     }
-
     return 0;
 }

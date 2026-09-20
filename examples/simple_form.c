@@ -1,6 +1,11 @@
 /*
- * simple_form.c — Demo app using the TGS client API.
- * Creates a form with label, input, submit button, and result label.
+ * simple_form.c — reference demo of the TGS element API (SVG semantics).
+ *
+ * The program owns all state: it composes a label + a clickable box (a
+ * "submit button") + a result label out of TEXT and BOX primitives, and it
+ * edits an input string itself from KEY events. The renderer paints; the
+ * program decides.
+ *
  * Writes TGS protocol to stdout; debug output goes to stderr.
  * C99, links against tgs_client.
  */
@@ -9,55 +14,62 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Widget IDs */
-#define ID_PROMPT_LABEL 1
-#define ID_NAME_INPUT   2
-#define ID_SUBMIT_BTN   3
-#define ID_RESULT_LABEL 4
+#define ID_PROMPT    1   /* TEXT */
+#define ID_INPUT     2   /* TEXT (echo of the program's edit buffer) */
+#define ID_BTN_BOX   3   /* BOX (the clickable area) */
+#define ID_BTN_LBL   4   /* TEXT child of the button box */
+#define ID_RESULT    5   /* TEXT */
 
 int main(void)
 {
     tgs_event ev;
-    tgs_window_info win;
+    char buf[256];
+    int len = 0;
+
+    buf[0] = '\0';
 
     if (tgs_client_init() != 0) {
         fprintf(stderr, "simple_form: client init failed\n");
         return 1;
     }
 
-    if (tgs_client_create_window(TGS_WINDOW_NORMAL, "Simple Form", &win) != 0) {
-        fprintf(stderr, "simple_form: create window failed\n");
-        tgs_client_shutdown();
-        return 1;
-    }
+    /* Canvas root = parent 0. Geometry is program-computed. */
+    tgs_client_create_element(TGS_WIDGET_TEXT,  ID_PROMPT,  0,
+                               20, 20, 200, 30, "Enter your name:");
+    tgs_client_create_element(TGS_WIDGET_TEXT,  ID_INPUT,   0,
+                               20, 60, 300, 40, "");
+    /* A "submit button" = a BOX (clickable) + a TEXT child centered on it. */
+    tgs_client_create_element(TGS_WIDGET_BOX,   ID_BTN_BOX, 0,
+                               20, 110, 120, 40, "");
+    tgs_client_create_element(TGS_WIDGET_TEXT,  ID_BTN_LBL, ID_BTN_BOX,
+                               0, 0, 120, 40, "Submit");
+    tgs_client_create_element(TGS_WIDGET_TEXT,  ID_RESULT,  0,
+                               20, 160, 400, 30, "");
 
-    /* Prompt label */
-    tgs_client_create_widget(TGS_WIDGET_LABEL, ID_PROMPT_LABEL, win.window_id,
-                             20, 20, 200, 30, "Enter your name:");
-
-    /* Name input */
-    tgs_client_create_widget(TGS_WIDGET_INPUT, ID_NAME_INPUT, win.window_id,
-                             20, 60, 300, 40, "");
-
-    /* Submit button */
-    tgs_client_create_widget(TGS_WIDGET_CHECKBOX, ID_SUBMIT_BTN, win.window_id,
-                             20, 110, 120, 40, "Submit");
-
-    /* Result label (initially empty) */
-    tgs_client_create_widget(TGS_WIDGET_LABEL, ID_RESULT_LABEL, win.window_id,
-                             20, 160, 400, 30, "");
-
-    /* Bind click on the submit button */
-    tgs_client_bind_event(ID_SUBMIT_BTN, TGS_EVENT_CLICK);
-
-    /* Event loop */
+    /* Event loop: the program routes everything. */
     while (tgs_client_poll_event(&ev, -1) == 0) {
-        if (ev.type == TGS_EVENT_CLICK && ev.widget_id == ID_SUBMIT_BTN) {
-            const char *name = tgs_client_get_widget_text(ID_NAME_INPUT);
-            char greeting[296];
+        if (ev.type == TGS_EVENT_KEY) {
+            /* Printable ASCII appends to the edit buffer; backspace
+             * deletes. The renderer never holds the buffer. */
+            if (ev.key >= 0x20 && ev.key <= 0x7e && len < (int)sizeof(buf) - 1) {
+                buf[len++] = (char)ev.key;
+                buf[len] = '\0';
+                tgs_client_update_element(ID_INPUT, buf);
+            } else if (ev.key == 8 && len > 0) {
+                buf[--len] = '\0';
+                tgs_client_update_element(ID_INPUT, buf);
+            } else if (ev.key == 10 || ev.key == 13) {
+                /* Enter submits. */
+                char greeting[300];
+                snprintf(greeting, sizeof(greeting), "Hello, %s!",
+                         len ? buf : "World");
+                tgs_client_update_element(ID_RESULT, greeting);
+            }
+        } else if (ev.type == TGS_EVENT_CLICK && ev.id == ID_BTN_BOX) {
+            char greeting[300];
             snprintf(greeting, sizeof(greeting), "Hello, %s!",
-                     (name && name[0]) ? name : "World");
-            tgs_client_update_widget(ID_RESULT_LABEL, greeting);
+                     len ? buf : "World");
+            tgs_client_update_element(ID_RESULT, greeting);
         }
     }
 

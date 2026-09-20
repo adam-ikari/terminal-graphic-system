@@ -11,6 +11,7 @@
  * matches the published-buffer byte order (BGRA in memory).
  */
 #include "tgs_scene.h"
+#define SCENE_FONT_SIZES 4
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>

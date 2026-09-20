@@ -176,13 +176,13 @@ void input_poll(void)
 
             } else if (ev.type == EV_REL) {
                 /* Relative mouse movement */
-                if (!g_backend || !g_backend->inject_mouse) continue;
+                if (!g_backend || !g_backend->inject_pointer) continue;
                 if (ev.code == REL_X) ptr_x += ev.value;
                 if (ev.code == REL_Y) ptr_y += ev.value;
                 if (ptr_x < 0) ptr_x = 0;
                 if (ptr_y < 0) ptr_y = 0;
                 if (g_mouse_sink) g_mouse_sink(ptr_x, ptr_y, 0, -1, g_mouse_sink_ud);
-                g_backend->inject_mouse(ptr_x, ptr_y, 0, btn_state);
+                g_backend->inject_pointer(ptr_x, ptr_y, 1); /* move */
 
             } else if (ev.type == EV_ABS) {
                 /* Absolute positioning (touchscreen) — accumulate until SYN */
@@ -195,8 +195,8 @@ void input_poll(void)
                     ptr_x = abs_x;
                     ptr_y = abs_y;
                     if (g_mouse_sink) g_mouse_sink(ptr_x, ptr_y, 0, -1, g_mouse_sink_ud);
-                    if (g_backend && g_backend->inject_mouse)
-                        g_backend->inject_mouse(ptr_x, ptr_y, 0, btn_state);
+                    if (g_backend && g_backend->inject_pointer)
+                        g_backend->inject_pointer(ptr_x, ptr_y, 1); /* move */
                 }
 
 

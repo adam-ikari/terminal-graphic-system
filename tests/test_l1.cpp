@@ -101,18 +101,9 @@ TEST(L1Client, stays_alive_during_a_quiet_poll)
                         args, 1);
     }
 
-    /* WIN_CREATE -> NTF_RESIZE */
+    /* WGT_CREATE (the client does not wait for a reply) */
     ASSERT_GT(read_frame(from_child[0], payload, 3000), 0)
-        << "no WIN_CREATE from the client";
-    {
-        const char *args[] = { "1", "0", "0", "800", "600" };
-        tgs_frame_write(to_child[1], TGS_STREAM_COMMAND, 1, TGS_CMD_NTF_RESIZE,
-                        args, 5);
-    }
-
-    /* CREATE_WIDGET (the client does not wait for a reply) */
-    ASSERT_GT(read_frame(from_child[0], payload, 3000), 0)
-        << "no CREATE_WIDGET from the client";
+        << "no WGT_CREATE from the client";
 
     /* The client is now in its poll loop: `poll_event(&ev, 500)` in a `for(;;)`
      * that breaks when the call returns < 0. The fake compositor sends nothing

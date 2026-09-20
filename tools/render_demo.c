@@ -31,74 +31,74 @@ static void build_simple_form(tgs_backend *be, void *win)
 {
     void *w;
 
-    w = be->create_widget(win, TGS_WIDGET_LABEL);
-    be->set_widget_rect(w, 20, 20, 200, 30);
-    be->set_widget_content(w, "Enter your name:");
+    w = be->create_element(win, TGS_WIDGET_TEXT);
+    be->set_element_rect(w, 20, 20, 200, 30);
+    be->set_element_content(w, "Enter your name:");
 
-    w = be->create_widget(win, TGS_WIDGET_INPUT);
-    be->set_widget_rect(w, 20, 60, 300, 40);
-    be->set_widget_content(w, "");
+    w = be->create_element(win, TGS_WIDGET_TEXT);
+    be->set_element_rect(w, 20, 60, 300, 40);
+    be->set_element_content(w, "");
 
-    w = be->create_widget(win, TGS_WIDGET_CHECKBOX);
-    be->set_widget_rect(w, 20, 110, 120, 40);
-    be->set_widget_content(w, "Submit");
+    w = be->create_element(win, TGS_WIDGET_BOX);
+    be->set_element_rect(w, 20, 110, 120, 40);
+    be->set_element_content(w, "Submit");
 
-    w = be->create_widget(win, TGS_WIDGET_LABEL);
-    be->set_widget_rect(w, 20, 160, 400, 30);
-    be->set_widget_content(w, "");
+    w = be->create_element(win, TGS_WIDGET_TEXT);
+    be->set_element_rect(w, 20, 160, 400, 30);
+    be->set_element_content(w, "");
 }
 
 /* Mirrors examples/container_demo.c: CONTAINER > (LABEL, CONTAINER > (INPUT, BUTTON)) */
 static void build_container_demo(tgs_backend *be, void *win)
 {
-    void *vlayout = be->create_widget(win, TGS_WIDGET_CONTAINER);
-    be->set_widget_rect(vlayout, 20, 20, 600, 200);
-    be->set_widget_content(vlayout, "");
+    void *vlayout = be->create_element(win, TGS_WIDGET_BOX);
+    be->set_element_rect(vlayout, 20, 20, 600, 200);
+    be->set_element_content(vlayout, "");
 
-    void *label = be->create_widget(vlayout, TGS_WIDGET_LABEL);
-    be->set_widget_rect(label, 10, 10, 200, 30);
-    be->set_widget_content(label, "Name:");
+    void *label = be->create_element(vlayout, TGS_WIDGET_TEXT);
+    be->set_element_rect(label, 10, 10, 200, 30);
+    be->set_element_content(label, "Name:");
 
-    void *hlayout = be->create_widget(vlayout, TGS_WIDGET_CONTAINER);
-    be->set_widget_rect(hlayout, 10, 50, 560, 40);
-    be->set_widget_content(hlayout, "");
+    void *hlayout = be->create_element(vlayout, TGS_WIDGET_BOX);
+    be->set_element_rect(hlayout, 10, 50, 560, 40);
+    be->set_element_content(hlayout, "");
 
-    void *input = be->create_widget(hlayout, TGS_WIDGET_INPUT);
-    be->set_widget_rect(input, 0, 0, 300, 40);
-    be->set_widget_content(input, "");
+    void *input = be->create_element(hlayout, TGS_WIDGET_TEXT);
+    be->set_element_rect(input, 0, 0, 300, 40);
+    be->set_element_content(input, "");
 
-    void *btn = be->create_widget(hlayout, TGS_WIDGET_CHECKBOX);
-    be->set_widget_rect(btn, 320, 0, 80, 40);
-    be->set_widget_content(btn, "OK");
+    void *btn = be->create_element(hlayout, TGS_WIDGET_BOX);
+    be->set_element_rect(btn, 320, 0, 80, 40);
+    be->set_element_content(btn, "OK");
 
-    void *result = be->create_widget(vlayout, TGS_WIDGET_LABEL);
-    be->set_widget_rect(result, 10, 100, 400, 30);
-    be->set_widget_content(result, "");
+    void *result = be->create_element(vlayout, TGS_WIDGET_TEXT);
+    be->set_element_rect(result, 10, 100, 400, 30);
+    be->set_element_content(result, "");
 }
 
 /* One widget of every tgs_widget_type — smoke test for the backend mapping. */
 static void build_library(tgs_backend *be, void *win)
 {
     static const struct { tgs_widget_type type; const char *text; } items[] = {
-        { TGS_WIDGET_LABEL,    "label" },
-        { TGS_WIDGET_CHECKBOX,   "button" },
-        { TGS_WIDGET_INPUT,    "input" },
-        { TGS_WIDGET_CHECKBOX, "checkbox" },
-        { TGS_WIDGET_SLIDER,   "" },
-        { TGS_WIDGET_CONTAINER, "" },
-        { TGS_WIDGET_IMAGE,    "" },
-        { TGS_WIDGET_CONTAINER, "" },
-        { TGS_WIDGET_SCROLL,   "" },
-        { TGS_WIDGET_SCROLL,   "" },
+        { TGS_WIDGET_TEXT,    "label" },
+        { TGS_WIDGET_BOX,   "button" },
+        { TGS_WIDGET_TEXT,    "input" },
+        { TGS_WIDGET_BOX, "checkbox" },
+        { TGS_WIDGET_BOX,   "" },
+        { TGS_WIDGET_BOX, "" },
+        { TGS_WIDGET_GRAPHIC,    "" },
+        { TGS_WIDGET_BOX, "" },
+        { TGS_WIDGET_BOX,   "" },
+        { TGS_WIDGET_BOX,   "" },
     };
     size_t n = sizeof(items) / sizeof(items[0]);
     int x = 10, y = 10;
     size_t k;
 
     for (k = 0; k < n; k++) {
-        void *w = be->create_widget(win, items[k].type);
-        be->set_widget_rect(w, x, y, 180, 70);
-        be->set_widget_content(w, items[k].text);
+        void *w = be->create_element(win, items[k].type);
+        be->set_element_rect(w, x, y, 180, 70);
+        be->set_element_content(w, items[k].text);
         x += 195;
         if (x > 700) { x = 10; y += 95; }
     }
@@ -144,35 +144,35 @@ static void states_hover(void *handle, tgs_event_type type,
 
     (void)data;
     if (type == TGS_EVENT_HOVER_ENTER) {
-        be->set_widget_style(handle, TGS_STYLE_BORDER_WIDTH, 3);
-        be->set_widget_style(handle, TGS_STYLE_BORDER_COLOR, 0x4C9AFF);
+        be->set_element_style(handle, TGS_STYLE_BORDER_WIDTH, 3);
+        be->set_element_style(handle, TGS_STYLE_BORDER_COLOR, 0x4C9AFF);
     } else if (type == TGS_EVENT_HOVER_LEAVE) {
-        be->set_widget_style(handle, TGS_STYLE_BORDER_WIDTH, 0);
+        be->set_element_style(handle, TGS_STYLE_BORDER_WIDTH, 0);
     }
 }
 
 static void build_states(tgs_backend *be, void *win)
 {
     static const struct { tgs_widget_type type; int x, y, w, h; const char *t; } items[] = {
-        { TGS_WIDGET_CHECKBOX,    20,  20, 140, 56, "Button" },
-        { TGS_WIDGET_INPUT,     20,  96, 140, 56, "" },
-        { TGS_WIDGET_CHECKBOX,  20, 172, 140, 40, "Check" },
-        { TGS_WIDGET_CHECKBOX,  20, 232, 140, 40, "Radio" },
-        { TGS_WIDGET_SLIDER,    20, 292, 140, 48, "" },
-        { TGS_WIDGET_CHECKBOX,  20, 360, 140, 40, "" },
-        { TGS_WIDGET_SCROLL,   180, 320, 160, 80, "" },
-        { TGS_WIDGET_SLIDER,   360,  20, 160, 40, "" },
-        { TGS_WIDGET_CONTAINER,360,  80, 160, 120, "" },
+        { TGS_WIDGET_BOX,    20,  20, 140, 56, "Button" },
+        { TGS_WIDGET_TEXT,     20,  96, 140, 56, "" },
+        { TGS_WIDGET_BOX,  20, 172, 140, 40, "Check" },
+        { TGS_WIDGET_BOX,  20, 232, 140, 40, "Radio" },
+        { TGS_WIDGET_BOX,    20, 292, 140, 48, "" },
+        { TGS_WIDGET_BOX,  20, 360, 140, 40, "" },
+        { TGS_WIDGET_BOX,   180, 320, 160, 80, "" },
+        { TGS_WIDGET_BOX,   360,  20, 160, 40, "" },
+        { TGS_WIDGET_BOX,360,  80, 160, 120, "" },
     };
     size_t n = sizeof(items) / sizeof(items[0]);
     size_t k;
 
     be->set_event_callback(states_hover, be);
     for (k = 0; k < n; k++) {
-        void *w = be->create_widget(win, items[k].type);
-        be->set_widget_rect(w, items[k].x, items[k].y,
+        void *w = be->create_element(win, items[k].type);
+        be->set_element_rect(w, items[k].x, items[k].y,
                             items[k].w, items[k].h);
-        be->set_widget_content(w, items[k].t);
+        be->set_element_content(w, items[k].t);
     }
 }
 
@@ -188,7 +188,7 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     if (dump_png(disp, be, path) < 0) return -1;
 
     /* hover the Button (center 90,48) - the callback paints a blue border */
-    be->inject_mouse(90, 48, 0, -1);
+    be->inject_pointer(90, 48, 1);
     for (i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
@@ -197,14 +197,14 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     if (dump_png(disp, be, path) < 0) return -1;
 
     /* press then release: pressed look, then clicked + focused */
-    be->inject_mouse(90, 48, 0, 1);
+    be->inject_pointer(90, 48, 0);
     for (i = 0; i < 3; i++) {
         be->tick(16);
         be->render();
     }
     snprintf(path, sizeof(path), "%s_pressed.png", base);
     if (dump_png(disp, be, path) < 0) return -1;
-    be->inject_mouse(90, 48, 0, 0);
+    be->inject_pointer(90, 48, 2);
     for (i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
@@ -213,7 +213,7 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
     if (dump_png(disp, be, path) < 0) return -1;
 
     /* hover the Slider (center 90,316) */
-    be->inject_mouse(90, 316, 0, -1);
+    be->inject_pointer(90, 316, 1);
     for (i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
@@ -228,37 +228,26 @@ static int run_states(tgs_backend *be, tgs_display *disp, const char *base)
  * normal / hover / pressed states. Layout containers get children so their
  * arrangement is visible. */
 static const struct { tgs_widget_type type; const char *name; const char *t; } singles[] = {
-    { TGS_WIDGET_CHECKBOX,    "button",    "Button" },
-    { TGS_WIDGET_LABEL,     "label",     "Label text" },
-    { TGS_WIDGET_INPUT,     "input",     "" },
-    { TGS_WIDGET_CHECKBOX,  "checkbox",  "Checkbox" },
-    { TGS_WIDGET_SLIDER,    "slider",    "" },
-    { TGS_WIDGET_IMAGE,     "image",     "" },
-    { TGS_WIDGET_CONTAINER, "container", "" },
-    { TGS_WIDGET_SCROLL,    "scroll",    "" },
+    { TGS_WIDGET_TEXT,    "text",      "Label text" },
+    { TGS_WIDGET_BOX,     "box",       "" },
+    { TGS_WIDGET_GRAPHIC, "graphic",   "" },
 };
 
 /* Give containers children so their arrangement is visible. */
 static void populate_single(tgs_backend *be, void *w, tgs_widget_type type)
 {
     switch (type) {
-    case TGS_WIDGET_CONTAINER: {
-        /* program-computed layout: label row, then two buttons side by side */
-        void *a = be->create_widget(w, TGS_WIDGET_LABEL);
-        void *b = be->create_widget(w, TGS_WIDGET_CHECKBOX);
-        void *c = be->create_widget(w, TGS_WIDGET_CHECKBOX);
-        be->set_widget_rect(a, 0, 0, 250, 24);
-        be->set_widget_content(a, "row one (program-computed rects)");
-        be->set_widget_rect(b, 0, 30, 120, 36);
-        be->set_widget_content(b, "left");
-        be->set_widget_rect(c, 130, 30, 120, 36);
-        be->set_widget_content(c, "right");
-        break;
-    }
-    case TGS_WIDGET_SCROLL: {
-        void *c = be->create_widget(w, TGS_WIDGET_LABEL);
-        be->set_widget_rect(c, 0, 0, 220, 120);
-        be->set_widget_content(c, "scrollable long content line");
+    case TGS_WIDGET_BOX: {
+        /* program-computed layout: label row, then two boxes side by side */
+        void *a = be->create_element(w, TGS_WIDGET_TEXT);
+        void *b = be->create_element(w, TGS_WIDGET_BOX);
+        void *c = be->create_element(w, TGS_WIDGET_BOX);
+        be->set_element_rect(a, 0, 0, 250, 24);
+        be->set_element_content(a, "row one (program-computed rects)");
+        be->set_element_rect(b, 0, 30, 120, 36);
+        be->set_element_content(b, "left");
+        be->set_element_rect(c, 130, 30, 120, 36);
+        be->set_element_content(c, "right");
         break;
     }
     default:
@@ -273,16 +262,14 @@ static int run_singles(tgs_backend *be, tgs_display *disp, const char *dir)
 
     be->set_event_callback(states_hover, be);
     for (k = 0; k < n; k++) {
-        void *win = be->create_window(TGS_WINDOW_NORMAL, singles[k].name);
         void *w;
         char path[300];
         int i;
 
-        if (!win) return -1;
-        w = be->create_widget(win, singles[k].type);
+        w = be->create_element(NULL, singles[k].type);
         if (!w) return -1;
-        be->set_widget_rect(w, 270, 250, 260, 90);
-        be->set_widget_content(w, singles[k].t);
+        be->set_element_rect(w, 270, 250, 260, 90);
+        be->set_element_content(w, singles[k].t);
         populate_single(be, w, singles[k].type);
 
         for (i = 0; i < 10; i++) {
@@ -293,7 +280,7 @@ static int run_singles(tgs_backend *be, tgs_display *disp, const char *dir)
         if (dump_png(disp, be, path) < 0) return -1;
 
         /* hover the widget's center (400,300) */
-        be->inject_mouse(400, 300, 0, -1);
+        be->inject_pointer(400, 300, 1);
         for (i = 0; i < 5; i++) {
             be->tick(16);
             be->render();
@@ -302,7 +289,7 @@ static int run_singles(tgs_backend *be, tgs_display *disp, const char *dir)
         if (dump_png(disp, be, path) < 0) return -1;
 
         /* pressed */
-        be->inject_mouse(400, 300, 0, 1);
+        be->inject_pointer(400, 300, 0);
         for (i = 0; i < 3; i++) {
             be->tick(16);
             be->render();
@@ -310,12 +297,11 @@ static int run_singles(tgs_backend *be, tgs_display *disp, const char *dir)
         snprintf(path, sizeof(path), "%s/%s_pressed.png", dir, singles[k].name);
         if (dump_png(disp, be, path) < 0) return -1;
 
-        be->inject_mouse(400, 300, 0, 0);
+        be->inject_pointer(400, 300, 2);
         for (i = 0; i < 5; i++) {
             be->tick(16);
             be->render();
         }
-        be->destroy_window(win);
     }
     return 0;
 }
@@ -351,8 +337,8 @@ int main(int argc, char *argv[])
         return rc < 0 ? 1 : 0;
     }
 
-    /* --- Build the widget tree of the selected demo --- */
-    void *win = be->create_window(TGS_WINDOW_NORMAL, "Simple Form");
+    /* --- Build the element tree of the selected demo on the canvas --- */
+    void *win = NULL;
 
     if (strcmp(demo, "container") == 0) {
         build_container_demo(be, win);

@@ -267,14 +267,11 @@ add_subdirectory(deps/googletest)
 
 add_executable(tgs_tests
     tests/test_frame.cpp
-    tests/test_nav.cpp
     tests/test_protocol.cpp
     tests/test_term.cpp
     tests/test_pty.cpp
     tests/test_snapshot.cpp
     tests/test_l1.cpp
-    tests/test_l2_focus.cpp
-    tests/test_geometry.cpp
     tests/test_scene_click.cpp
 )
 target_compile_definitions(tgs_tests PRIVATE
@@ -286,18 +283,10 @@ add_test(NAME tgs_tests COMMAND tgs_tests)
 set_tests_properties(tgs_tests PROPERTIES
     ENVIRONMENT "CHAR_AND_GRAPHICS=$<TARGET_FILE:char_and_graphics>")
 
-# nav_probe — end-to-end navigation probe (records what the app receives)
-add_executable(nav_probe
-    tests/nav_probe.c
-)
-target_link_libraries(nav_probe PRIVATE tgs_client)
 
 # term_probe — replay captured program output through the terminal emulator
 add_executable(term_probe
     tests/term_probe.c
 )
 
-# d2_repro — headless proof that the TGS_NAV_WIDGET hand-off reports the real key
-add_executable(d2_repro tests/d2_repro.c)
-target_link_libraries(d2_repro PRIVATE tgs_scene_backend tgs_common)
 target_link_libraries(term_probe PRIVATE tgs_compositor)

@@ -1,21 +1,27 @@
 /*
- * TGS Protocol Common Definitions
- * All type definitions: enums, stream IDs, command IDs, protocol constants.
+ * TGS Protocol Common Definitions — first-principles minimal form.
+ *
+ * TGS is a point-to-point drawing protocol between one program and a
+ * renderer. A program owns one canvas; it paints primitives and receives
+ * input events. There is NO window management, NO win_id, NO focus model,
+ * NO layout engine, NO subscription gate, NO widget catalog: the renderer
+ * paints the drawing primitives (TEXT / BOX / GRAPHIC), does hit-testing,
+ * and forwards input. Everything interactive (buttons, toggles, sliders,
+ * scroll, text buffers, focus visuals) is program-side composition of
+ * primitives plus events. IME is a separate program; the renderer only
+ * routes keys to it and delivers its committed text back as an event —
+ * candidate-window presentation is the outer window manager's job, not
+ * this protocol's.
+ *
  * C99, no external dependencies.
  */
 #ifndef TGS_PROTOCOL_H
 #define TGS_PROTOCOL_H
 
-/* Protocol version and capabilities.
- * The wire protocol is toolkit-neutral: it names abstract widget kinds,
- * style/layout semantics and events, never a rendering engine. The caps
- * string advertises what this build of the compositor implements, so a
- * program can negotiate features; it must stay in sync with the enums. */
-#define TGS_PROTOCOL_VERSION "1.0"
+#define TGS_PROTOCOL_VERSION "2.0"
 #define TGS_CAPS_LAYER0 \
-    "layout.tiled,widget.button,widget.label,widget.input," \
-    "event.click,event.key,event.resize,event.focus," \
-    "event.hover,layout.grid,multiwindow,window.transparent"
+    "drawing.text,drawing.box,drawing.graphic," \
+    "event.click,event.key,event.pointer,event.hover,event.resize"
 
 /* Stream IDs */
 #define TGS_STREAM_HANDSHAKE  0
@@ -24,161 +30,80 @@
 #define TGS_STREAM_FRAMEBUFFER 3
 #define TGS_STREAM_EVENT      4
 
-/* Command IDs */
+/* Command IDs (program → renderer, stream 1) */
 /* Handshake */
 #define TGS_CMD_HELLO   1
 #define TGS_CMD_READY   2
-#define TGS_CMD_REJECT  3   /* [rejected_cap] — compositor → app, sent instead of READY */
+#define TGS_CMD_REJECT  3   /* [rejected_cap] — renderer → program, instead of READY */
 
-/* Window */
-#define TGS_CMD_WIN_CREATE   16
-#define TGS_CMD_WIN_DESTROY  17
+/* Elements — the whole drawing surface is one canvas; parent 0 is the
+ * canvas root. No window concept exists. */
+#define TGS_CMD_WGT_CREATE   32  /* [id, type, parent, x, y, w, h] — parent 0 = canvas */
+#define TGS_CMD_WGT_UPDATE   33  /* [id, value] — replace the element's content */
+#define TGS_CMD_WGT_STYLE    34  /* [id, style_prop, value] */
+#define TGS_CMD_WGT_DESTROY  35  /* [id] */
 
-/* Widget */
-#define TGS_CMD_WGT_CREATE   32
-#define TGS_CMD_WGT_UPDATE   33  /* [widget_id, value] — replace the widget's text content */
-#define TGS_CMD_WGT_STYLE    34
-#define TGS_CMD_WGT_DESTROY  35
-#define TGS_CMD_EVT_BIND     36
-#define TGS_CMD_WGT_LAYOUT   37  /* [widget_id, layout_type, cols?, rows?] — runtime relayout of a container; cols defaults to 2, rows 0 = auto rows */
-
-/* Navigation */
-#define TGS_CMD_SET_FOCUS    38  /* [window_id, widget_id] — widget_id 0 clears; app → compositor */
-/* 39 reserved: GET_FOCUS (Layer 2 reply = NTF_FOCUS with reason NONE) */
-#define TGS_CMD_WGT_ATTR     40  /* [widget_id, attr, value] — attr: tgs_widget_attr */
-/* 41 reserved: NAV_BIND (Layer 2 per-app key binding override) */
-
-/* Notify */
-#define TGS_CMD_NTF_RESIZE   64
-#define TGS_CMD_NTF_FOCUS    65  /* [win_id, widget_id, focused, reason] — reason: tgs_focus_reason */
-#define TGS_CMD_NTF_DESTROY  66
-#define TGS_CMD_NTF_STATE    67  /* [win_id, state] — state: tgs_window_state */
-/* 68 reserved: NTF_FOCUS_PRE (Layer 2 bounded veto window) */
-#define TGS_CMD_NTF_GEOMETRY 69  /* [widget_id, x, y, w, h] — widget's real
-                                  * screen/absolute geometry after layout
-                                  * (compositor → app) */
-
-/* Events */
-#define TGS_CMD_EVT_CLICK    80
-#define TGS_CMD_EVT_KEY      81
-#define TGS_CMD_EVT_VALUE    82
-#define TGS_CMD_EVT_FOCUS    83  /* retired: MUST NOT be emitted; NTF_FOCUS (65) is the focus channel */
-#define TGS_CMD_EVT_HOVER_ENTER 84 /* [win_id, widget_id] — pointer entered the widget (mouse only) */
-#define TGS_CMD_EVT_HOVER_LEAVE 85 /* [win_id, widget_id] — pointer left the widget (mouse only) */
-
-/* IME */
-#define TGS_CMD_IME_PREEDIT  96
-#define TGS_CMD_IME_COMMIT   97
-#define TGS_CMD_IME_CANDIDATES 98 /* [win_id, widget_id, count, c1, c2, ...] */
-#define TGS_CMD_IME_SELECT   99   /* [win_id, widget_id, index] */
-
-#define TGS_CMD_IME_CANCEL   100 /* [win_id, widget_id] — compositor → IME app, drop active composition */
-
-/* Focus change reason — `reason` argument of NTF_FOCUS (65) */
-typedef enum {
-    TGS_REASON_NONE = 0,        /* unspecified / cold query reply */
-    TGS_REASON_TAB,             /* Tab traversal */
-    TGS_REASON_SHIFT_TAB,       /* Shift+Tab traversal */
-    TGS_REASON_ARROW,           /* spatial arrow navigation */
-    TGS_REASON_POINTER,         /* pointer click on the widget */
-    TGS_REASON_PROGRAMMATIC,    /* SET_FOCUS from the app */
-    TGS_REASON_INIT,            /* initial focus of a window */
-    TGS_REASON_WINDOW_ACTIVATE, /* window activated / raised / unhidden */
-    TGS_REASON_WINDOW_RESTORE,  /* focus restored after a window was hidden or destroyed */
-    TGS_REASON_SCOPE_RESTORE,   /* focus restored inside a scope (dialog/modal closed) */
-    TGS_REASON_DESTROYED,       /* the focused widget was destroyed */
-    TGS_REASON_HIDDEN,          /* focus lost because the window was hidden/minimized */
-} tgs_focus_reason;
-
-/* Behavioural widget attribute — `attr` argument of WGT_ATTR (40).
- * FOCUSABLE / NAV_ARROWS: -1 = type default, 0 = no, 1 = yes.
- * NAV_TAB: 0/1. FOCUS_INDEX: -1 = auto, >= 0 = ring position.
- * FOCUS_SCOPE (containers only): 0 = none, 1 = GROUP (single tab stop),
- * 2 = TRAP (modal ring). */
-typedef enum {
-    TGS_ATTR_FOCUSABLE = 0,
-    TGS_ATTR_NAV_ARROWS,
-    TGS_ATTR_NAV_TAB,
-    TGS_ATTR_FOCUS_INDEX,
-    TGS_ATTR_FOCUS_SCOPE,
-} tgs_widget_attr;
-
-/* Window types */
-typedef enum {
-    TGS_WINDOW_NORMAL = 0,
-    TGS_WINDOW_DIALOG,
-    TGS_WINDOW_FULLSCREEN,
-    TGS_WINDOW_TOOL,
-    TGS_WINDOW_TRANSPARENT,   /* root background transparent: the character
-                               * base shows through, widgets float on it —
-                               * char + control interleaving (L1) */
-} tgs_window_type;
-
-
-/* Widget kinds. Protocol-neutral: names are abstract UI concepts, never a
- * rendering toolkit's catalog. Layout is PROGRAM policy — the program computes
- * child geometry itself; the renderer holds no flex/grid engine for app
- * content. Values are stable: retired kinds keep their numbers reserved. */
+/* Element kinds — drawing primitives only (values stable; retired kinds
+ * keep their numbers reserved). */
 typedef enum {
     /* 0 reserved: BUTTON retired — activation is program policy. A click
-     * lands on any widget (hit-testing is renderer mechanism); a "button"
-     * is a CONTAINER + LABEL child whose CLICK the program consumes. */
-    TGS_WIDGET_LABEL = 1,
-    TGS_WIDGET_INPUT = 2,
-    TGS_WIDGET_CHECKBOX = 3,   /* bool + label; RADIUS style makes it round */
-    TGS_WIDGET_SLIDER = 5,     /* value + range + drag */
-    TGS_WIDGET_CONTAINER = 8,  /* plain box; children at app-computed rects */
-    /* 0, 4, 6, 7, 9, 10, 12-19 reserved: retired kinds (BUTTON=CONTAINER+
-     * LABEL child, RADIO=CHECKBOX+round style, SWITCH=CHECKBOX+capsule,
-     * PROGRESS=SLIDER read-only, LIST/TABLE/MENU=CONTAINER+child widgets,
-     * TAB/DROPDOWN/TIMEPICK/DATEPICK need a popup layer — all are
-     * app-side compositions now, see spec §5.2.1) */
-    TGS_WIDGET_SCROLL = 11,
-    TGS_WIDGET_IMAGE = 17,
+     * lands on any element (hit-testing is renderer mechanism); a "button"
+     * is a BOX + TEXT child whose CLICK the program consumes. */
+    TGS_WIDGET_TEXT = 1,        /* TEXT: static text render */
+    /* 2, 3, 5 reserved: INPUT/CHECKBOX/SLIDER retired — text buffers,
+     * toggle state, value+drag are program state driven by KEY/CLICK/
+     * POINTER events, not renderer kinds */
+    TGS_WIDGET_BOX = 8,         /* BOX/GROUP: rectangle; children at
+                                 * program-computed rects */
+    /* 4, 6, 7, 9, 10, 11, 12-19 reserved: retired kinds (RADIO/SWITCH/
+     * PROGRESS/LIST/TABLE/MENU/TAB/DROPDOWN/TIMEPICK/DATEPICK = style or
+     * box compositions; SCROLL = the program recomputes child geometry
+     * from wheel/arrow events instead of a renderer viewport) */
+    TGS_WIDGET_GRAPHIC = 16,    /* GRAPHIC: vector shape (circle, path,
+                                 * polygon); shape chosen by STYLE. Pixel
+                                 * images attach via RESOURCE (stream 2) */
     TGS_WIDGET_COUNT = 20,
 } tgs_widget_type;
-/* Event types */
-typedef enum {
-    TGS_EVENT_CLICK = 0,
-    TGS_EVENT_KEY,
-    TGS_EVENT_FOCUS,
-    TGS_EVENT_BLUR,
-    TGS_EVENT_VALUE_CHANGED,
-    TGS_EVENT_IME_PREEDIT,
-    TGS_EVENT_IME_COMMIT,
-    TGS_EVENT_HOVER_ENTER,   /* pointer (mouse) entered the widget's rect —
-                              * not produced for touch (no hover) */
-    TGS_EVENT_HOVER_LEAVE,
-} tgs_event_type;
-/* Style properties */
+
+/* Style properties — the paint attributes of a drawing primitive. */
 typedef enum {
     TGS_STYLE_BG_COLOR = 0,
     TGS_STYLE_FG_COLOR,
     TGS_STYLE_RADIUS,
     TGS_STYLE_BORDER_WIDTH,
     TGS_STYLE_BORDER_COLOR,
-    TGS_STYLE_SHADOW_WIDTH,
-    TGS_STYLE_SHADOW_COLOR,
     TGS_STYLE_FONT_SIZE,
     TGS_STYLE_OPACITY,
+    TGS_STYLE_SHAPE,            /* GRAPHIC: 0=circle 1=rect 2=path(shape data in UPDATE) */
 } tgs_style_prop;
 
-/* Layout types */
-typedef enum {
-    TGS_LAYOUT_NONE = 0,
-    TGS_LAYOUT_FLEX_ROW,
-    TGS_LAYOUT_FLEX_COL,
-    TGS_LAYOUT_GRID,
-} tgs_layout_type;
-/* TGS_CMD_WGT_LAYOUT grid-track defaults: omitted cols/rows arguments resolve
- * to 2 columns; rows 0 = auto (rows grow to fit children). */
-#define TGS_LAYOUT_DEFAULT_COLS 2
-#define TGS_LAYOUT_DEFAULT_ROWS 0
+/* Notifications (renderer → program, stream 1) */
+#define TGS_CMD_NTF_RESIZE   64  /* [w, h] — canvas size changed */
+#define TGS_CMD_NTF_DESTROY  66  /* [id] — an element was torn down by the renderer */
 
-/* Window activation state — `state` argument of NTF_STATE (67) */
+/* Input events (renderer → program, stream 4) — delivered to the program
+ * which routes them to whichever element it wants. CLICK/HOVER carry the
+ * hit-tested element id (hit-testing is renderer mechanism). */
+#define TGS_CMD_EVT_KEY      81  /* [key, mods] */
+#define TGS_CMD_EVT_CLICK    80  /* [id] — press+release on the same element */
+#define TGS_CMD_EVT_HOVER_ENTER 84 /* [id] — pointer entered the element (mouse only) */
+#define TGS_CMD_EVT_HOVER_LEAVE 85 /* [id] — pointer left the element */
+#define TGS_CMD_EVT_POINTER  86  /* [x, y, phase] — raw pointer coordinate:
+                                  * phase 0=down 1=move 2=up. The primitive
+                                  * for app-drawn interaction (drag, hover). */
+
+/* IME — a separate program. The renderer routes keys to it and delivers its
+ * committed text back as IME_COMMIT. No preedit/candidate traffic crosses
+ * this protocol: candidate-window presentation is the outer WM's job. */
+#define TGS_CMD_IME_COMMIT   97  /* [text] — IME program → renderer → program */
+
 typedef enum {
-    TGS_WINDOW_STATE_INACTIVE = 0,
-    TGS_WINDOW_STATE_ACTIVE = 1,
-} tgs_window_state;
+    TGS_EVENT_KEY = 0,
+    TGS_EVENT_CLICK,
+    TGS_EVENT_HOVER_ENTER,
+    TGS_EVENT_HOVER_LEAVE,
+    TGS_EVENT_POINTER,
+    TGS_EVENT_IME_COMMIT,
+} tgs_event_type;
 
 #endif /* TGS_PROTOCOL_H */

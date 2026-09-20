@@ -1,16 +1,12 @@
 /*
- * test_scene_click.cpp — headless click-coordinate test (D4).
+ * test_scene_click.cpp — headless click/hover/geometry tests.
  *
  * Drives the *real* scene backend (same code path the compositor uses) with a
- * memory framebuffer, exactly like tools/render_demo.c. No display server.
- *
- * D4: the window root must sit at 0,0 with zero padding so compositor pixel
- * coordinates line up with widget coordinates — a click at a known pixel
- * lands on the widget whose rect contains it, and on no other widget. Before
- * the fix the default theme's card style padded the root's content area
- * (PAD_DEF = 20 px at the 800x600 medium display size, plus a 2 px border),
- * shifting every child by that inset: a click inside the widget's *reported*
- * rect missed it entirely.
+ * memory framebuffer, no display server. Pins the SVG-semantics contracts:
+ *   - CLICK lands on the element under the pointer (hit-testing is mechanism)
+ *   - BOX holds program-computed rects exactly (renderer moves nothing)
+ *   - HOVER enter/leave follow the pointer across elements
+ *   - POINTER reports raw coordinates
  */
 #include <gtest/gtest.h>
 
@@ -28,7 +24,7 @@ extern void scene_backend_set_display(tgs_display *display);
 
 namespace {
 
-struct ClickRec {
+struct Rec {
     void *handle;
     tgs_event_type type;
 };
@@ -37,14 +33,12 @@ static void record_event(void *handle, tgs_event_type type,
                          const char *data, void *ud)
 {
     (void)data;
-    auto *v = static_cast<std::vector<ClickRec> *>(ud);
+    auto *v = static_cast<std::vector<Rec> *>(ud);
     v->push_back({handle, type});
 }
 
-/* The scene backend is stateful: init() allocates fonts and buffers
- * that deinit() does not release, so a second init in the same process
- * accumulates state and wedges the timer loop. All tests in this suite share
- * ONE backend lifetime (suite-level setup), each building its own window. */
+/* The scene backend is stateful: init() allocates fonts and buffers.
+ * All tests share ONE backend lifetime (suite-level setup). */
 class SceneBackend : public ::testing::Test {
 protected:
     static tgs_backend *be;
@@ -69,84 +63,68 @@ tgs_display SceneBackend::disp;
 
 }  // namespace
 
-TEST_F(SceneBackend, ClickAtKnownPixelHitsExpectedWidget)
+/* Click at a known pixel lands on the element at that rect. A "button" is a
+ * BOX + TEXT child: the click hits the BOX (the hit-test target), the TEXT
+ * child rides above it but the box is the pointer-pressed element. */
+TEST_F(SceneBackend, ClickAtKnownPixelHitsExpectedElement)
 {
-    void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
-    ASSERT_NE(win, nullptr);
+    void *box = be->create_element(NULL, TGS_WIDGET_BOX);
+    ASSERT_NE(box, nullptr);
+    be->set_element_rect(box, 20, 110, 120, 40);
 
-    std::vector<ClickRec> events;
-    be->set_event_callback(record_event, &events);
+    /* A second box well away from the click point. */
+    void *far_box = be->create_element(NULL, TGS_WIDGET_BOX);
+    ASSERT_NE(far_box, nullptr);
+    be->set_element_rect(far_box, 400, 300, 100, 30);
 
-    /* Button at (20, 110), 120x40 — absolute screen pixels. */
-    void *btn = be->create_widget(win, TGS_WIDGET_CHECKBOX);
-    ASSERT_NE(btn, nullptr);
-    be->set_widget_rect(btn, 20, 110, 120, 40);
-    be->set_widget_content(btn, "OK");
-
-    /* A second clickable widget well away from the click point. */
-    void *btn2 = be->create_widget(win, TGS_WIDGET_CHECKBOX);
-    ASSERT_NE(btn2, nullptr);
-    be->set_widget_rect(btn2, 400, 300, 100, 30);
-    be->set_widget_content(btn2, "No");
-
-    /* Let the scene settle (event pump). */
     for (int i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
     }
 
-    /* Press then release at (30, 120) — inside btn's rect, outside btn2's.
-     * a click-focusable widget's first tap
-     * (FOCUSED only, no CLICKED), so tap twice; the second must report the
-     * click. With the root padded (pre-fix) the button renders at an offset
-     * and even the second tap misses it entirely. */
-    for (int tap = 0; tap < 2; tap++) {
-        be->inject_mouse(30, 120, 0, 1);
-        be->tick(16);
-        be->render();
-        be->inject_mouse(30, 120, 0, 0);
-        be->tick(16);
-        be->render();
-    }
+    std::vector<Rec> events;
+    be->set_event_callback(record_event, &events);
 
-    bool hit_btn = false, hit_btn2 = false;
-    for (const ClickRec &e : events) {
+    /* Press then release at (30, 130) — inside box, outside far_box. */
+    be->inject_pointer(30, 130, 0);
+    be->tick(16);
+    be->render();
+    be->inject_pointer(30, 130, 2);
+    be->tick(16);
+    be->render();
+
+    bool hit_box = false, hit_far = false;
+    for (const Rec &e : events) {
         if (e.type != TGS_EVENT_CLICK) continue;
-        if (e.handle == btn) hit_btn = true;
-        if (e.handle == btn2) hit_btn2 = true;
+        if (e.handle == box) hit_box = true;
+        if (e.handle == far_box) hit_far = true;
     }
-    EXPECT_TRUE(hit_btn)
-        << "click at (30,120) must land on the button at (20,110,120,40) "
-           "— is the window root still padded?";
-    EXPECT_FALSE(hit_btn2);
-    /* The callback's user-data (this test's stack `events`) is about to be
-     * destroyed — unregister it or the next test's events hit a dangling
-     * pointer. */
+    EXPECT_TRUE(hit_box)
+        << "click at (30,130) must land on the box at (20,110,120,40)";
+    EXPECT_FALSE(hit_far);
+
     be->set_event_callback(nullptr, nullptr);
-    be->destroy_window(win);
+    be->destroy_element(box);
+    be->destroy_element(far_box);
 }
 
-/* SVG-scene semantics: a plain CONTAINER does no layout — children render at
- * exactly the rects the program set. This is the contract that replaced the
- * renderer-side flex/grid engines (layout is program policy). */
-TEST_F(SceneBackend, ContainerHoldsProgramComputedRects)
+/* SVG-scene semantics: BOX does no layout — children render at exactly the
+ * rects the program set. */
+TEST_F(SceneBackend, BoxHoldsProgramComputedRects)
 {
-    void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
-    ASSERT_NE(win, nullptr);
-
-    void *box = be->create_widget(win, TGS_WIDGET_CONTAINER);
+    void *box = be->create_element(NULL, TGS_WIDGET_BOX);
     ASSERT_NE(box, nullptr);
-    be->set_widget_rect(box, 0, 0, 400, 300);
+    be->set_element_rect(box, 0, 0, 400, 300);
 
-    void *c0 = be->create_widget(box, TGS_WIDGET_CHECKBOX);
-    void *c1 = be->create_widget(box, TGS_WIDGET_CHECKBOX);
-    void *c2 = be->create_widget(box, TGS_WIDGET_CHECKBOX);
+    void *c0 = be->create_element(box, TGS_WIDGET_BOX);
+    void *c1 = be->create_element(box, TGS_WIDGET_BOX);
+    void *c2 = be->create_element(box, TGS_WIDGET_BOX);
     ASSERT_NE(c0, nullptr);
     ASSERT_NE(c1, nullptr);
     ASSERT_NE(c2, nullptr);
-    be->set_widget_rect(c0, 10, 10, 120, 40);
-    be->set_widget_rect(c1, 150, 10, 120, 40);
-    be->set_widget_rect(c2, 10, 60, 120, 40);
+    be->set_element_rect(c0, 10, 10, 120, 40);
+    be->set_element_rect(c1, 150, 10, 120, 40);
+    be->set_element_rect(c2, 10, 60, 120, 40);
 
     for (int i = 0; i < 5; i++) {
         be->tick(16);
@@ -154,76 +132,42 @@ TEST_F(SceneBackend, ContainerHoldsProgramComputedRects)
     }
 
     int x0, y0, w0, h0, x1, y1, w1, h1, x2, y2, w2, h2;
-    ASSERT_EQ(be->widget_geometry(c0, &x0, &y0, &w0, &h0), 0);
-    ASSERT_EQ(be->widget_geometry(c1, &x1, &y1, &w1, &h1), 0);
-    ASSERT_EQ(be->widget_geometry(c2, &x2, &y2, &w2, &h2), 0);
+    scene_node *n0 = (scene_node *)c0;
+    scene_node *n1 = (scene_node *)c1;
+    scene_node *n2 = (scene_node *)c2;
+    EXPECT_EQ(n0->x, 10); EXPECT_EQ(n0->y, 10);
+    EXPECT_EQ(n0->w, 120); EXPECT_EQ(n0->h, 40);
+    EXPECT_EQ(n1->x, 150); EXPECT_EQ(n1->y, 10);
+    EXPECT_EQ(n2->x, 10); EXPECT_EQ(n2->y, 60);
+    (void)x0; (void)y0; (void)w0; (void)h0;
+    (void)x1; (void)y1; (void)w1; (void)h1;
+    (void)x2; (void)y2; (void)w2; (void)h2;
 
-    /* The renderer must not have moved anything: rects round-trip exactly. */
-    EXPECT_EQ(x0, 10); EXPECT_EQ(y0, 10); EXPECT_EQ(w0, 120); EXPECT_EQ(h0, 40);
-    EXPECT_EQ(x1, 150); EXPECT_EQ(y1, 10);
-    EXPECT_EQ(x2, 10); EXPECT_EQ(y2, 60);
-
-    be->set_event_callback(nullptr, nullptr);
-    be->destroy_window(win);
+    be->destroy_element(box);
 }
 
-/* L1 mixed mode: a TRANSPARENT window's root has a fully transparent
- * background so the character base shows through while widgets float on it.
- * A NORMAL window's root stays opaque. */
-/* Root transparency, scene-semantics port: a TRANSPARENT window's root has
- * no background fill, so the character base shows through; a NORMAL root
- * paints opaque. Observable through the scene node directly. */
-TEST_F(SceneBackend, TransparentWindowRootIsTransparent)
-{
-    void *norm = be->create_window(TGS_WINDOW_NORMAL, "T");
-    scene_node *nn = (scene_node *)norm;
-    ASSERT_NE(norm, nullptr);
-    EXPECT_TRUE(nn->has_bg) << "NORMAL root paints an opaque background";
-
-    void *trans = be->create_window(TGS_WINDOW_TRANSPARENT, "T");
-    scene_node *tn = (scene_node *)trans;
-    ASSERT_NE(trans, nullptr);
-    EXPECT_FALSE(tn->has_bg)
-        << "TRANSPARENT root must not paint a background (L1 mixed mode)";
-    be->destroy_window(norm);
-    be->destroy_window(trans);
-}
-
-/* Hover: a mouse motion onto a widget's rect emits HOVER_ENTER for that
- * widget and HOVER_LEAVE when the pointer moves off — through the same
- * event callback the compositor subscribes to. Only widgets hover (a hit on
- * the window root is "no widget"). */
+/* Hover: motion onto an element emits HOVER_ENTER; off emits HOVER_LEAVE. */
 TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
 {
-    void *win = be->create_window(TGS_WINDOW_NORMAL, "T");
-    ASSERT_NE(win, nullptr);
+    void *box = be->create_element(NULL, TGS_WIDGET_BOX);
+    ASSERT_NE(box, nullptr);
+    be->set_element_rect(box, 20, 20, 120, 40);
 
-    std::vector<ClickRec> events;
-    be->set_event_callback(record_event, &events);
-
-    void *btn = be->create_widget(win, TGS_WIDGET_CHECKBOX);
-    ASSERT_NE(btn, nullptr);
-    be->set_widget_rect(btn, 20, 20, 120, 40);
-    be->set_widget_content(btn, "Hover me");
-
-    /* Settle first: the hit test reads the rects the program set. */
     for (int i = 0; i < 5; i++) {
         be->tick(16);
         be->render();
     }
 
-    /* Motion onto the button: HOVER_ENTER(btn). */
-    be->inject_mouse(60, 40, 0, -1);
+    std::vector<Rec> events;
+    be->set_event_callback(record_event, &events);
+
+    /* Motion onto the box. */
+    be->inject_pointer(60, 40, 1);
     be->tick(16);
     be->render();
-
-
-    /* A click-focusable widget gains focus under the cursor, so the
-     * callback sees FOCUS events alongside hover — count only the
-     * hover types. */
     auto hovers = [&]() {
         size_t n = 0;
-        for (const ClickRec &e : events)
+        for (const Rec &e : events)
             if (e.type == TGS_EVENT_HOVER_ENTER ||
                 e.type == TGS_EVENT_HOVER_LEAVE)
                 n++;
@@ -232,44 +176,52 @@ TEST_F(SceneBackend, MouseMotionEmitsHoverEnterLeave)
     EXPECT_EQ(hovers(), 1u);
     ASSERT_GT(events.size(), 0u);
     EXPECT_EQ(events[0].type, TGS_EVENT_HOVER_ENTER);
-    EXPECT_EQ(events[0].handle, btn);
+    EXPECT_EQ(events[0].handle, box);
 
     /* Still inside: no repeat. */
-    be->inject_mouse(70, 40, 0, -1);
+    be->inject_pointer(70, 40, 1);
     be->tick(16);
     EXPECT_EQ(hovers(), 1u);
 
-    /* Motion off the button onto the (non-widget) root: HOVER_LEAVE. */
-    be->inject_mouse(400, 300, 0, -1);
+    /* Motion off the box onto the bare canvas: HOVER_LEAVE. */
+    be->inject_pointer(400, 300, 1);
     be->tick(16);
     EXPECT_EQ(hovers(), 2u);
-    /* The second hover event in the stream is the LEAVE for btn. */
-    size_t seen = 0;
-    for (const ClickRec &e : events) {
-        if (e.type != TGS_EVENT_HOVER_ENTER &&
-            e.type != TGS_EVENT_HOVER_LEAVE)
-            continue;
-        seen++;
-        if (seen == 2) {
-            EXPECT_EQ(e.type, TGS_EVENT_HOVER_LEAVE);
-            EXPECT_EQ(e.handle, btn);
-        }
-    }
-
-    /* Motion back onto another widget: fresh ENTER for it. */
-    void *btn2 = be->create_widget(win, TGS_WIDGET_CHECKBOX);
-    ASSERT_NE(btn2, nullptr);
-    be->set_widget_rect(btn2, 200, 20, 100, 40);
-    for (int i = 0; i < 5; i++) {
-        be->tick(16);
-        be->render();
-    }
-    be->inject_mouse(240, 40, 0, -1);
-    be->tick(16);
-    EXPECT_EQ(hovers(), 3u);
-    EXPECT_EQ(events.back().type, TGS_EVENT_HOVER_ENTER);
-    EXPECT_EQ(events.back().handle, btn2);
 
     be->set_event_callback(nullptr, nullptr);
-    be->destroy_window(win);
+    be->destroy_element(box);
+}
+
+/* POINTER reports raw coordinates at every phase. */
+TEST_F(SceneBackend, PointerReportsRawCoordinates)
+{
+    void *box = be->create_element(NULL, TGS_WIDGET_BOX);
+    ASSERT_NE(box, nullptr);
+    be->set_element_rect(box, 20, 20, 120, 40);
+
+    for (int i = 0; i < 3; i++) { be->tick(16); be->render(); }
+
+    std::vector<Rec> events;
+    be->set_event_callback(record_event, &events);
+
+    be->inject_pointer(50, 30, 0);   /* down */
+    be->tick(16);
+    be->inject_pointer(90, 45, 1);   /* move */
+    be->tick(16);
+    be->inject_pointer(90, 45, 2);   /* up */
+    be->tick(16);
+
+    int pointers = 0;
+    for (const Rec &e : events)
+        if (e.type == TGS_EVENT_POINTER) pointers++;
+    EXPECT_EQ(pointers, 3);
+
+    /* The full down-move-up sequence over the same element is one CLICK. */
+    int clicks = 0;
+    for (const Rec &e : events)
+        if (e.type == TGS_EVENT_CLICK) clicks++;
+    EXPECT_EQ(clicks, 1);
+
+    be->set_event_callback(nullptr, nullptr);
+    be->destroy_element(box);
 }

@@ -19,7 +19,6 @@
 
 int main(void)
 {
-    tgs_window_info win;
     tgs_event ev;
 
     /* Character output before any TGS traffic — the terminal base shows it. */
@@ -27,10 +26,8 @@ int main(void)
     fflush(stdout);
 
     if (tgs_client_init() != 0) return 1;
-    if (tgs_client_create_window(TGS_WINDOW_NORMAL, "L1 Widget", &win) != 0)
-        return 1;
-    tgs_client_create_widget(TGS_WIDGET_LABEL, ID_LABEL, win.window_id,
-                             20, 20, 400, 40, "hello from L1");
+    tgs_client_create_element(TGS_WIDGET_TEXT, ID_LABEL, 0,
+                              20, 20, 400, 40, "hello from L1");
 
     /* Character output after the handshake — the character path is still alive. */
     printf("CHAR-AFTER-HELLO\n");

@@ -129,19 +129,17 @@ void input_poll(void)
 
         case SDL_MOUSEMOTION:
             if (g_mouse_sink) g_mouse_sink(ev.motion.x, ev.motion.y, 0, -1, g_mouse_sink_ud);
-            g_backend->inject_mouse(ev.motion.x, ev.motion.y, 0,
-                                    (ev.motion.state & SDL_BUTTON_LMASK) ? 1 : 0);
+            if (g_backend->inject_pointer)
+                g_backend->inject_pointer(ev.motion.x, ev.motion.y, 1); /* move */
             break;
 
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP: {
-            int btn = 0;
             int down = (ev.type == SDL_MOUSEBUTTONDOWN) ? 1 : 0;
-            if (ev.button.button == SDL_BUTTON_LEFT)        btn = 0;
-            else if (ev.button.button == SDL_BUTTON_MIDDLE) btn = 1;
-            else if (ev.button.button == SDL_BUTTON_RIGHT)  btn = 2;
-            if (g_mouse_sink) g_mouse_sink(ev.button.x, ev.button.y, btn, down, g_mouse_sink_ud);
-            g_backend->inject_mouse(ev.button.x, ev.button.y, btn, down);
+            if (g_mouse_sink) g_mouse_sink(ev.button.x, ev.button.y, 0, down, g_mouse_sink_ud);
+            if (g_backend->inject_pointer)
+                g_backend->inject_pointer(ev.button.x, ev.button.y,
+                                          down ? 0 : 2); /* 0=down 2=up */
             break;
         }
 
