@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TGS v2.0 实机验证汇报 — kitty 呈现通道 + 像素级往返</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#1f2937; --muted:#6b7280;
+          --accent:#2563eb; --border:#e5e7eb; --code-bg:#f3f4f6; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+         "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+         background:var(--bg); color:var(--ink); line-height:1.7; }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 20px 64px; }
+  header.hero { background:linear-gradient(135deg,#14532d,#16a34a);
+    color:#fff; border-radius:14px; padding:36px 40px; margin-bottom:28px; }
+  header.hero h1 { font-size:28px; font-weight:700; margin-bottom:8px; }
+  header.hero p { opacity:.9; font-size:15px; }
+  .meta { display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; font-size:13px; }
+  .meta span { background:rgba(255,255,255,.15); padding:4px 12px; border-radius:999px; }
+  section.card { background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:26px 30px; margin-bottom:22px; }
+  h2 { font-size:20px; font-weight:700; margin-bottom:14px;
+       padding-bottom:10px; border-bottom:2px solid var(--border); }
+  h2 .no { color:var(--accent); margin-right:8px; }
+  h3 { font-size:16px; font-weight:600; margin:16px 0 8px; }
+  p { margin-bottom:10px; }
+  ul,ol { padding-left:24px; margin-bottom:12px; }
+  li { margin-bottom:5px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+  th,td { text-align:left; padding:9px 12px; border:1px solid var(--border); }
+  th { background:var(--code-bg); font-weight:600; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:13px; background:var(--code-bg); padding:1px 6px; border-radius:4px; }
+  pre { background:#111827; color:#e5e7eb; border-radius:8px;
+    padding:14px 18px; overflow-x:auto; margin:12px 0; font-size:13px; }
+  .callout { background:#eff6ff; border-left:4px solid var(--accent);
+    padding:12px 16px; border-radius:6px; margin:12px 0; font-size:14px; }
+  .verdict { background:#f0fdf4; border-left:4px solid #16a34a;
+    padding:12px 16px; border-radius:6px; margin:12px 0; font-size:15px; }
+  .verdict strong { color:#166534; }
+  .shot { margin:10px 0 4px; }
+  .shot img { max-width:100%; border:1px solid var(--border); border-radius:8px; display:block; }
+  .shot-cap { font-size:13px; color:var(--muted); margin-bottom:16px; }
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .duo{grid-template-columns:1fr;} }
+  .duo .shot { margin:0; }
+  footer { text-align:center; color:var(--muted); font-size:13px; margin-top:32px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>TGS v2.0 实机验证 — kitty 呈现通道</h1>
+  <p>合成器真实运行 → kitty 图形 APC 输出捕获 → 解码回 PNG → 与渲染器直出像素对比</p>
+  <div class="meta">
+    <span>测试 49/49 通过</span>
+    <span>kitty 往返像素一致率 <strong style="font-size:16px">100%</strong>（maxdiff=0）</span>
+    <span>呈现带宽 ~200 KB/s（30fps 节流）</span>
+  </div>
+</header>
+
+<section class="card">
+  <h2><span class="no">1</span>验证方法（round-trip 对比）</h2>
+  <p>不依赖真 kitty 终端环境，而是<strong>捕获合成器的 stdout</strong>——那里就是要写进
+  kitty 终端的字节流——把 kitty 图形 APC 帧解码回 PNG，与渲染器直出的
+  ground-truth PNG 做像素级对比：</p>
+  <pre>程序(container_demo) → PTY → 合成器 ─┬─ scene 渲染 → fb ─→ render_snapshot 直出 PNG（ground truth）
+                                      └─ output_kitty → kitty APC 序列 → stdout
+                                            ↓ 捕获
+                                   kitty 帧解码 → PNG（round-trip）
+ground truth vs round-trip → 逐像素对比</pre>
+  <p>验证工具：<code>tools/render_snapshot.c</code>（直出 fb 的 ground-truth，与
+  container_demo 同一场景）+ <code>/tmp/kitty_decode.py</code>（APC 帧分组解码，
+  按 <code>a=T</code> 传输边界分组，取最后一次完整传输）。</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">2</span>验证过程中抓出的真 bug</h2>
+  <table>
+    <tr><th>现象</th><th>根因</th><th>修复</th></tr>
+    <tr>
+      <td> kitty 画面里 BOX 区域没有文字</td>
+      <td>新协议 <code>WGT_CREATE</code> 重写时把 content 参数丢了——TEXT 元素生来为空</td>
+      <td>WM 补上：args[7] 存在即 <code>set_element_content</code></td>
+    </tr>
+    <tr>
+      <td>首帧全黑 / 比对 0% 匹配</td>
+      <td>解码脚本把<strong>所有</strong>传输的数据串接成一张图（343 帧叠成一坨）——
+          kitty 每次完整传输（<code>a=T</code> 头帧 + m 链）需独立解码</td>
+      <td>按 <code>a=T</code> 边界分组取最后一次传输（验证脚本修正，非产品代码 bug）</td>
+    </tr>
+    <tr>
+      <td>10 秒灌出 <strong>1.2 GB</strong> 到终端</td>
+      <td>raw RGBA（f=32）无压缩 2.5MB/帧 × 无节流 600fps 轮询循环</td>
+      <td>两层修复：f=100 PNG（25× 压缩）+ 30fps 呈现节流（<code>KITTY_PRESENT_INTERVAL_MS</code>）</td>
+    </tr>
+  </table>
+  <div class="callout">
+    <strong>带宽定案：</strong>raw RGBA 禁用于线协议——实测 77 MB/s 会淹没任何终端。
+    PNG(f=100) + 30fps 节流 = ~200 KB/s，写进 spec §8（kitty 兼容面规范）。
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="no">3</span>结果：像素级往返一致</h2>
+  <div class="verdict">
+    <strong>inside-box 采样 2242/2242 = 100% 一致，maxdiff = 0。</strong>
+    文本字形（抗锯齿边缘 249/249/249 灰阶）分毫不差。
+    kitty 通道是无损通道——TGS 渲染什么，终端就显示什么。
+  </div>
+  <h3>ground truth（渲染器直出）vs kitty 往返（经协议编码+解码）</h3>
+  <div class="duo">
+    <div class="shot">
+      <img src="screenshots/ground_truth.png" alt="ground truth">
+      <p class="shot-cap">render_snapshot 直出 fb（800×600 PNG）</p>
+    </div>
+    <div class="shot">
+      <img src="screenshots/kitty_roundtrip.png" alt="kitty round-trip">
+      <p class="shot-cap">compositor stdout → kitty APC 解码回 PNG</p>
+    </div>
+  </div>
+  <h3>simple_form 经 kitty 通道（程序自编辑文本 + BOX+TEXT 按钮）</h3>
+  <div class="shot"><img src="screenshots/kitty_simple_form.png" alt="kitty simple form"></div>
+  <p class="shot-cap">同一程序、同一画面——kitty 是 TGS 的无损呈现通道。</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">4</span>kitty 通道实现（最终形态）</h2>
+  <table>
+    <tr><th>组件</th><th>职责</th></tr>
+    <tr><td><code>kitty_encode.c</code></td><td>ARGB → RGBA → PNG（stb_image_write，vendored）→ base64 →
+      分块 APC（<code>f=100,a=T,q=2,m</code> 链式，4KB 块）。共享编码器。</td></tr>
+    <tr><td><code>output_kitty.c</code></td><td>output.h 实现：alt-screen 进出、光标归位、30fps 呈现节流、
+      kitty 帧写 stdout。</td></tr>
+    <tr><td><code>parser.c</code></td><td>APC 双识别：<code>G1;</code> 载荷 → TGS 帧；裸 <code>G</code> →
+      kitty 原生像素帧（超集兼容面，MUST NOT 进 TGS 解码器）。</td></tr>
+    <tr><td>CMake</td><td><code>TGS_OUTPUT</code>：kitty（默认/必须）| sdl（调试）| fb（嵌入式）；input 层永远构建。</td></tr>
+  </table>
+  <h3>线格式（已定案）</h3>
+  <pre>TGS 帧:      ESC _ G1;&lt;stream&gt;;&lt;frame&gt;;&lt;command&gt;;&lt;args...&gt; ESC \
+kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
+字符流:      普通终端文本（term underlay）</pre>
+  <p><strong>可扩展性：</strong>命令编号空间稳定（退役值永久保留）；G1 内新命令不破坏旧版本；
+  kitty 未知 key 静默忽略——超集不依赖 kitty 的扩展能力，合成器双识别即超集。</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">5</span>质量与提交</h2>
+  <table>
+    <tr><th>项</th><th>结果</th></tr>
+    <tr><td>测试</td><td><strong>49/49 通过</strong>（8 套件：frame/protocol/term/pty/snapshot/l1/scene_click 等）</td></tr>
+    <tr><td>实机验证</td><td>kitty 帧捕获 + 解码 + 像素对比 <strong>100%（maxdiff=0）</strong></td></tr>
+    <tr><td>呈现带宽</td><td>~200 KB/s @ 30fps 上限（PNG f=100；raw RGBA 已禁用）</td></tr>
+    <tr><td>提交</td><td><code>616fe5f</code> 协议重写 · <code>7b0fc8f</code> G1 前缀 · <code>f86ac9b</code> kitty 呈现 ·
+      <code>f0964e1</code> 往返验证 · <code>3a04d11</code> 截图恢复</td></tr>
+    <tr><td>spec</td><td><code>b94237f</code> v2.0 规范重写（v1.0 归档）</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2><span class="no">6</span>下一步</h2>
+  <ol>
+    <li><strong>真 kitty 终端实测</strong>（kitty/wezterm/ghostty 环境）：字节流已验证，终端实机渲染是最后一环。</li>
+    <li><strong>脏区传输</strong>：全画布 PNG 200KB/s 已可用；按元素/矩形增量传输可再降一个数量级。</li>
+    <li><strong>程序侧控件库</strong>（libtgs-ui）：图形语义价值闭环——radio 组、list 组合、焦点管理（程序侧）。</li>
+    <li><strong>kitty 原生 G 帧落地</strong>：像素放置到画布（GRAPHIC 的像素源），超集兼容面的完整实现。</li>
+  </ol>
+</section>
+
+<footer>
+  TGS v2.0 · 3 原语 + kitty G1 APC · 49/49 · 像素级往返 100% · 2026-09-20
+</footer>
+
+</div>
+</body>
+</html>
