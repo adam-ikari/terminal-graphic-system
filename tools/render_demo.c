@@ -16,7 +16,7 @@
 #include "output.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../deps/libsixel/src/stb_image_write.h"
+#include "../deps/stb_image_write.h"
 /* Scene backend registration — defined in scene_backend.c */
 extern void scene_backend_register(void);
 extern void scene_backend_set_display(tgs_display *display);

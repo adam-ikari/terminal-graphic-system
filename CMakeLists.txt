@@ -173,7 +173,9 @@ set(BACKEND_SOURCES
     src/backends/kitty_encode.c
     src/backends/output_kitty.c)
 set_source_files_properties(src/backends/kitty_encode.c PROPERTIES
-    COMPILE_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}/deps/libsixel/src")
+    COMPILE_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}/deps")
+add_library(stb STATIC deps/stb_image_write.c)
+target_include_directories(stb PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 # Input collection is terminal machinery — always built. The input source
 # follows the presentation channel: SDL input for the SDL debug channel,
 # evdev input for the fb channel, stdin for kitty (keys arrive via the
@@ -210,6 +212,7 @@ if(PkgConfig_FOUND)
     pkg_check_modules(SDL2 QUIET sdl2 SDL2_ttf)
 endif()
 
+target_link_libraries(tgs_scene_backend PUBLIC stb)
 if(TGS_USE_SDL)
     target_link_libraries(tgs_scene_backend PUBLIC tgs_common ${SDL2_LIBRARIES} SDL2::SDL2 SDL2_ttf)
     target_include_directories(tgs_scene_backend PUBLIC ${SDL2_INCLUDE_DIRS})
