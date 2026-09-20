@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-19T15:22:43"
+updated: "2026-09-20T01:48:32"
 ---
 
 <!-- compiled_truth -->
@@ -79,5 +79,11 @@ updated: "2026-09-19T15:22:43"
 - time: 2026-09-19T15:22:43
   kind: decision
   summary: "BUTTON retired (2026-09-19): activation is program policy, not a renderer primitive. A button = CONTAINER + LABEL child + CLICK the program consumes. Value 0 reserved; wire-compat decode maps button/0 to CONTAINER. 7 primitive kinds remain: LABEL, INPUT, CHECKBOX, SLIDER, CONTAINER, SCROLL, IMAGE. 74/74 green on both backends; vision-verified renders."
+  source: user directive
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-20T01:48:32
+  kind: decision
+  summary: "kitty presentation DONE (2026-09-20): TGS is a superset of kitty — frames ride the kitty graphics APC channel with the G1 sub-namespace marker (ESC _ G1;stream;frame;cmd;args ESC \\), kitty-native G frames share the channel (parser dual-identification). Presentation channel: output_kitty.c encodes the canvas as PNG (f=100, stb_image_write) → base64 → chunked APC (m-chained, 4KB), paced at 30fps (raw RGBA measured 77MB/s — PNG brings it to ~200KB/s). kitty is mandatory, not a compile option (TGS_OUTPUT selects kitty|sdl|fb for the debug/embedded alternates; input layer always built). stb_image_write decoupled from libsixel into deps/ top-level. Verified live: compositor stdout carries valid kitty frames."
   source: user directive
   affects: [backend-sdl2-skia]
