@@ -126,6 +126,9 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
 
     case TGS_CMD_WGT_CREATE: {
         /* args: [id, type, parent, x, y, w, h] — parent 0 = canvas root. */
+        if (getenv("WM_TRACE"))
+            fprintf(stderr, "wm: WGT_CREATE id=%s type=%s parent=%s\n",
+                    frame->args[0], frame->args[1], frame->args[2]);
         int id, parent_id, x, y, w, h;
         tgs_widget_type wtype;
         nav_widget *pw = NULL;
@@ -154,6 +157,9 @@ void wm_handle_frame(const tgs_frame *frame, void *user_data)
         handle = be->create_element(parent, wtype);
         if (!handle) break;
         be->set_element_rect(handle, x, y, w, h);
+        /* Optional content arg: TEXT elements are born with their string. */
+        if (frame->num_args >= 8 && frame->args[7][0])
+            be->set_element_content(handle, frame->args[7]);
 
         nav_add_widget(&wm->nav, id, parent_id ? pw->win_id : 0, parent_id,
                        parent_id == 0, wtype, handle);

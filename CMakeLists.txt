@@ -255,6 +255,12 @@ add_executable(render_demo
 )
 target_link_libraries(render_demo PRIVATE tgs_scene_backend tgs_common)
 
+# render_snapshot — ground-truth canvas dump for kitty round-trip verification
+add_executable(render_snapshot
+    tools/render_snapshot.c
+)
+target_link_libraries(render_snapshot PRIVATE tgs_scene_backend tgs_common stb)
+
 # char_and_graphics — L1: one program printing characters and opening widgets
 add_executable(char_and_graphics
     examples/char_and_graphics.c
