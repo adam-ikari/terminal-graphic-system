@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-20T01:48:32"
+updated: "2026-09-20T01:53:00"
 ---
 
 <!-- compiled_truth -->
@@ -86,4 +86,10 @@ updated: "2026-09-20T01:48:32"
   kind: decision
   summary: "kitty presentation DONE (2026-09-20): TGS is a superset of kitty — frames ride the kitty graphics APC channel with the G1 sub-namespace marker (ESC _ G1;stream;frame;cmd;args ESC \\), kitty-native G frames share the channel (parser dual-identification). Presentation channel: output_kitty.c encodes the canvas as PNG (f=100, stb_image_write) → base64 → chunked APC (m-chained, 4KB), paced at 30fps (raw RGBA measured 77MB/s — PNG brings it to ~200KB/s). kitty is mandatory, not a compile option (TGS_OUTPUT selects kitty|sdl|fb for the debug/embedded alternates; input layer always built). stb_image_write decoupled from libsixel into deps/ top-level. Verified live: compositor stdout carries valid kitty frames."
   source: user directive
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-20T01:53:00
+  kind: decision
+  summary: "Spec v2.0 DONE (2026-09-20): protocol/tgs-spec-layer0.md rewritten — drawing semantics, G1 APC dual-identification, no windows/win_id/focus/layout/subscription/geometry. Normative rules: kind admission (renderer-native state or reject), interaction-shaped events only, no subscription gating, kitty presentation pacing (raw RGBA banned). v1.0 archived (tgs-spec-layer0-v1.md.bak). IME spec: separate program, window-level key routing, candidate window is outer WM's job — no PREEDIT/CANDIDATES/SELECT/CANCEL commands."
+  source: session
   affects: [backend-sdl2-skia]
