@@ -1,183 +1,168 @@
-# TGS 终端图形系统 — 进度汇报
+# TGS 协议重写汇报 — 第一性原理最小形态
 
-> 汇报日期：2026-09-18 · 代码基线：`b8eca9c`
-> 项目：终端图形系统（Terminal Graphic System）——一个从字符终端逐层长出的图形窗口系统
-
----
-
-## 1. 项目定位
-
-TGS 是一套**显示服务器**（display server）：它首先是一个 xterm 级终端（PTY + VT 模拟 + 渲染），在此之上叠加图形能力——widget、窗口、焦点、事件。设计遵循 X11 模型：**服务器持有机制，策略归程序**（WM 是一个客户端，不是服务器的一部分）。
-
-关键原则：
-
-- **字符优先**：纯字符程序（`bash`、`vim`、`htop`）零改动直接运行，图形是叠加层。
-- **一条流**：程序的标准输出既是字符流又是 TGS 控制帧流（APC 帧交错），同一程序可同时打印字符和驱动控件。
-- **机制/策略分离**：z-order、焦点、布局是策略，属于程序；表面存在、缓冲、resize 通知是机制，属于服务器。
+> 汇报日期：2026-09-20 · 代码基线：`7b0fc8f`
+> 协议版本：v2.0 · 3 原语 + kitty G1 APC · 49/49 测试
 
 ---
 
-## 2. 分层进度
+## 1. 定案：TGS = 终端图形 API
 
-| 层 | 内容 | 状态 |
-|---|---|---|
-| L0 | 字符终端：PTY、VT 模拟、字符渲染 | **完成** |
-| L1 | 字符 + 图形同一程序（文本与 TGS 帧交错） | **完成**（含透明窗口混排） |
-| L2 | 单窗口 + size-notify + widget 集 + 事件 + resize→relayout + 焦点/键盘导航 + 容器几何回传 | **完成** |
-| L3 | styles + 全 widget 库 + 容器 + 多窗口 + resources + IME | **进行中**（structure 切片 + hover 完成） |
-| L4+ | 客户端像素表面、场景合成、WM 程序、嵌套 | 未开始 |
+从第一性原理推导：TGS = 程序 ⇄ 渲染器的**点对点绘制协议**。一程序一画布。协议只回答两个问题：**画什么**（绘制原语）和**输入怎么来**（事件）。像图形 API（X11/OpenGL/Wayland）一样——不提供控件、不提供布局、不提供焦点。那三层是 toolkit 的，在程序侧组合。
 
----
+| 决策 | 内容 | 状态 |
+|------|------|------|
+| **协议 = 绘制语义** | 线上只有 3 个绘制原语 + 事件；无控件目录、无 win_id、无焦点 | ✅ 定案 |
+| **无窗口管理** | 合成器不管理窗口/激活/z-order——那是外层 WM 的事；协议无 win_id | ✅ 定案 |
+| **无焦点模型** | 焦点是图形 API 层概念（窗口级键盘路由），不由终端实现；控件级焦点完全程序侧 | ✅ 定案 |
+| **IME 独立程序** | IME 是独立程序，候选词由 IME 程序自己绘制（外层 WM 呈现）；TGS 只做输入变换管道 | ✅ 定案 |
+| **TGS ⊃ kitty** | 帧走 kitty G APC 通道（G1 子命名空间）；呈现层用 kitty 图形序列；超集=能力包含+扩展 | ✅ 定案 |
 
-## 3. 功能截图
-
-### 3.1 基础表单（L0/L1 控件）
-
-`simple_form` 场景：label + input + button，即 L0 验收程序的渲染结果。
-
-![基础表单](screenshots/simple_form.png)
-
-### 3.2 容器布局（L3 P3）
-
-`container` 场景：VLAYOUT 纵向堆叠 + HLAYOUT 横向排列 + 嵌套容器。布局后合成器通过 `NTF_GEOMETRY` 把每个子控件的**实际坐标和大小**回传给程序。
-
-![容器布局](screenshots/container.png)
-
-### 3.3 全 widget 库（L3 P2 基础）
-
-`library` 场景：8 种绘制原语逐一渲染（SVG 语义）。
-
-![widget 库](screenshots/library.png)
-
-### 3.4 字符 + 控件混排（L1）
-
-`mixed_demo` 场景：程序打印 40 行字符，开**透明窗口**（`TGS_WINDOW_TRANSPARENT`）——窗口 root 无背景，字符 base 透过显示，控件浮在文本上；同一 stdout 流中字符与 TGS 帧交错。
-
-![字符+控件混排](screenshots/mixed.png)
-
-### 3.5 控件交互状态（hover / 按下 / 点击 / 焦点）
-
-`states` 场景：14 种交互控件铺满屏幕。程序通过 `EVT_BIND` 订阅 `HOVER_ENTER` / `HOVER_LEAVE` / `CLICK`，对悬停做出**程序侧策略响应**（蓝框高亮）——合成器做命中测试（机制），程序决定悬停视觉（策略）。
-
-**正常态**：
-
-![正常态](screenshots/states_normal.png)
-
-**悬停 Button**——程序收到 `HOVER_ENTER`，为该控件画蓝色边框：
-
-![悬停态](screenshots/states_hover.png)
-
-**按下 Button**——后端按压态外观：
-
-![按下态](screenshots/states_pressed.png)
-
-**点击后**——按钮获得焦点（合成器画焦点轮廓），且程序收到 `CLICK`：
-
-![点击态](screenshots/states_clicked.png)
-
-**悬停 Slider**——高亮跟随指针切换控件：
-
-![Slider 悬停](screenshots/states_slider_hover.png)
-
-### 3.6 控件分列展示（每控件独立渲染）
-
-每种控件单独一张（居中、独立窗口），附悬停 / 按下状态。全部 24 张（**8 个原语 kind** × 3 状态）经**视觉模型逐张验收**。协议已是绘制语义（类 SVG）：BOX/TEXT/BUTTON/INPUT/CHECKBOX/SLIDER/SCROLL/IMAGE，布局与派生外观全部是程序侧组合。
-
-| 控件 | 正常 | 悬停 | 按下 |
-|---|---|---|---|
-| Button 按钮 | ![b](screenshots/singles/button_normal.png) | ![bh](screenshots/singles/button_hover.png) | ![bp](screenshots/singles/button_pressed.png) |
-| Input 输入框 | ![i](screenshots/singles/input_normal.png) | ![ih](screenshots/singles/input_hover.png) | ![ip](screenshots/singles/input_pressed.png) |
-| Slider 滑块 | ![s](screenshots/singles/slider_normal.png) | ![sh](screenshots/singles/slider_hover.png) | ![sp](screenshots/singles/slider_pressed.png) |
-| Dropdown 下拉框 | ![d](screenshots/singles/dropdown_normal.png) | ![dh](screenshots/singles/dropdown_hover.png) | ![dp](screenshots/singles/dropdown_pressed.png) |
-| Container 容器（程序摆位） | ![vl](screenshots/singles/container_normal.png) | ![vlh](screenshots/singles/container_hover.png) | ![vlp](screenshots/singles/container_pressed.png) |
-| Scroll 滚动容器 | ![sc](screenshots/singles/scroll_normal.png) | ![sch](screenshots/singles/scroll_hover.png) | ![scp](screenshots/singles/scroll_pressed.png) |
-
-> 图片由 `render_demo singles` 模式生成：每控件独立窗口、居中渲染，驱动真实 场景后端（SDL2 paint 端口；Skia 参考后端已接入）到内存帧缓冲输出 PNG。
+**第一性判据：** 协议只承载**机制**（server holds mechanism）——绘制、命中、输入采集、IME 管道。一切**策略**（布局、控件、焦点、文本缓冲、值状态）在程序侧（program holds policy）。
 
 ---
 
-## 4. 视觉模型逐张验收
+## 2. 协议原语目录（3 kind）
 
-所有 singles 截图（60 张）+ 交互状态图经**视觉模型逐张评审**，维度：对比度可读性、对齐间距、视觉一致性、产品文档可用性。结论：
+| 值 | 原语 | 渲染器持有 |
+|----|------|-----------|
+| 1 | `TEXT` | 文本渲染 |
+| 8 | `BOX` | 矩形/结构（可作父，子控件在程序算好的 rect 上） |
+| 16 | `GRAPHIC` | 矢量图形（circle/path，形状由 STYLE 选；像素图走 RESOURCE 流） |
 
-### 4.1 验收通过（15/20 控件）
-
-button、input、checkbox、slider（含悬停蓝描边）、switch（修复后 9/10）、progress、list、dropdown、tab（选中高亮+下划线）、datepick（日历完整、当日蓝框）、vlayout/hlayout/glayout（子控件排布正确）、scroll。客观度量：20 张 normal 图控件**居中偏差 (0,0)**，对比度 142-661（全部远超可读阈值）；14 个交互控件悬停蓝框 880-2346 像素/张。
-
-### 4.2 评审抓出并修复的渲染缺陷
-
-| 缺陷 | 视觉评分 | 根因 | 修复 | 复验 |
-|---|---|---|---|---|
-| switch 滑块溢出轨道 | 3-5/10（"像渲染错误"） | 旧后端把 knob 画在开关全高，小圆角轨道挡不住四角（该 look 已随控件退役） | 轨道改胶囊形（radius=高度/2） | **9/10** "全在轨道内，垂直居中" |
-| radio 方框与 checkbox 不可区分 | 外观重复 | 圆角设在 main part，方块画在 `LV_PART_INDICATOR` | 圆角移到 INDICATOR part | ✅ "圆钮白心蓝环，可区分" |
-| button hover/press 无反馈 | 交互缺失 | 内容 label 继承 CLICKABLE 拦截指针 + user_data 编码冲突 | label 去 CLICKABLE + `type+1` 编码 | ✅ hover 蓝框 1067px、按下 diff 8404px |
-
-### 4.3 确认非 bug
-
-- **timepick** 只露 2-3 个选项：roller 可视范围语义（singles 已加高到 150px，可见 3 项）。
-- **label 无悬停响应**：非交互控件，正常。
-- **image 空白**：resources 子系统未做（L3 P5 已排期）。
-- **menu 只有返回箭头**：已知 stub（L3 P2 范围）。
+退役值（0, 2-7, 9-15, 17-19）永久保留——BUTTON/INPUT/CHECKBOX/SLIDER/SCROLL/LIST/TABLE/MENU/TAB/DROPDOWN/TIMEPICK/DATEPICK 全部是程序侧组合，不再是协议 kind。
 
 ---
 
-## 5. 已交付能力
+## 3. 命令与事件
 
-### 5.1 字符终端（L0）
+### 命令（程序 → 渲染器，stream 1）
 
-- PTY 子进程 + forkpty winsize → 流解复用（文本 vs TGS APC 帧）→ VT 模拟器 → 场景 underlay（字符基像素）。
-- 验证：`htop`、`ls` 以零 TGS 代码运行；`test_term.cpp` 覆盖模拟器与解复用。
+| 命令 | 参数 |
+|------|------|
+| `WGT_CREATE` | [id, type, parent, x, y, w, h] — parent=0 是画布顶层 |
+| `WGT_UPDATE` | [id, value] |
+| `WGT_STYLE` | [id, prop, value] |
+| `WGT_DESTROY` | [id] |
 
-### 5.2 图形控件与布局（L0–L3）
+### 事件（渲染器 → 程序，stream 4，全量发，程序自过滤）
 
-- **widget 原语集**：8 种绘制原语映射到真实 场景节点；派生外观是程序侧组合；事件经 `wm_backend_event` 单一门控转发。
-- **焦点/键盘导航**（L2）：合成器持有焦点权（`NTF_FOCUS` + reason）；Tab/箭头/程序化聚焦/窗口激活焦点对。
-- **容器布局**（L3 P3）：（历史记录）布局引擎已随旧后端退役——布局归程序（SVG 场景语义）。**运行时 GRID 真布局**——`WGT_LAYOUT` 支持 `[cols, rows]`。
-- **容器几何回传**（L2）：`NTF_GEOMETRY`(69) 布局后回传每个容器/控件的屏幕绝对坐标，客户端查询 API。
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `KEY` | [key, mods] | 键盘 |
+| `CLICK` | [id] | 命中=渲染器机制 |
+| `HOVER_ENTER/LEAVE` | [id] | 指针进出元素 |
+| `POINTER` | [x, y, phase] | 原始坐标（0=down 1=move 2=up）——程序自绘交互的原语 |
+| `IME_COMMIT` | [text] | IME 程序提交文本 |
 
-### 5.3 多窗口（L3 P4）
-
-- 每窗口独立场景 root + 焦点环；指针点击后台窗口激活。
-- **Alt+Tab / Alt+Shift+Tab** 循环窗口，恢复各窗口记住的焦点（`WINDOW_RESTORE`）。
-- `NTF_DESTROY`(66)、`NTF_STATE`(67)（激活切换成对通知）落地发射。
-
-### 5.4 指针交互全模型（新增）
-
-- **鼠标悬停**：`TGS_EVENT_HOVER_ENTER/LEAVE`（7/8）——backend 递归 hit-test 窗口 root，只报状态变化；订阅门控（同 CLICK）；触摸不产生悬停（无 hover 语义）。
-- **点击/按压**：CLICK 事件 + 后端按压/聚焦视觉。
-- **事件订阅模型**（L2 D6）：CLICK/VALUE/HOVER 走 opt-in 订阅；KEY 是输入传输始终送达；焦点永不门控。
-
-### 5.5 字符 + 控件混排（L1）
-
-`TGS_WINDOW_TRANSPARENT` 窗口类型：root 背景透明，字符 base 透过显示，控件浮在文本上。
-
-### 5.6 协议契约收敛
-
-- `WGT_UPDATE` 对齐为 content-only `[widget_id, value]`。
-- `TGS_LAYOUT_GRID` 修复（原 flex 桩）；`TGS_STYLE_FONT_SIZE` 仍为 no-op（待 resources 字体机制）。
+**删除：** WIN_* 全族、win_id、窗口类型、FOCUS/BLUR、VALUE_CHANGED、SET_FOCUS、NTF_FOCUS/STATE/GEOMETRY、EVT_BIND、WGT_LAYOUT/WGT_ATTR。
 
 ---
 
-## 6. 质量
+## 4. 帧格式：kitty G APC 通道 + G1 子命名空间
 
-| 项 | 值 |
-|---|---|
-| 自动化测试 | **74/74 通过**（gtest，11 套件），ctest 1/1 |
-| 覆盖 | 帧编解码、PTY、VT 模拟、导航/焦点、事件门控（含 hover）、容器几何、多窗口激活、点击命中、GRID 布局 |
-| 证据链 | 每个修复红→绿（stash 前失败/恢复后通过） |
-| 视觉验收 | 60 张控件截图 + 5 张交互状态图，视觉模型逐张评审，缺陷闭环 |
-| 工作树 | 干净 |
+TGS 帧走 kitty 图形协议的 APC 通道：
 
----
+```
+ESC _ G1;<stream>;<frame>;<command>;<args...> ESC \
+```
 
-## 7. 下一步
+- `G1` = TGS 在 kitty G 通道的**子命名空间**标识
+- kitty 原生帧 = `ESC _ G<key=value,...>;<data> ESC \`（像素传输）
+- 两者共享同一 `ESC _` APC 通道——解析器双识别
+- **可扩展性**：命令编号空间稳定（退役命令保留值），新命令不破坏旧版本
 
-1. **P5 resources**（L3 最大缺口，greenfield）：`TGS_STREAM_RESOURCE` 资源上传/缓存，gate IMAGE widget 与 FONT_SIZE。
-2. **P6 IME**：候选条（`IME_CANDIDATES`/`IME_SELECT` 静默丢弃）——preedit overlay 已实现一半。
-3. **P1 styles**：`TGS_STYLE_FONT_SIZE` 生效（依赖 resources 字体机制）+ 样式查询通道。
-4. **触摸接入**：复用鼠标管道（`input_sdl.c` 加 `SDL_FINGER*` 分支，触摸=指针）。
-5. **menu 渲染**（P2 stub）：需要菜单项结构 API。
+kitty 协议通过"未知 key 静默忽略"提供隐式扩展兼容——TGS 在 G1 子命名空间内定义自己的命令空间，不依赖 kitty 的扩展能力。超集 = 合成器同时理解 G1（TGS 语义）和 G（kitty 像素）两种帧。
 
 ---
 
-*完整设计：`docs/architecture-v2.md`、`docs/navigation.md`、`docs/ime.md`；逐层验收：`protocol/tgs-spec-layer0.md` 与 `.spec/l3-survey-report.md`。*
+## 5. 渲染器：单画布 scene painter
+
+| 模块 | 职责 |
+|------|------|
+| `scene_core.c` | 节点池、绝对几何、命中测试、事件队列、绘制（TEXT/BOX/GRAPHIC） |
+| `scene_backend.c` | 元素 create/rect/content/style/destroy + 指针注入 + hit_test |
+| `paint_sdl2.c` | 软件光栅 + SDL2_ttf 字形合成（4bpp Blended alpha） |
+| `paint_skia.cpp` | SkCanvas + SkFont（第二参考后端，`-DTGS_USE_SKIA`） |
+| `term_view.c` | 字符基 TTF 渲染（underlay 通道，垫在场景下） |
+
+无窗口、无焦点视觉、无文本编辑状态机、无 checkbox/slider/scroll 状态。渲染器只画 + 命中 + 报事件。paint 端口是唯一引擎缝——第三个后端只加一个 `paint_*.c`。
+
+---
+
+## 6. 合成器与客户端
+
+### 合成器（window_manager.c）
+
+薄路由：帧→后端元素调用，输入事件→程序（或 IME 管道）。无焦点、无订阅门控、无几何回报、无布局。
+
+IME 路由：IME 连接时，按键按窗口级路由进 IME 管道；IME 程序 COMMIT 文本回来，合成器作为 `IME_COMMIT` 事件发给程序。合成器不画 preedit——候选词由 IME 程序自己绘制。
+
+### 客户端（tgs_client）
+
+元素 API：
+
+```c
+tgs_client_create_element(type, id, parent, x, y, w, h, content);
+tgs_client_update_element(id, value);
+tgs_client_set_element_style(id, prop, value);
+tgs_client_destroy_element(id);
+tgs_client_poll_event(&ev, timeout_ms);
+tgs_client_send_ime_commit(text);
+```
+
+程序自持一切状态——文本缓冲、值、焦点、布局。
+
+### 示例（simple_form.c = 参考）
+
+程序用 KEY 事件自编辑文本缓冲；按钮 = BOX + TEXT 子控件组合；CLICK 响应。完整演示了 SVG 模型：程序组合一切，渲染器只画。
+
+---
+
+## 7. 截图与视觉验收
+
+**视觉模型验收通过。** 文字渲染正常、颜色正确、布局整齐、无黑屏/豆腐块。GRAPHIC 元素画圆（默认形状），符合预期。
+
+| 场景 | 截图 | 说明 |
+|------|------|------|
+| 原语总览 | ![library](screenshots/library.png) | 3 原语（TEXT/BOX/GRAPHIC）逐一渲染 |
+| 程序自编辑 | ![simple_form](screenshots/simple_form.png) | 程序用 KEY 事件拼文本缓冲 |
+| 程序摆位 | ![container](screenshots/container.png) | BOX 纯盒子，子控件 rect 程序算 |
+
+### singles（每原语 × 三状态）
+
+| 原语 | 正常 | 悬停 | 按下 |
+|------|------|------|------|
+| TEXT | ![text](screenshots/singles/text_normal.png) | ![hover](screenshots/singles/text_hover.png) | ![pressed](screenshots/singles/text_pressed.png) |
+| BOX | ![box](screenshots/singles/box_normal.png) | ![hover](screenshots/singles/box_hover.png) | ![pressed](screenshots/singles/box_pressed.png) |
+| GRAPHIC | ![graphic](screenshots/singles/graphic_normal.png) | ![hover](screenshots/singles/graphic_hover.png) | ![pressed](screenshots/singles/graphic_pressed.png) |
+
+---
+
+## 8. 质量
+
+| 维度 | 结果 |
+|------|------|
+| 测试 | **49/49 通过**（frame/protocol/term/pty/snapshot/l1/scene_click 8 套件） |
+| 删除的测试 | test_nav / test_l2_focus / test_geometry / d2_repro / nav_probe（焦点导航模型已退役） |
+| 视觉验收 | 3 张截图 + 9 singles 视觉模型评审通过 |
+| 历史清理 | 全仓 lvgl 计数 = 0（上一轮完成） |
+| 双后端 | SDL2 + Skia 共用同一 paint 端口 |
+
+---
+
+## 9. 提交记录
+
+| 提交 | 内容 |
+|------|------|
+| `7b0fc8f` | feat(frame): G1 prefix — TGS sub-namespace in kitty G APC channel |
+| `616fe5f` | feat(protocol)!: rewrite to first-principles minimal — 3 primitives, kitty G APC, no windows/focus/layout |
+| `fab3c67` | docs(report): HTML progress report for protocol rewrite |
+
+---
+
+## 10. 下一步
+
+1. **kitty 呈现通道**（`output_kitty.c`）：fb→RGBA→PNG→base64→kitty 图形序列→stdout。TGS 的呈现基础，非编译选项。
+2. **parser 双识别**：G1 载荷 → TGS 帧；裸 G → kitty 原生像素（超集兼容）。
+3. **文档/brain 更新**：spec 重写、brain 记录 TGS ⊃ kitty 定案。
+4. **程序侧控件库**（libtgs-ui）：图形语义价值闭环的最后缺口——radio 互斥组、list=SCROLL+子控件、diff/重排。组合过程中每个摩擦点都是协议缺口的真实信号。
