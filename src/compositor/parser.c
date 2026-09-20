@@ -77,9 +77,17 @@ void tgs_parser_feed(tgs_parser *p, const uint8_t *data, int len)
         }
         if (frame_end < 0) break;   /* incomplete frame — wait for more bytes */
 
-        if (p->callback) {
+        /* Dual identification in the shared APC channel (TGS ⊃ kitty):
+         *   "G1;..."  → TGS frame (the G1 sub-namespace)
+         *   "G..."    → kitty-native graphics frame (pixel placement);
+         *               accepted as part of the superset — not yet wired
+         *               to canvas ops, but never fed to the TGS decoder.
+         * Everything else on this channel is not a TGS frame. */
+        if (p->callback && p->buf_len > 3 &&
+            p->buf[2] == 'G' && p->buf[3] == '1') {
             tgs_frame frame;
-            if (tgs_frame_decode((const char *)p->buf + 2, frame_end - 2, &frame) == 0)
+            if (tgs_frame_decode((const char *)p->buf + 2, frame_end - 2,
+                                 &frame) == 0)
                 p->callback(&frame, p->user_data);
         }
 

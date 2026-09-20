@@ -169,12 +169,26 @@ set(BACKEND_SOURCES
     src/backends/scene/scene_core.c
     src/backends/scene/scene_backend.c
     src/backends/scene/paint_sdl2.c
-    src/backends/scene/term_view.c)
-if(TGS_USE_SDL)
+    src/backends/scene/term_view.c
+    src/backends/kitty_encode.c
+    src/backends/output_kitty.c)
+set_source_files_properties(src/backends/kitty_encode.c PROPERTIES
+    COMPILE_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}/deps/libsixel/src")
+# Input collection is terminal machinery — always built. The input source
+# follows the presentation channel: SDL input for the SDL debug channel,
+# evdev input for the fb channel, stdin for kitty (keys arrive via the
+# terminal's own input stream, not a graphics protocol).
+# Presentation channel: kitty is the primary (mandatory — TGS ⊃ kitty);
+# SDL is the debug channel; fbdev the embedded fallback.
+set(TGS_OUTPUT kitty CACHE STRING "Presentation channel: kitty | sdl | fb")
+if(TGS_OUTPUT STREQUAL "sdl")
     list(APPEND BACKEND_SOURCES src/backends/output_sdl.c src/backends/input_sdl.c)
-endif()
-if(NOT TGS_USE_SDL)
+elseif(TGS_OUTPUT STREQUAL "fb")
     list(APPEND BACKEND_SOURCES src/backends/output_fb.c src/backends/input_fb.c)
+else()
+    # kitty: input arrives through the terminal stdin — the same fd the
+    # program's key events would. The compositor reads it directly.
+    list(APPEND BACKEND_SOURCES src/backends/input_sdl.c)
 endif()
 
 if(TGS_USE_SKIA)
