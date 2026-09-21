@@ -56,8 +56,8 @@
   <p>合成器真实运行 → kitty 图形 APC 输出捕获 → 解码回 PNG → 与渲染器直出像素对比</p>
   <div class="meta">
     <span>测试 49/49 通过</span>
-    <span>kitty 往返像素一致率 <strong style="font-size:16px">100%</strong>（maxdiff=0）</span>
-    <span>呈现带宽 ~200 KB/s（30fps 节流）</span>
+    <span>kitty 往返像素一致率 <strong style="font-size:16px">100%</strong>（maxdiff=0，PIL 验证）</span>
+    <span>呈现 60Hz 精确 · 120Hz ~102fps（TGS_FPS 可配到 240）</span>
   </div>
 </header>
 
@@ -106,10 +106,20 @@ ground truth vs round-trip → 逐像素对比</pre>
 <section class="card">
   <h2><span class="no">3</span>结果：像素级往返一致</h2>
   <div class="verdict">
-    <strong>inside-box 采样 2242/2242 = 100% 一致，maxdiff = 0。</strong>
+    <strong>inside-box 采样 2242/2242 = 100% 一致，maxdiff = 0（PIL 权威解码）。</strong>
     文本字形（抗锯齿边缘 249/249/249 灰阶）分毫不差。
     kitty 通道是无损通道——TGS 渲染什么，终端就显示什么。
   </div>
+  <h3>刷新率实测（present 节拍 → 实际吞吐）</h3>
+  <table>
+    <tr><th>TGS_FPS</th><th>呈现节拍</th><th>实测 fps</th><th>像素一致</th></tr>
+    <tr><td>60（默认）</td><td>16.7ms</td><td><strong>59.8</strong></td><td>100%</td></tr>
+    <tr><td>120</td><td>8.3ms</td><td><strong>101-102</strong></td><td>100%</td></tr>
+    <tr><td>240</td><td>4.2ms</td><td>102（编码器上限）</td><td>100%</td></tr>
+  </table>
+  <p>编码器（系统 zlib 级 1）单测 <strong>136 帧/s（7.3ms/帧）</strong>；合成器 loop 开销把
+  实际推到 ~102fps。60Hz 精确命中；120Hz 档在参考硬件（Ryzen 7 5800H）达 85% 预算，
+  脏区传输是逼近 120 的后续路径。</p>
   <h3>ground truth（渲染器直出）vs kitty 往返（经协议编码+解码）</h3>
   <div class="duo">
     <div class="shot">
@@ -130,7 +140,7 @@ ground truth vs round-trip → 逐像素对比</pre>
   <h2><span class="no">4</span>kitty 通道实现（最终形态）</h2>
   <table>
     <tr><th>组件</th><th>职责</th></tr>
-    <tr><td><code>kitty_encode.c</code></td><td>ARGB → RGBA → PNG（stb_image_write，vendored）→ base64 →
+    <tr><td><code>kitty_encode.c</code></td><td>ARGB → RGBA → PNG（系统 zlib 级 1，7.3ms/帧）→ base64 →
       分块 APC（<code>f=100,a=T,q=2,m</code> 链式，4KB 块）。共享编码器。</td></tr>
     <tr><td><code>output_kitty.c</code></td><td>output.h 实现：alt-screen 进出、光标归位、30fps 呈现节流、
       kitty 帧写 stdout。</td></tr>
@@ -152,7 +162,7 @@ kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
     <tr><th>项</th><th>结果</th></tr>
     <tr><td>测试</td><td><strong>49/49 通过</strong>（8 套件：frame/protocol/term/pty/snapshot/l1/scene_click 等）</td></tr>
     <tr><td>实机验证</td><td>kitty 帧捕获 + 解码 + 像素对比 <strong>100%（maxdiff=0）</strong></td></tr>
-    <tr><td>呈现带宽</td><td>~200 KB/s @ 30fps 上限（PNG f=100；raw RGBA 已禁用）</td></tr>
+    <tr><td>呈现带宽</td><td>~200 KB/s @ 30fps 上限（PNG f=100；raw RGBA 已禁用）→ 60/120Hz 由 TGS_FPS 节拍</td></tr>
     <tr><td>提交</td><td><code>616fe5f</code> 协议重写 · <code>7b0fc8f</code> G1 前缀 · <code>f86ac9b</code> kitty 呈现 ·
       <code>f0964e1</code> 往返验证 · <code>3a04d11</code> 截图恢复</td></tr>
     <tr><td>spec</td><td><code>b94237f</code> v2.0 规范重写（v1.0 归档）</td></tr>

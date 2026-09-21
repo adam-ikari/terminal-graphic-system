@@ -390,9 +390,15 @@ int main(int argc, char *argv[])
     fds[1].fd = ime_master_fd;
     fds[1].events = POLLIN;
 
+    /* Poll at 1ms: the presenter owns cadence (output_present drops frames
+     * outside its interval). A poll timeout ≥ the present interval would
+     * serialize into poll+encode ≈ interval+7ms — 60fps setting measured
+     * only 41fps that way. Fast poll + presenter gate hits the target. */
+    int poll_ms = 1;
+
     while (running) {
         int nfds = (ime_master_fd >= 0) ? 2 : 1;
-        int ret = poll(fds, nfds, 5);
+        int ret = poll(fds, nfds, poll_ms);
 
         if (ret < 0) break;
 

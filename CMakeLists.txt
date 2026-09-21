@@ -212,7 +212,7 @@ if(PkgConfig_FOUND)
     pkg_check_modules(SDL2 QUIET sdl2 SDL2_ttf)
 endif()
 
-target_link_libraries(tgs_scene_backend PUBLIC stb)
+target_link_libraries(tgs_scene_backend PUBLIC stb z)
 if(TGS_USE_SDL)
     target_link_libraries(tgs_scene_backend PUBLIC tgs_common ${SDL2_LIBRARIES} SDL2::SDL2 SDL2_ttf)
     target_include_directories(tgs_scene_backend PUBLIC ${SDL2_INCLUDE_DIRS})

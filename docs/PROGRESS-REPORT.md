@@ -166,3 +166,29 @@ tgs_client_send_ime_commit(text);
 2. **parser 双识别**：G1 载荷 → TGS 帧；裸 G → kitty 原生像素（超集兼容）。
 3. **文档/brain 更新**：spec 重写、brain 记录 TGS ⊃ kitty 定案。
 4. **程序侧控件库**（libtgs-ui）：图形语义价值闭环的最后缺口——radio 互斥组、list=SCROLL+子控件、diff/重排。组合过程中每个摩擦点都是协议缺口的真实信号。
+
+---
+
+## 11. 呈现刷新率：60Hz / 120Hz（2026-09-21）
+
+**需求**：支持 60Hz，争取 120Hz。实测与实现：
+
+| TGS_FPS | 呈现节拍 | 实测 fps | 像素一致（PIL） |
+|---------|----------|----------|-----------------|
+| 60（默认） | 16.7ms | **59.8** | 100% / maxdiff=0 |
+| 120 | 8.3ms | **101-102** | 100% / maxdiff=0 |
+| 240 | 4.2ms | 102（编码上限） | 100% / maxdiff=0 |
+
+**瓶颈与修法**：
+- stb 自带 deflate ~25 帧/s（40ms/帧）→ 换系统 zlib 级 1：136 帧/s（7.3ms/帧），
+  60Hz 和 120Hz 预算内（PNG 结构手写 IHDR/IDAT/IEND + CRC32，stb 退役出 wire path）
+- poll 循环 5ms 固定 → 120Hz 时 poll+编码串行化 ≈12ms/帧 只到 74fps；
+  改为 poll 恒 1ms，节拍全权交给 presenter 门控 → 102fps
+- `TGS_FPS` 环境变量：默认 60，上限 240
+
+**验证**：合成器 stdout 捕获 → kitty APC 解码（PIL 权威）→ 与 render_snapshot
+ground truth 逐像素对比：60/120/240 三档全部 2242/2242 = 100%，maxdiff=0。
+（修复了验证脚本的 PNG filter 3/4 混淆 bug——此前 88% 是解码器问题，非协议问题。）
+
+**诚实边界**：120Hz 档在参考硬件（Ryzen 7 5800H）达 102fps（编码占预算 86%）；
+脏区传输是逼近真 120 的后续路径。49/49 测试绿。

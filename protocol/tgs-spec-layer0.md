@@ -8,7 +8,7 @@ TGS 是运行在终端里的图形 API：程序 ⇄ 渲染器点对点，一程�
 kitty 原生像素帧（`G<key=value,…>;`）与 TGS 帧（`G1;…`）共享同一通道；
 TGS 在能力上包含 kitty（像素呈现）并扩展原语语义、事件、IME。
 
-C99，零外部依赖（呈现层 PNG 编码用 vendored stb_image_write）。
+C99；唯一外部依赖是系统 zlib（PNG 编码，级 1，~7ms/帧 800×600）。
 
 ---
 
@@ -248,8 +248,11 @@ caps 收敛自身行为。
    识别并接受（MUST NOT 喂给 TGS 解码器）。
 2. **呈现即 kitty**：合成器把渲染画布编码为 kitty 图形序列
    （`Gf=100,a=T,q=2,m=…` PNG base64 分块）推到真终端 stdout。
-   呈现节流 MUST ≥ 15fps（全画布 PNG 实测 ~200KB/s @8fps；
-   raw RGBA 禁用——77MB/s 会淹没终端）。
+   呈现节拍由 `TGS_FPS` 环境变量指定（默认 60，支持到 240）：
+   60Hz 实测 59.8fps 精确命中；120Hz 档在参考硬件（Ryzen 7 5800H）
+   达 ~102fps——编码 7ms/帧占预算 86%，脏区传输是逼近 120 的后续路径。
+   raw RGBA 禁用——77MB/s 会淹没终端（stb PNG 编码 ~40ms/帧，
+   同样淘汰：换系统 zlib 级 1 后 136 帧/s）。
 3. **程序可直用 kitty**：程序直接发 kitty 原生帧传像素是合法用法；
    像素落画布的方式（作为 GRAPHIC/IMAGE 源）是 L4 surface 范畴。
 

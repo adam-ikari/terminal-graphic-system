@@ -63,11 +63,23 @@ int output_init(tgs_display *d, int width, int height)
     return 0;
 }
 
-/* Present pacing: a full-canvas transmission is ~2MB; without a rate cap
- * the compositor's poll loop (5ms) would push 600 fps ≈ 1.2 GB/s into the
- * terminal. 30 fps is the reference presentation cadence; dirty-region
- * transmission is the later optimization. */
-#define KITTY_PRESENT_INTERVAL_MS 33
+/* Present pacing: a full-canvas transmission must be rate-capped — the
+ * compositor's 5ms poll loop would otherwise push every repaint at once.
+ * The cadence comes from TGS_FPS (default 60; 120 supported — the encoder
+ * does a full 800x600 PNG in ~7ms, inside both budgets). */
+static long present_interval_ms(void)
+{
+    static long cached = -1;
+
+    if (cached < 0) {
+        const char *env = getenv("TGS_FPS");
+        long fps = env ? atol(env) : 60;
+        if (fps < 1) fps = 60;
+        if (fps > 240) fps = 240;
+        cached = 1000L / fps;
+    }
+    return cached;
+}
 
 void output_present(tgs_display *d)
 {
@@ -82,7 +94,7 @@ void output_present(tgs_display *d)
     if (have_last) {
         long ms = (now.tv_sec - last.tv_sec) * 1000L +
                   (now.tv_nsec - last.tv_nsec) / 1000000L;
-        if (ms < KITTY_PRESENT_INTERVAL_MS) return;
+        if (ms < present_interval_ms()) return;
     }
     last = now;
     have_last = 1;
