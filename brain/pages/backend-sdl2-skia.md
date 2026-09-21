@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-20T02:27:46"
+updated: "2026-09-21T01:05:17"
 ---
 
 <!-- compiled_truth -->
@@ -97,5 +97,11 @@ updated: "2026-09-20T02:27:46"
 - time: 2026-09-20T02:27:46
   kind: evidence
   summary: "Live verification (2026-09-20): kitty round-trip is PIXEL-EXACT — ground truth (render_snapshot direct fb dump) vs kitty presentation capture (compositor stdout APC decode) compare 2242/2242 sampled pixels inside the box, maxdiff=0, antialiased text glyph edges identical (249,249,249). Found+fixed: WGT_CREATE content arg dropped in WM rewrite. Methodology: capture compositor stdout, decode kitty APC per-transmission (a=T boundary groups), reconstruct PNG, pixel compare. 49/49 tests green."
+  source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-21T01:05:17
+  kind: decision
+  summary: "60/120Hz presentation DONE (2026-09-21): stb deflate was 25fps (40ms/frame) — replaced with system zlib level 1, hand-built PNG (IHDR/IDAT/IEND+CRC32): 136fps (7.3ms). Poll loop: 5ms fixed serialized poll+encode to 12ms at 120Hz (74fps); poll now 1ms, presenter owns cadence. TGS_FPS env (default 60, cap 240). Measured: 60→59.8fps, 120→101-102fps, 240→102 (encoder ceiling); all pixel-exact (PIL) 2242/2242 maxdiff=0. Honest ceiling on Ryzen 7 5800H: encode 86% of 120Hz budget — dirty-region is the path to true 120. ALSO: verification script bug found — custom PNG decoder conflated filter 3 (Average) with 4 (Paeth); 88% mismatch was decoder, not protocol; PIL is authoritative."
   source: session
   affects: [backend-sdl2-skia]
