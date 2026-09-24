@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-21T01:05:17"
+updated: "2026-09-24T01:47:54"
 ---
 
 <!-- compiled_truth -->
@@ -103,5 +103,17 @@ updated: "2026-09-21T01:05:17"
 - time: 2026-09-21T01:05:17
   kind: decision
   summary: "60/120Hz presentation DONE (2026-09-21): stb deflate was 25fps (40ms/frame) — replaced with system zlib level 1, hand-built PNG (IHDR/IDAT/IEND+CRC32): 136fps (7.3ms). Poll loop: 5ms fixed serialized poll+encode to 12ms at 120Hz (74fps); poll now 1ms, presenter owns cadence. TGS_FPS env (default 60, cap 240). Measured: 60→59.8fps, 120→101-102fps, 240→102 (encoder ceiling); all pixel-exact (PIL) 2242/2242 maxdiff=0. Honest ceiling on Ryzen 7 5800H: encode 86% of 120Hz budget — dirty-region is the path to true 120. ALSO: verification script bug found — custom PNG decoder conflated filter 3 (Average) with 4 (Paeth); 88% mismatch was decoder, not protocol; PIL is authoritative."
+  source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-23T04:00:00
+  kind: decision
+  summary: "Dirty-region presentation design (2026-09-23): the canvas is a fixed grid of pixel tiles (64x64), each tile a persistent kitty image id (base 0x74670000); a present re-transmits ONLY tiles whose bytes differ from the prev-copy (per-tile memcmp), an idle frame writes 0 bytes. Why tiles, not a single dirty rect: kitty deletes an image's data together with its placements, so an update-by-replace of one rect reverts whatever that id previously covered — only a non-overlapping partition is both bounded (memory = one canvas) and self-consistent (tiles never overlap, so z-order never matters). Placement is cell-based in kitty: CUP to (x/cell_w, y/ch) + X/Y pixel offsets (must be < cell size), a=T,i=<id>,C=1. Host cell size from TIOCGWINSZ (ws_xpixel/ws_col, ws_ypixel/ws_row), TGS_CELL_W/TGS_CELL_H env override for pty-less capture; no cell size → full-frame fallback (which now also skips unchanged frames). Resize/cleanup deletes the id range with a=d,d=R,x=,y=."
+  source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-24T01:47:54
+  kind: evidence
+  summary: "Dirty-tile presentation MEASURED (2026-09-24): 64x64 tile grid / persistent kitty ids (base 0x74670000) shipped; idle = 0 B/s (tile and full-frame fallback both, 0 stray bytes); localized dirty @gate120 = 106.6fps / 117 KB/s vs full-frame 83.7fps / 1.24 MB/s (fps +27%, bandwidth 1/10.6); unpaced flood = 99.5fps / 116 KB/s vs 83.3 / 1.25 MB/s; full-screen churn (worst case, all 130 tiles dirty) = 94.3fps / 1.72 MB/s vs 56.2 / 3.06 MB/s; gate240 = 160.0fps / 172 KB/s vs 88.3 / 1.28 MB/s — breaks the old full-frame 102fps ceiling at ANY gate, proving encode left the critical path; gate60 sanity = 56.2fps. yes flood = 0 B/s correctly (screen pixel-identical, no dirty tile — not a worst case; churn scenario replaced it). Pixel (PIL authoritative): idle vs ground truth rect(20,20,600,200) = 120000/120000 100% maxdiff=0; cross-mode char scene tile-composite vs full-composite = 480000/480000 100% identical diff bbox=None; glyphs antialiased (198 colors, 53k non-bg px). ctest 51/51 (9 suites; +test_kitty_dirty). Three pixel-only bugs fixed: (1) presenter encoded priv->fb not published d->buffer (scene republishes in backend_init) -> all-zero first frame; (2) output_resize compared d->width already moved by set_size -> always early-return stale grid, now compares priv->w/h; (3) blit_cp only handled BytesPerPixel==1 but TTF_RenderUTF8_Blended returns 32bpp -> glyphs rendered then dropped, fixed with blend_cp fg-over-cell-bg (text-grid snapshot tests are blind to this — grid content is correct, only pixel diff catches it). pty_capture teardown deadlock fixed (child blocked mid-write in full pty, SIGTERM+SA_RESTART never lands -> WNOHANG drain + 2s SIGKILL). Honest residual: at gate 120 (integer ms -> 8ms -> 125 cap) measured 106.6fps — limiter is now compositor per-iteration full-canvas redraw (view redraw + scene_draw memcpy per dirty tick), not the encoder."
   source: session
   affects: [backend-sdl2-skia]

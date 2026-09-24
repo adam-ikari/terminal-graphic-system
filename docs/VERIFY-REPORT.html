@@ -55,9 +55,9 @@
   <h1>TGS v2.0 实机验证 — kitty 呈现通道</h1>
   <p>合成器真实运行 → kitty 图形 APC 输出捕获 → 解码回 PNG → 与渲染器直出像素对比</p>
   <div class="meta">
-    <span>测试 49/49 通过</span>
+    <span>测试 51/51 通过</span>
     <span>kitty 往返像素一致率 <strong style="font-size:16px">100%</strong>（maxdiff=0，PIL 验证）</span>
-    <span>呈现 60Hz 精确 · 120Hz ~102fps（TGS_FPS 可配到 240）</span>
+    <span>脏区传输：空闲 0 B/s · 局部脏区 106.6fps / 117 KB/s · 门控 240 → 160fps</span>
   </div>
 </header>
 
@@ -118,8 +118,9 @@ ground truth vs round-trip → 逐像素对比</pre>
     <tr><td>240</td><td>4.2ms</td><td>102（编码器上限）</td><td>100%</td></tr>
   </table>
   <p>编码器（系统 zlib 级 1）单测 <strong>136 帧/s（7.3ms/帧）</strong>；合成器 loop 开销把
-  实际推到 ~102fps。60Hz 精确命中；120Hz 档在参考硬件（Ryzen 7 5800H）达 85% 预算，
-  脏区传输是逼近 120 的后续路径。</p>
+  实际推到 ~102fps。60Hz 精确命中；120Hz 档在参考硬件（Ryzen 7 5800H）达 85% 预算。
+  <em>（以上为全帧路径的历史值——编码器天花板在任何门控下都撞 102；§6 为脏区 tile 路径的实测，
+  该天花板已被突破。）</em></p>
   <h3>ground truth（渲染器直出）vs kitty 往返（经协议编码+解码）</h3>
   <div class="duo">
     <div class="shot">
@@ -160,7 +161,7 @@ kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
   <h2><span class="no">5</span>质量与提交</h2>
   <table>
     <tr><th>项</th><th>结果</th></tr>
-    <tr><td>测试</td><td><strong>49/49 通过</strong>（8 套件：frame/protocol/term/pty/snapshot/l1/scene_click 等）</td></tr>
+    <tr><td>测试</td><td><strong>51/51 通过</strong>（9 套件：frame/protocol/term/pty/snapshot/l1/scene_click/kitty_dirty；49/49 → +2 来自脏区往返套件）</td></tr>
     <tr><td>实机验证</td><td>kitty 帧捕获 + 解码 + 像素对比 <strong>100%（maxdiff=0）</strong></td></tr>
     <tr><td>呈现带宽</td><td>~200 KB/s @ 30fps 上限（PNG f=100；raw RGBA 已禁用）→ 60/120Hz 由 TGS_FPS 节拍</td></tr>
     <tr><td>提交</td><td><code>616fe5f</code> 协议重写 · <code>7b0fc8f</code> G1 前缀 · <code>f86ac9b</code> kitty 呈现 ·
@@ -170,17 +171,55 @@ kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
 </section>
 
 <section class="card">
-  <h2><span class="no">6</span>下一步</h2>
+  <h2><span class="no">6</span>脏区传输实测（2026-09-24 更新）</h2>
+  <div class="verdict">
+    <strong>64×64 px tile 网格 + 逐 tile diff：空闲 0 B/s；局部脏区 106.6fps / 117 KB/s
+    （全帧回退 83.7fps / 1.24 MB/s）；门控 240 达 160fps —— 编码已不在关键路径上。</strong>
+    像素交叉验证：tile 合成 vs 全帧合成 <strong>480000/480000 = 100% 一致</strong>；
+    空闲 vs ground truth <strong>120000/120000 = 100%，maxdiff=0</strong>。
+  </div>
+  <p>画布切成固定 64×64 px tile 网格（800×600 → 130 块），每块一个持久 kitty image id；
+  present 只重传与基线逐字节不同的 tile。选 tile 而非单块脏矩形：kitty 删除图像数据会连带删除
+  placement，只有不重叠的划分才既内存有界又 z 序安全。placement = CUP 到 cell + X/Y 像素偏移
+  （< cell），cell 几何取 <code>TGS_CELL_W/H</code> → <code>TIOCGWINSZ</code> → 全帧回退。</p>
+  <h3>同负载 A/B（1ms 步调计数器 / 全屏翻页 · Ryzen 7 5800H）</h3>
+  <table>
+    <tr><th>场景</th><th>脏区 tile</th><th>全帧回退</th></tr>
+    <tr><td>局部脏区 @120</td><td><strong>106.6 fps · 117 KB/s</strong></td><td>83.7 fps · 1.24 MB/s</td></tr>
+    <tr><td>无节流灌入 @120</td><td><strong>99.5 fps · 116 KB/s</strong></td><td>83.3 fps · 1.25 MB/s</td></tr>
+    <tr><td>全屏翻页 @120（最坏脏区）</td><td><strong>94.3 fps · 1.72 MB/s</strong></td><td>56.2 fps · 3.06 MB/s</td></tr>
+    <tr><td>空闲（画面不变）</td><td><strong>0 B/s</strong></td><td>0 B/s</td></tr>
+    <tr><td>局部脏区 @门控240</td><td><strong>160.0 fps · 172 KB/s</strong></td><td>88.3 fps · 1.28 MB/s</td></tr>
+  </table>
+  <p>局部脏区 fps +27%、带宽降到 1/10.6；全屏翻页 fps +68%；门控 60 sanity → 56.2fps。
+  旧全帧天花板 ~102fps（任何门控都撞编码）；tile 路径下门控 240 实测 160fps 即为编码脱钩的证明。
+  <strong>诚实边界</strong>：gate 120 档（整数 ms → 8ms → 上限 125）实测 106.6fps，剩余限制是
+  合成器每轮的全画布重绘（view 全量重绘 + scene_draw memcpy），不是传输。</p>
+  <h3>验证中抓出的真 bug（3 个，均需像素对比才可见）</h3>
+  <ol>
+    <li>presenter 编码了 <code>priv->fb</code> 而非已发布的 <code>d->buffer</code>（scene 后端在
+        <code>backend_init</code> 重发布自己的 fb）→ 首帧全零；测试直画 <code>d->buffer</code> 所以全绿。</li>
+    <li><code>output_resize</code> 拿 <code>d->width</code> 比较，而 <code>be-&gt;set_size()</code>
+        已先更新了它 → resize 必然早退、旧网格盖新缓冲。</li>
+    <li><code>blit_cp</code> 只处理 1bpp 而 <code>TTF_RenderUTF8_Blended</code> 返回 32bpp →
+        字形渲染后被整体丢弃（文本网格快照测试对此盲——网格内容是对的）。</li>
+  </ol>
+  <p>另修 pty 捕获 harness 的 teardown 死锁：deadline 后子进程可能阻塞在满 pty 的 write 中途，
+  SIGTERM+SA_RESTART 永不落地 → WNOHANG 排空 + 2s SIGKILL 升级。</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">7</span>下一步</h2>
   <ol>
     <li><strong>真 kitty 终端实测</strong>（kitty/wezterm/ghostty 环境）：字节流已验证，终端实机渲染是最后一环。</li>
-    <li><strong>脏区传输</strong>：全画布 PNG 200KB/s 已可用；按元素/矩形增量传输可再降一个数量级。</li>
+    <li><strong>合成器每轮全画布重绘</strong>：脏区传输已把瓶颈让给它（gate 120 → 106.6fps 的剩余项）——按脏区裁剪 view 重绘是下一处收益点。</li>
     <li><strong>程序侧控件库</strong>（libtgs-ui）：图形语义价值闭环——radio 组、list 组合、焦点管理（程序侧）。</li>
     <li><strong>kitty 原生 G 帧落地</strong>：像素放置到画布（GRAPHIC 的像素源），超集兼容面的完整实现。</li>
   </ol>
 </section>
 
 <footer>
-  TGS v2.0 · 3 原语 + kitty G1 APC · 49/49 · 像素级往返 100% · 2026-09-20
+  TGS v2.0 · 3 原语 + kitty G1 APC · 51/51 · 像素级往返 100% · 脏区传输 0 B/s 空闲 · 2026-09-24
 </footer>
 
 </div>
