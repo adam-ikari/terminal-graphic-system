@@ -5,7 +5,7 @@ category: project
 status: active
 tags: [website, docs]
 created: "2026-09-24T06:09:25"
-updated: "2026-09-24T09:02:33"
+updated: "2026-09-24T10:23:41"
 ---
 
 <!-- compiled_truth -->
@@ -41,5 +41,11 @@ TGS 对外官网采用 Docusaurus（用户选定），内容为项目介绍 / �
 - time: 2026-09-24T09:02:33
   kind: decision
   summary: "上线路径定为 GitHub Actions → GitHub Pages（build_type=workflow）：push main 且改动命中 site/** 时自动 npm ci + build，产物 site/build 作为 Pages artifact 发布；地址 https://adam-ikari.github.io/terminal-graphic-system/。远端 origin 此前为空仓库，首推为全历史。"
+  source: deploy
+  affects: [project-website]
+
+- time: 2026-09-24T10:23:41
+  kind: evidence
+  summary: "官网上线（2026-09-24）：https://adam-ikari.github.io/terminal-graphic-system/ HTTP200，8 路由验证，部署链 = push main 命中 site/** → Actions（npm ci+build → Pages artifact）。远端空仓库首推完成（main=a235494）。过程中钉死三个环境约束：①本地上行 ~400KB/s，单次 git push >~30MB 必 HTTP408（37MB 历史两次失败）→ 用 bundle 切 5MB 分片借 relay 分支上行、由 Actions 运行器重组后服务侧推 main；②Actions workflow 必须存在于默认分支才会被注册/触发；③GITHUB_TOKEN 无 workflows 权限不能创建 workflow 文件（含 workflows:write 键非法、0s 校验失败）→ 无 workflow 的历史用 GITHUB_TOKEN 推，site.yml 尾提交用带 workflow scope 的 PAT 推；另：git2.34 bundle create 对裸 SHA/HEAD~1 报空、仅 ref 可用。"
   source: deploy
   affects: [project-website]
