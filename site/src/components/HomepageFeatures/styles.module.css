@@ -1,0 +1,34 @@
+.features {
+  display: block;
+  padding: 1rem 0 2rem;
+}
+
+.card {
+  height: 100%;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  background: var(--ifm-background-surface-color);
+  margin-bottom: 1.25rem;
+}
+
+.token {
+  display: inline-block;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.card h3 {
+  margin-bottom: 0.5rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.95rem;
+}

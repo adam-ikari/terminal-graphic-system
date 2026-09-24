@@ -1,0 +1,152 @@
+---
+title: 快速开始
+sidebar_position: 2
+---
+
+# 快速开始
+
+## 环境要求
+
+- **C99 编译器** —— gcc 或 clang
+- **Linux**（macOS / Windows WSL 在路线中）
+- **SDL2 开发库** —— `libsdl2-dev`（桌面 SDL 调试后端）
+- **CMake**、**Git**
+
+输出后端由 `TGS_OUTPUT` 选择：`kitty`（默认 / 必须）| `sdl`（调试）| `fb`（嵌入式）。kitty 输出要求终端支持 kitty 图形协议；没有图形显示时可用 SDL + Xvfb（见下）。
+
+## 构建
+
+```bash
+git clone https://github.com/adam-ikari/terminal-graphic-system.git
+cd terminal-graphic-system
+
+make init    # 初始化依赖
+make build   # 构建全部（桌面 SDL 后端）
+```
+
+产物：
+
+- `build/tgs-compositor` —— 合成器
+- `build/simple_form` —— 参考应用（表单）
+- `build/ime_app` —— 参考 IME 应用
+
+## 运行 demo
+
+```bash
+make run
+
+# 或直接运行合成器
+./build/tgs-compositor ./build/simple_form
+```
+
+## 无头环境（Xvfb）
+
+SDL 后端需要 X display：`$DISPLAY` 未设置时 `SDL_Init` 失败、合成器立即退出。Xvfb 提供虚拟 X framebuffer，让**真实的合成器**（不是测试替身）在无头机器上运行并截图：
+
+```bash
+make run-xvfb                    # 写入 xvfb-shot.png
+./scripts/run-xvfb.sh out.png    # 或指定输出路径
+```
+
+脚本会认领一个空闲 display（`:99`–`:130`），跑合成器、等待渲染、截图（`import`，回退到根窗口 / `scrot`），然后完整清理。截图缺失或空白时以非零退出。
+
+依赖：`xvfb`、`xdpyinfo`（`x11-utils`）、`xdotool`、截图工具（ImageMagick `import` 或 `scrot`）。
+
+## 第一个 TGS 程序
+
+照 `examples/simple_form.c` 的模式：
+
+```c
+#include "tgs_client.h"
+#include <stdio.h>
+#include <string.h>
+
+/* 控件 id */
+#define ID_LABEL  1
+#define ID_INPUT  2
+#define ID_BUTTON 3
+
+int main(void)
+{
+    tgs_event ev;
+    tgs_window_info win;
+
+    /* 1. 初始化客户端 —— 经 stdin/stdout 连上合成器 */
+    if (tgs_client_init() != 0) return 1;
+
+    /* 2. 创建窗口 */
+    tgs_client_create_window(TGS_WINDOW_NORMAL, "My App", &win);
+
+    /* 3. 创建控件（程序侧组合） */
+    tgs_client_create_widget(TGS_WIDGET_LABEL, ID_LABEL, win.window_id,
+                             20, 20, 200, 30, "Hello:");
+    tgs_client_create_widget(TGS_WIDGET_INPUT, ID_INPUT, win.window_id,
+                             20, 60, 300, 40, "");
+    tgs_client_create_widget(TGS_WIDGET_CONTAINER, ID_BUTTON, win.window_id,
+                             20, 120, 120, 40, "Click Me");
+
+    /* 4. 绑定事件 */
+    tgs_client_bind_event(ID_BUTTON, TGS_EVENT_CLICK);
+
+    /* 5. 事件循环 */
+    while (tgs_client_poll_event(&ev, -1) == 0) {
+        if (ev.type == TGS_EVENT_CLICK && ev.widget_id == ID_BUTTON) {
+            tgs_client_update_widget(ID_LABEL, "Clicked!");
+        }
+    }
+
+    tgs_client_shutdown();
+    return 0;
+}
+```
+
+编译与运行：
+
+```bash
+gcc -std=c99 -I src/client my_app.c -o my_app -L build -ltgs_client
+./build/tgs-compositor ./my_app
+```
+
+## API 速览
+
+| 函数 | 用途 |
+|------|------|
+| `tgs_client_init()` | 连接合成器并握手 |
+| `tgs_client_create_window(type, title, &info)` | 创建窗口；返回 id 与尺寸 |
+| `tgs_client_create_widget(type, id, parent_id, x, y, w, h, content)` | 创建元素 |
+| `tgs_client_update_widget(id, text)` | 更新内容（文本 / 形状数据） |
+| `tgs_client_set_widget_style(id, prop, value)` | 设置样式属性 |
+| `tgs_client_bind_event(widget_id, event_type)` | 绑定事件 |
+| `tgs_client_poll_event(&ev, timeout_ms)` | 等待事件；`-1` = 阻塞 |
+| `tgs_client_get_widget_text(widget_id)` | 读取当前文本 |
+| `tgs_client_destroy_widget(id)` | 销毁元素 |
+| `tgs_client_destroy_window(win_id)` | 关闭窗口 |
+| `tgs_client_shutdown()` | 断开并清理 |
+
+关键类型：
+
+```c
+typedef struct {
+    int window_id;
+    int x, y, w, h;
+} tgs_window_info;
+
+typedef struct {
+    int type;           /* tgs_event_type */
+    int window_id;
+    int widget_id;
+    char text[256];     /* VALUE_CHANGED 事件 */
+    int key;            /* KEY 事件 */
+    int modifiers;      /* KEY 事件 */
+    int focused;        /* FOCUS 事件：1=获得 0=失去 */
+} tgs_event;
+```
+
+## 线格式速查
+
+```
+ESC _ G1;<stream>;<frame>;<command>;<args...> ESC \
+```
+
+完整规范见站内[协议](./protocol)或仓库
+[`protocol/tgs-spec-layer0.md`](https://github.com/adam-ikari/terminal-graphic-system/blob/main/protocol/tgs-spec-layer0.md)。

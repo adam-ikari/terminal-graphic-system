@@ -1,0 +1,134 @@
+.heroBanner {
+  background: linear-gradient(160deg, #0d1117 0%, #161b22 60%, #1a2332 100%);
+  color: #e6edf3;
+  padding: 4rem 0 3rem;
+  text-align: center;
+}
+
+.heroTitle {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 4.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.cursor {
+  color: #3fb950;
+  animation: blink 1.1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.heroSubtitle {
+  font-size: 1.2rem;
+  color: #a5b0be;
+  max-width: 46rem;
+  margin: 0 auto 1.75rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+
+.dualId {
+  font-size: 0.85rem;
+  color: #7d8590;
+  margin: 0;
+}
+
+.dualId code {
+  color: #3fb950;
+  background: rgba(110, 118, 129, 0.15);
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.dualSep {
+  margin: 0 0.6rem;
+  color: #484f58;
+}
+
+.statsStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin: 2.5rem auto;
+}
+
+.statCard {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1rem 0.75rem;
+  text-align: center;
+  background: var(--ifm-background-surface-color);
+}
+
+.statValue {
+  display: block;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-top: 0.25rem;
+}
+
+.sectionTitle {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.sectionSub {
+  text-align: center;
+  color: var(--ifm-color-emphasis-700);
+  max-width: 44rem;
+  margin: 0 auto 1.5rem;
+}
+
+.shotsSection {
+  padding: 1rem 0 3.5rem;
+}
+
+.shotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1.25rem;
+}
+
+.shot {
+  margin: 0;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ifm-background-surface-color);
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.shotCaption {
+  padding: 0.6rem 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}

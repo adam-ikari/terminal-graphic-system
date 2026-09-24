@@ -1,0 +1,74 @@
+---
+title: 验证报告
+sidebar_position: 6
+---
+
+# 验证报告
+
+与仓库 [`docs/VERIFY-REPORT.html`](https://github.com/adam-ikari/terminal-graphic-system/blob/main/docs/VERIFY-REPORT.html) 同源 · 数据截至 2026-09-24。
+
+## 方法论
+
+- **pty 捕获**：harness 记录 app ⇄ compositor 的完整字节流（`TGS_RAW_DUMP` 可落盘），杂散字节计数为零才算干净。
+- **PIL 权威回放**：把流里的帧交给 Python/PIL 独立解码合成，作为像素真值——与渲染器实现互不信任。
+- **ground truth 对比**：`render_snapshot` 输出参考画面，逐像素 diff；跨实现、跨构建都要求 `maxdiff=0`。
+
+## 单测
+
+**ctest 67/67** —— 51 存量 + 16 kitty 原生帧新增（放置 / 裁剪 / 最近邻缩放 / 移动 / 删除 / 跨非量子边界分块拼装 / PNG 往返含 alpha 混合 / ack q 表 / 查询 / 路由 / 5.5KB 整块缓冲 / ClientInput 对偶识别）。
+
+## 像素级结果
+
+| 场景 | 结果 |
+|------|------|
+| e2e 字符场景：4×4 原始帧 + `X/Y` 格内偏移 | 图像 16 px + 周边 7 个底色探针**全部精确**；杂散 0，稳态 **0 B/s** |
+| e2e 遮挡 / z 序：原生帧落于根 BOX 内 | 合成 vs ground truth **120000/120000 = 100%，maxdiff=0**（BOX 完整遮住图像） |
+| 脏区：tile 合成 vs 全帧合成 | **480000/480000 = 100%** |
+| 脏区：空闲 vs ground truth | **120000/120000 = 100%，maxdiff=0** |
+| 跨构建合成对比 | **480000/480000，maxdiff=0** |
+
+证据画面：
+
+![](/img/screenshots/ground_truth.png)
+
+*ground truth（`render_snapshot` 参考画面）*
+
+![](/img/screenshots/kitty_roundtrip.png)
+
+*kitty 帧往返：捕获 → 解码 → 逐像素对比的参考画面*
+
+## 性能（同负载 A/B · 同机串行 · Ryzen 7 5800H）
+
+64×64 px tile 网格 + 逐 tile diff + 锚点节拍：门控未到点的 present 睡到锚点再发（`clock_nanosleep(TIMER_ABSTIME)`），不再丢弃。
+
+| 场景 | 旧（未到点丢弃） | 新（锚点睡眠 + 重绘削减） |
+|------|------------------|---------------------------|
+| 局部脏区计数器 @120 | 101.8 fps · 109 KB/s | **123.7 fps · 133 KB/s** |
+| 无节流灌入 @120 | 98.1 fps · 112 KB/s | **123.8 fps · 140 KB/s** |
+| 全帧回退 @120 | 84.2 fps · 1.22 MB/s | **122.3 fps · 1.77 MB/s** |
+| 全屏翻页 @120（最坏脏区） | 71.7 fps · 1.56 MB/s | **109.9 fps · 2.37 MB/s** |
+| 局部脏区 @门控240 | 159.3 fps · 171 KB/s | **245.3 fps · 263 KB/s**（上限 250） |
+| 局部脏区 @门控60 | 56.4 fps | **62.2**（上限 62.5） |
+| 空闲（画面不变） | 0 B/s · 2 帧 | **0 B/s · 2 帧** |
+
+重绘削减三件套：字形缓存（(cp,fg)→SDL_Surface，确定性渲染 ⇒ 字节等同）、DEF_BG 预填免边界逐像素调用、blend 的 /255 查表——跨构建合成对比 480000/480000，像素未动。
+
+## 诚实边界
+
+- **全屏翻页 109.9fps 仍低于 120**：性质已变——是真实每帧工作量超预算（present ≈9.1ms ＞ 8ms：解析 + 全量重绘 ≈5.6ms + 约 50 块脏 tile 编码 ≈3.5ms），不再是门控量化。其余场景全部 ≥120。该项已收口为**诚实上限**（决定不再优化），后续路径记录在原报告 §6。
+- **真 kitty 终端实测：环境不可行**——本机无 kitty / ghostty / wezterm、无图形显示；字节流捕获 + PIL 权威回放即现有实测面。
+- **kitty 接收器已知缺口**（spec §8 明示，违者按码表拒绝）：`U=1` 虚拟放置、动画、zlib、多放置 `p>0`、`C=0` 光标策略、放置与滚动解耦、BMP / GIF、部分 raw、file/shm 目标；元素填充源仍属 L4。实现性边界：图像层随底色全量重放、单流拼装、ACK 满则丢弃。
+
+## 验证抓出的真 bug
+
+像素 / e2e 验证特有的收获——单测全绿也看不见的：
+
+1. **presenter 编码了错的 framebuffer**（`priv->fb` 而非已发布的 `d->buffer`）→ 首帧全零；测试直画 `d->buffer` 所以全绿。
+2. **`output_resize` 早退**（拿已更新的 `d->width` 比较）→ resize 必然早退、旧网格盖新缓冲。
+3. **`blit_cp` 只处理 1bpp** 而 `TTF_RenderUTF8_Blended` 返回 32bpp → 字形渲染后被整体丢弃（网格快照测试对此盲）。
+4. **ACK 先于握手**（kitty 原生帧落地时的 e2e 抓出）：`tgs_client` 曾把非 `G1;` 帧当流错误，程序握手即死——双识别补上客户端端，`ClientInput` 测试钉进回归。
+5. 顺手修：`term_resize_to()` 重建 view 后 underlay 指针悬垂——补 repoint + 原生层标脏。
+
+## 下一步
+
+唯一在列项：**程序侧控件库（libtgs-ui）**——见[路线](./roadmap)。

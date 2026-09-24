@@ -1,0 +1,135 @@
+---
+title: 协议规范
+sidebar_position: 4
+---
+
+# 协议（L0）
+
+规范原文：[`protocol/tgs-spec-layer0.md`](https://github.com/adam-ikari/terminal-graphic-system/blob/main/protocol/tgs-spec-layer0.md)（v2.0，Drawing Semantics）。本页是其结构化摘要。
+
+## 线格式
+
+所有帧承载于 kitty 图形协议的 APC 通道：
+
+```
+ESC (0x1B)  _ (0x5F)  <payload>  ESC \  (0x1B 0x5C)
+```
+
+**双识别（TGS ⊃ kitty）：**
+
+| 载荷前缀 | 语义 |
+|----------|------|
+| `G1;` | TGS 帧（本规范；`G1` = kitty G 通道内的 TGS 子命名空间） |
+| `G<key=value,…>;` | kitty 原生图形帧（像素传输 / 放置）——超集兼容面 |
+
+```
+TGS 帧:      ESC _ G1;<stream>;<frame>;<command>;<args...> ESC \
+kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;<base64 PNG> ESC \
+字符流:      普通终端文本（term underlay）
+```
+
+## 流
+
+| 流 | 方向 | 内容 |
+|----|------|------|
+| 0 | 双向 | 握手（HELLO / READY / REJECT） |
+| 1 | 程序 → 渲染器 | 命令（元素） |
+| 1 | 渲染器 → 程序 | 通知（RESIZE / DESTROY） |
+| 2 | 程序 → 渲染器 | 资源（IMAGE / GRAPHIC 像素源，kitty 格式） |
+| 4 | 渲染器 → 程序 | 输入事件 |
+
+## 命令
+
+### 握手（stream 0）
+
+程序先说话，渲染器答复：
+
+```
+G1;0;0;1;<version>;<caps>          # HELLO（ime=true 声明 IME 程序身份）
+G1;0;0;2;<caps>                    # READY
+G1;0;0;3;<rejected_cap>            # REJECT
+```
+
+### 元素（stream 1）
+
+**无窗口概念。** parent=0 即画布顶层；parent=元素 id 挂到该元素下。
+
+| 命令 | 参数 | 语义 |
+|------|------|------|
+| `WGT_CREATE` (32) | `[id, type, parent, x, y, w, h]` | 创建元素；parent 必须是 0 或 BOX |
+| `WGT_UPDATE` (33) | `[id, value]` | 替换内容（TEXT 文本 / GRAPHIC 形状数据） |
+| `WGT_STYLE` (34) | `[id, prop, value]` | 设置绘制属性 |
+| `WGT_DESTROY` (35) | `[id]` | 销毁元素（子树递归） |
+
+id 由程序分配；重复 id 或未知 parent MUST 拒绝。
+
+### 通知（渲染器 → 程序，stream 1）
+
+| 命令 | 参数 | 语义 |
+|------|------|------|
+| `NTF_RESIZE` (64) | `[w, h]` | 画布尺寸变化（程序重排的触发器） |
+| `NTF_DESTROY` (66) | `[id]` | 渲染器侧拆除（异常恢复时） |
+
+无 `NTF_GEOMETRY`：几何是程序自己算的。无 `NTF_FOCUS`：窗口与焦点模型不存在。
+
+## 事件（渲染器 → 程序，stream 4）
+
+全量转发，无订阅门控；程序自过滤。
+
+| 命令 | 参数 | 语义 |
+|------|------|------|
+| `EVT_KEY` (81) | `[key, mods]` | 键盘边沿（按下） |
+| `EVT_CLICK` (80) | `[id]` | 按下 + 释放落于同一元素（命中 = 渲染器机制） |
+| `EVT_HOVER_ENTER` (84) | `[id]` | 指针进入元素（鼠标；触摸无 hover） |
+| `EVT_HOVER_LEAVE` (85) | `[id]` | 指针离开元素 |
+| `EVT_POINTER` (86) | `[x, y, phase]` | 原始指针坐标；phase 0=down 1=move 2=up |
+| `IME_COMMIT` (97) | `[text]` | IME 程序提交的最终文本 |
+
+**路由规则**：
+
+- CLICK / HOVER 带命中元素 id；无命中时 POINTER 锚到根。
+- KEY 无元素锚——按**窗口级**路由：有 IME 连接 → IME 管道 → `IME_COMMIT` 回流；无 IME → KEY 直接给程序。
+- Tab 导航、控件级焦点、快捷键由程序实现，合成器不做。
+
+## 枚举
+
+### 元素 kind（`type`）
+
+| 值 | Kind | 渲染器持有 | 说明 |
+|----|------|-----------|------|
+| 1 | `TEXT` | 文本渲染 | 内容 = UTF-8 字符串 |
+| 8 | `BOX` | 矩形 / 结构 | 可作父；子元素在程序算好的 rect 上 |
+| 16 | `GRAPHIC` | 矢量形状 | circle / path / polygon，形状由 STYLE_SHAPE 选 |
+
+退役值（0=BUTTON、2=INPUT、3=CHECKBOX、5=SLIDER、11=SCROLL 等）**永久保留**，渲染器 MUST 拒绝创建——它们全部是程序侧组合：
+
+- 按钮 = `BOX` + `TEXT` 子元素 + `CLICK`
+- 开关 / 单选 = `BOX` + 程序状态 + 样式重绘
+- 滑块 = `BOX` + `POINTER` 坐标自绘
+- 列表 / 表格 = `BOX` + `TEXT` 子元素 + 程序布局
+- 滚动 = 程序收到滚轮 / 箭头后自己改子元素坐标（渲染器不做视口）
+
+### 样式属性
+
+| 值 | 属性 | 语义 |
+|----|------|------|
+| 0 | `BG_COLOR` | 填充色 `0xRRGGBB` |
+| 1 | `FG_COLOR` | 前景色（TEXT 字色） |
+| 2 | `RADIUS` | 圆角半径 |
+| 3 | `BORDER_WIDTH` | 边框宽 |
+| 4 | `BORDER_COLOR` | 边框色 |
+| 5 | `FONT_SIZE` | 字号（像素） |
+| 6 | `OPACITY` | 不透明度（参考实现暂不绘制） |
+| 7 | `SHAPE` | GRAPHIC 形状：0=circle 1=rect 2=path |
+
+### 键空间与指针
+
+- 可打印 ASCII 直映自身（0x20–0x7E）；8=backspace 9=Tab 13=Enter 27=Esc 127=Delete
+- 1000–1007：LEFT / RIGHT / UP / DOWN / HOME / END / PAGEUP / PAGEDOWN
+- mods：0x01 SHIFT、0x02 CTRL、0x04 ALT
+- POINTER phase：0=down、1=move、2=up，仅主键——phase 语义即拖拽 / 自绘交互的全部输入
+
+## Frame ID 与错误
+
+- 发送侧单调递增；仅用于调试与乱序检测，渲染器 MUST NOT 依赖它排序。
+- 完整规范还包含握手时序、能力协商与错误处理——见仓库原文。

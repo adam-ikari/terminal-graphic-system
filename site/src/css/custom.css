@@ -1,0 +1,32 @@
+/**
+ * TGS 官网样式 — 主色取终端绿（light / dark 双档）。
+ * 其余走 Docusaurus 默认变量。
+ */
+
+:root {
+  --ifm-color-primary: #1f883d;
+  --ifm-color-primary-dark: #1a7a36;
+  --ifm-color-primary-darker: #187333;
+  --ifm-color-primary-darkest: #145f2a;
+  --ifm-color-primary-light: #299447;
+  --ifm-color-primary-lighter: #319b4d;
+  --ifm-color-primary-lightest: #47af63;
+  --ifm-code-font-size: 95%;
+  --ifm-font-family-monospace:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #3fb950;
+  --ifm-color-primary-dark: #36a547;
+  --ifm-color-primary-darker: #339b42;
+  --ifm-color-primary-darkest: #2a7f36;
+  --ifm-color-primary-light: #4fc760;
+  --ifm-color-primary-lighter: #59cd6a;
+  --ifm-color-primary-lightest: #7ade87;
+}
+
+.navbar__title {
+  font-weight: 700;
+}

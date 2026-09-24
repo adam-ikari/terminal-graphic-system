@@ -16,3 +16,7 @@ demo.png
 screenshot.png
 report.html
 xvfb-shot.png
+
+# Website (Docusaurus)
+node_modules/
+.docusaurus/

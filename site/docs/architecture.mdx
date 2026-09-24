@@ -1,0 +1,89 @@
+---
+title: 架构
+sidebar_position: 3
+---
+
+# 架构
+
+## 数据路径
+
+```
+程序 App（自持：布局、控件组合、焦点、文本缓冲、值状态）
+   ↓ tgs_client（元素 API）
+G1 APC 帧（kitty 通道）
+   ↓
+合成器（薄路由：帧 → 元素调用；输入事件 → 程序或 IME 管道）
+   ↓ tgs_backend vtable
+渲染器（scene painter：TEXT / BOX / GRAPHIC + 命中）
+   ↓ paint 端口
+呈现（kitty 图形序列 → 真终端 | SDL 调试 | fbdev 嵌入式）
+```
+
+## 机制 / 策略切割（规范级判据）
+
+| 归属 | 内容 |
+|------|------|
+| 渲染器 / 合成器（机制） | 画布树、绘制原语、命中测试、输入采集、窗口级键盘路由、IME 管道 |
+| 程序（策略） | 布局、控件组合（按钮 = BOX + TEXT）、焦点、文本缓冲、值状态、滚动偏移 |
+
+规范级规则：
+
+1. 新 kind 必须声明渲染器必须原生持有的状态 / 能力，否则 MUST 被拒（是组合，程序侧做）。
+2. 事件保持交互形状（KEY / CLICK / HOVER / POINTER），禁止 widget 形状事件（"tab changed" 之类会把线协议绑死到某个 toolkit）。
+3. 合成器不做订阅门控：事件全量转发，程序自过滤。
+
+## 流
+
+| 流 | 方向 | 内容 |
+|----|------|------|
+| 0 | 双向 | 握手（HELLO / READY / REJECT） |
+| 1 | 程序 → 渲染器 | 命令（元素） |
+| 1 | 渲染器 → 程序 | 通知（RESIZE / DESTROY） |
+| 2 | 程序 → 渲染器 | 资源（IMAGE / GRAPHIC 像素源，kitty 格式） |
+| 4 | 渲染器 → 程序 | 输入事件 |
+
+## 传输（L3/L4 路线设计）
+
+L0 现状是 pty 上的 APC 帧流。更远的 surface 传输按 locality 可插拔：
+
+| 传输 | 客户端 | 拷贝成本 | 成帧 |
+|------|--------|----------|------|
+| `remote` | SSH / PTY | 脏区跟踪 + 压缩 | 二进制 DCS + 字节长度前缀（stream 3） |
+| `local-shm` | 同机 | **零拷贝** | POSIX 共享内存 |
+| `local-dmabuf` | 同机 | **零拷贝**，GPU | dma-buf（L5） |
+
+- **stream 2 资源**（图像 / 字体）→ APC 帧内 base64：文本安全、无新解析器、约 +33% 体积——适合偶发有界载荷。
+- **stream 3 framebuffer** → 二进制 DCS 加长度前缀（`ESC P TGSFB;<w>;<h>;<fmt>;<len> ST <len bytes> ESC \`）：前缀让原始二进制无歧义——载荷内的 `ESC` 是数据而非终止符；0% 开销，连续流必需。
+
+:::note
+以上属 L3/L4 路线设计，L0 尚未落地；当前已落地的帧通道是 pty 上的 kitty APC（含脏区传输）。
+:::
+
+## 输入、焦点与 IME（L0）
+
+- **采集与命中**：合成器采集键盘 / 指针；CLICK / HOVER 带 hit-test 后的元素 id，无命中时 POINTER 锚到根。
+- **KEY 窗口级路由**：有 IME 连接时按键进 IME 管道，IME 程序 COMMIT 的文本以 `IME_COMMIT` 事件回流给程序；无 IME 时 KEY 直接给程序。
+- **焦点策略在程序侧**：Tab 导航、控件级焦点、快捷键全部由程序实现——合成器不做。
+- **IME 是独立程序**（HELLO caps 带 `ime=true`）：候选窗由 IME 程序自己绘制，协议只承载文本变换通道，无 PREEDIT / CANDIDATES / SELECT / CANCEL 命令。
+
+## 分层路线 L0 → L6
+
+每个阶梯复用前一个；每个阶梯本身都是完整产品。基座是**字符模式**——cell grid 与 ANSI/escape 序列是所有阶梯的地基，任何一层都不取代它，只扩展它。
+
+| 层 | 增加 | 退出判据 |
+|----|------|----------|
+| **L0** | 单画布 + 尺寸通知 + 输入 / 按钮 / 标签 + 事件 + resize→重排 | `simple_form` 端到端可用并响应 resize |
+| **L1** | 样式 + 完整 20+ 控件库 + 容器控件 + 焦点 / 导航 | `container_demo` + Tab/方向键/焦点 |
+| **L2** | 多窗口 + 焦点 / z-order + 资源 + IME 引擎 + 终端 surface | 两个 TGS 窗口共存；`htop` 在终端 surface 里跑 |
+| **L3** | 客户端像素 surface（控件 kind）+ 二进制 DCS 传输 + 动画 | 应用接入像素控件并绘制 |
+| **L4** | 多 surface 场景合成（z-order / alpha / 变换）+ 传输可插拔 | 两个客户端 surface 叠加（一 local shm、一 remote DCS） |
+| **L5** | 桌面图形系统：WM 程序（装饰 / 布局 / 工作区 / 启动激活）+ GPU 路径 | TGS WM 程序装饰并移动本地应用窗口 |
+| **L6** | **嵌套**——TGS server 作为 TGS 程序跑在 TGS surface 内，窗口系统套在窗口里递归 | 两层的输入、焦点、几何都正确 |
+
+**当前基线：L0 已落地并稳定**（ctest 67/67，见[验证报告](./verification)）；下一项在列工作是程序侧控件库（libtgs-ui），见[路线](./roadmap)。
+
+## 诚实约束
+
+- **桌面端点单靠 PTY/SSH 不可达**——那是本地 shm / GPU 合成器存在的原因；终端传输是*远程*模式。TGS 已有显示口（SDL / `/dev/fb0`），这是扩展而非新系统。
+- **server 必须保持无策略**——窗口管理策略一旦进 server，模型就不再自洽（server 也不再中立）。
+- **控件 toolkit 不是场景合成器**——L4 是在 backend *旁边*加一层轻量场景层（合成独立 surface），不是替换它。
