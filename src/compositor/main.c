@@ -23,6 +23,7 @@
 #include "output.h"
 #include "input.h"
 #include "term.h"
+#include "kitty_native.h"
 
 /* Scene backend registration — defined in scene_backend.c/term_view.c */
 extern void scene_backend_register(void);
@@ -51,6 +52,16 @@ static void term_text_cb(const uint8_t *data, int len, void *ud)
 {
     (void)ud;
     tgs_term_feed(g_term, data, len);
+}
+
+/* A kitty-native graphics payload (spec §8 superset face): decoded,
+ * placed on the character base, acknowledged on the app's own pty. */
+static void term_kitty_cb(const uint8_t *data, int len, void *ud)
+{
+    (void)ud;
+    tgs_kitty_feed(data, len, g_term,
+                   tgs_term_view_cell_w(), tgs_term_view_cell_h(),
+                   g_master_fd);
 }
 
 static void term_reply_cb(const char *bytes, int len, void *ud)
@@ -139,6 +150,15 @@ static void term_resize_to(int w, int h)
         g_term_view = NULL;
     }
     g_term_view = tgs_term_view_create(cols, rows);
+
+    /* The view is a new allocation: repoint the underlay at it (the old
+     * pointer died with the old view) and force the image layer back on
+     * top of the fresh base. */
+    if (g_term_view)
+        scene_backend_set_underlay(tgs_term_view_pixels(g_term_view),
+                                   cols * tgs_term_view_cell_w(),
+                                   rows * tgs_term_view_cell_h());
+    tgs_kitty_mark_dirty();
 
     memset(&ws, 0, sizeof(ws));
     ws.ws_col = (unsigned short)cols;
@@ -374,6 +394,7 @@ int main(int argc, char *argv[])
                                    rows * tgs_term_view_cell_h());
         tgs_term_set_reply_cb(g_term, term_reply_cb, NULL);
         tgs_parser_set_text_cb(&parser, term_text_cb, NULL);
+        tgs_parser_set_kitty_cb(&parser, term_kitty_cb, NULL);
         g_master_fd = master_fd;
         g_wm = &wm;
         input_set_key_sink(term_key_sink, NULL);
@@ -440,9 +461,15 @@ int main(int argc, char *argv[])
         /* Backend tick */
         be->tick(10);
 
-        /* Repaint the character base when it changed. */
-        if (tgs_term_take_dirty(g_term)) {
+        /* Repaint the character base when it changed — or when the
+         * kitty-native image layer did (the images live in the view's
+         * pixels, so any base repaint must re-blit them; that happens
+         * unconditionally below). */
+        if (tgs_term_take_dirty(g_term) || tgs_kitty_take_dirty()) {
             tgs_term_view_draw(g_term_view, g_term);
+            tgs_kitty_draw((uint32_t *)tgs_term_view_pixels(g_term_view),
+                           tgs_term_cols(g_term) * tgs_term_view_cell_w(),
+                           tgs_term_rows(g_term) * tgs_term_view_cell_h());
             term_dump();
         }
         be->render();
@@ -455,6 +482,7 @@ int main(int argc, char *argv[])
 
     /* Cleanup */
     input_cleanup();
+    tgs_kitty_reset();
     close(master_fd);
     if (ime_master_fd >= 0) {
         close(ime_master_fd);

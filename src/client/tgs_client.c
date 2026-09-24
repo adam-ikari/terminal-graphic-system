@@ -112,7 +112,19 @@ static int read_stream_frame(int stream_id, tgs_frame *out)
             if (ret < 0) return -1;
             continue;
         }
-        if (tgs_frame_decode(payload, payload_len, out) != 0) return -1;
+        if (tgs_frame_decode(payload, payload_len, out) != 0) {
+            /* Dual identification on the shared APC channel (TGS ⊃ kitty,
+             * spec §8.1): only "G1;" is TGS. Any other "G…" payload coming
+             * back on our own stdin is a kitty-native graphics
+             * acknowledgement the compositor wrote (we or a program on this
+             * pty sent a frame with i=) — consume and skip it, never a
+             * stream error. A "G1;" that fails to decode is still fatal:
+             * that is the TGS protocol itself, corrupted. */
+            if (payload_len >= 1 && payload[0] == 'G' &&
+                !(payload_len >= 3 && payload[1] == '1' && payload[2] == ';'))
+                continue;
+            return -1;
+        }
         if (out->stream_id == stream_id) return 0;
     }
 }

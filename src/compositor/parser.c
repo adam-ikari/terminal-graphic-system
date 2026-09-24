@@ -22,6 +22,12 @@ void tgs_parser_set_text_cb(tgs_parser *p, tgs_text_callback cb, void *ud)
     p->text_user_data = ud;
 }
 
+void tgs_parser_set_kitty_cb(tgs_parser *p, tgs_kitty_callback cb, void *ud)
+{
+    p->kitty_cb = cb;
+    p->kitty_user_data = ud;
+}
+
 /* Hand the first n buffered bytes to the text callback and drop them. */
 static void flush_text(tgs_parser *p, int n)
 {
@@ -79,16 +85,24 @@ void tgs_parser_feed(tgs_parser *p, const uint8_t *data, int len)
 
         /* Dual identification in the shared APC channel (TGS ⊃ kitty):
          *   "G1;..."  → TGS frame (the G1 sub-namespace)
-         *   "G..."    → kitty-native graphics frame (pixel placement);
-         *               accepted as part of the superset — not yet wired
-         *               to canvas ops, but never fed to the TGS decoder.
+         *   "G..."    → kitty-native graphics frame (pixel placement) —
+         *               routed to the native receiver, never to the TGS
+         *               decoder (spec §8.1).
          * Everything else on this channel is not a TGS frame. */
-        if (p->callback && p->buf_len > 3 &&
-            p->buf[2] == 'G' && p->buf[3] == '1') {
-            tgs_frame frame;
-            if (tgs_frame_decode((const char *)p->buf + 2, frame_end - 2,
-                                 &frame) == 0)
-                p->callback(&frame, p->user_data);
+        {
+            int plen = frame_end - 2;   /* payload length, starting at 'G' */
+
+            if (plen >= 3 && p->buf[2] == 'G' &&
+                p->buf[3] == '1' && p->buf[4] == ';') {
+                if (p->callback) {
+                    tgs_frame frame;
+                    if (tgs_frame_decode((const char *)p->buf + 2, plen,
+                                         &frame) == 0)
+                        p->callback(&frame, p->user_data);
+                }
+            } else if (plen >= 1 && p->buf[2] == 'G' && p->kitty_cb) {
+                p->kitty_cb(p->buf + 2, plen, p->kitty_user_data);
+            }
         }
 
         {

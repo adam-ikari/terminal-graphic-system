@@ -174,8 +174,9 @@ set(BACKEND_SOURCES
     src/backends/output_kitty.c)
 set_source_files_properties(src/backends/kitty_encode.c PROPERTIES
     COMPILE_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}/deps")
-add_library(stb STATIC deps/stb_image_write.c)
+add_library(stb STATIC deps/stb_image_write.c deps/stb_image.c)
 target_include_directories(stb PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/deps)
+target_link_libraries(stb PUBLIC m)
 # Input collection is terminal machinery — always built. The input source
 # follows the presentation channel: SDL input for the SDL debug channel,
 # evdev input for the fb channel, stdin for kitty (keys arrive via the
@@ -224,12 +225,13 @@ endif()
 # tgs_compositor — compositor library (no event_engine, no output.c)
 add_library(tgs_compositor STATIC
     src/compositor/parser.c
+    src/compositor/kitty_native.c
     src/compositor/nav.c
     src/compositor/term.c
     src/compositor/window_manager.c
 )
 target_include_directories(tgs_compositor PUBLIC src/compositor)
-target_link_libraries(tgs_compositor PUBLIC tgs_common vterm)
+target_link_libraries(tgs_compositor PUBLIC tgs_common vterm stb)
 
 # tgs-compositor — executable
 add_executable(tgs-compositor
@@ -304,6 +306,7 @@ add_executable(tgs_tests
     tests/test_l1.cpp
     tests/test_scene_click.cpp
     tests/test_kitty_dirty.cpp
+    tests/test_kitty_native.cpp
 )
 if(TGS_HAVE_KITTY_OUTPUT)
     target_compile_definitions(tgs_tests PRIVATE TGS_KITTY_OUTPUT=1)
