@@ -191,6 +191,7 @@ else()
     # kitty: input arrives through the terminal stdin — the same fd the
     # program's key events would. The compositor reads it directly.
     list(APPEND BACKEND_SOURCES src/backends/input_sdl.c)
+    set(TGS_HAVE_KITTY_OUTPUT 1)
 endif()
 
 if(TGS_USE_SKIA)
@@ -261,6 +262,12 @@ add_executable(render_snapshot
 )
 target_link_libraries(render_snapshot PRIVATE tgs_scene_backend tgs_common stb)
 
+# pty_capture — live capture harness (advertises cell geometry over TIOCGWINSZ)
+add_executable(pty_capture
+    tools/pty_capture.c
+)
+target_link_libraries(pty_capture PRIVATE util)
+
 # char_and_graphics — L1: one program printing characters and opening widgets
 add_executable(char_and_graphics
     examples/char_and_graphics.c
@@ -296,7 +303,11 @@ add_executable(tgs_tests
     tests/test_snapshot.cpp
     tests/test_l1.cpp
     tests/test_scene_click.cpp
+    tests/test_kitty_dirty.cpp
 )
+if(TGS_HAVE_KITTY_OUTPUT)
+    target_compile_definitions(tgs_tests PRIVATE TGS_KITTY_OUTPUT=1)
+endif()
 target_compile_definitions(tgs_tests PRIVATE
     TGS_SNAPSHOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/snapshots")
 target_link_libraries(tgs_tests PRIVATE tgs_common tgs_client tgs_compositor

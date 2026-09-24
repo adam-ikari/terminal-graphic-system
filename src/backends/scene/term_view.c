@@ -61,12 +61,34 @@ static void rect(term_view *tv, int x0, int y0, int x1, int y1, uint32_t c)
             px_set(tv, x, y, c);
 }
 
+/* Blend a glyph pixel over what the cell already holds. The view buffer is
+ * filled opaque before every draw, so the result stays opaque — a terminal's
+ * glyph is antialiased against its cell background, never composited later.
+ * `a` is the glyph coverage (0..255). */
+static void blend_cp(term_view *tv, int x, int y, uint32_t fg, uint32_t a)
+{
+    uint32_t dst;
+    unsigned fr, fgn, fb, dr, dg, db;
+
+    if (x < 0 || y < 0 || x >= tv->w || y >= tv->h) return;
+    dst = tv->px[(size_t)y * tv->w + x];
+    fr = (fg >> 16) & 0xFF;
+    fgn = (fg >> 8) & 0xFF;
+    fb = fg & 0xFF;
+    dr = (dst >> 16) & 0xFF;
+    dg = (dst >> 8) & 0xFF;
+    db = dst & 0xFF;
+    tv->px[(size_t)y * tv->w + x] = 0xFF000000u |
+        (((fr * a + dr * (255 - a)) / 255) << 16) |
+        (((fgn * a + dg * (255 - a)) / 255) << 8) |
+        ((fb * a + db * (255 - a)) / 255);
+}
+
 /* Real glyph entry: renders one codepoint. */
 static void blit_cp(term_view *tv, int px, int py, uint32_t cp, uint32_t fg)
 {
     SDL_Surface *s;
     SDL_Color col;
-    uint8_t *pix;
     char utf8[5];
     int n, row, colb;
 
@@ -89,12 +111,27 @@ static void blit_cp(term_view *tv, int px, int py, uint32_t cp, uint32_t fg)
     col.a = 255;
     s = TTF_RenderUTF8_Blended(g_font, utf8, col);
     if (!s) return;
-    if (s->format->BytesPerPixel == 1) {
-        pix = (uint8_t *)s->pixels;
+    /* TTF_RenderUTF8_Blended yields a 32-bit RGBA surface — glyph color in
+     * RGB, coverage in alpha. (This path used to check BytesPerPixel == 1
+     * only: the glyph was rendered and then thrown away, so the character
+     * grid changed while the canvas never did.) Taking the coverage and
+     * blending fg over the cell is independent of the channel layout; the
+     * 8-bit case is kept for builds where SDL_ttf quantizes. */
+    if (s->format->BytesPerPixel == 4) {
+        for (row = 0; row < s->h; row++) {
+            const uint8_t *src = (const uint8_t *)s->pixels +
+                                 (size_t)row * (size_t)s->pitch;
+            for (colb = 0; colb < s->w; colb++) {
+                uint32_t a = src[(size_t)colb * 4 + 3];
+                if (a > 8) blend_cp(tv, px + colb, py + row, fg, a);
+            }
+        }
+    } else if (s->format->BytesPerPixel == 1) {
+        const uint8_t *pix = (const uint8_t *)s->pixels;
         for (row = 0; row < s->h; row++) {
             for (colb = 0; colb < s->w; colb++) {
                 uint32_t a = pix[(size_t)row * s->pitch + colb];
-                if (a > 8) px_set(tv, px + colb, py + row, (fg & 0xFFFFFF) | (a << 24));
+                if (a > 8) blend_cp(tv, px + colb, py + row, fg, a);
             }
         }
     }

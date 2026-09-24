@@ -77,6 +77,26 @@ static int png_chunk(png_buf *b, const char type[4], const uint8_t *data,
     return png_put_u32be(b, crc ^ 0xFFFFFFFFu);
 }
 
+/* ARGB8888 (memory: B,G,R,A) → RGBA for the rectangle (x0,y0,w,h). Only the
+ * pixels that are going out are touched — that is the point of the rect path. */
+static void argb_to_rgba_rect(uint8_t *dst, const uint8_t *src, int stride,
+                              int x0, int y0, int w, int h)
+{
+    int y;
+    for (y = 0; y < h; y++) {
+        const uint8_t *row = src + (size_t)(y0 + y) * (size_t)stride +
+                             (size_t)x0 * 4u;
+        uint8_t *d = dst + (size_t)y * (size_t)w * 4u;
+        int x;
+        for (x = 0; x < w; x++) {
+            d[x * 4 + 0] = row[x * 4 + 2];
+            d[x * 4 + 1] = row[x * 4 + 1];
+            d[x * 4 + 2] = row[x * 4 + 0];
+            d[x * 4 + 3] = row[x * 4 + 3];
+        }
+    }
+}
+
 /* Encode a top-down RGBA8888 buffer as PNG (color type 6, filter 0 rows)
  * with zlib level-1 deflate. Returns 0 on success. */
 static int png_encode_rgba(png_buf *out, const uint8_t *rgba, int w, int h,
@@ -154,70 +174,107 @@ static int b64_encode(const uint8_t *in, size_t in_len, char *out)
 
 #define B64_CHUNK 4096
 
-int kitty_encode_frame(int fd, const uint8_t *argb, int w, int h, int stride)
+/* Write a base64 payload as one chained transmission: the first APC frame
+ * carries the control keys (and m=1 when more follows), continuations carry
+ * only m=, the last one has m=0. keys is the complete key list, e.g.
+ * "f=100,a=T,q=2" or "i=7,f=100,a=T,q=2,C=1,X=3,Y=4". */
+static int write_transmission(int fd, const char *keys, const char *b64,
+                              int b64_len)
 {
-    png_buf pb = {0};
-    uint8_t *rgba;
-    char *b64;
-    int b64_len, y, off, first = 1;
+    int off = 0, first = 1;
 
-    if (!argb || w <= 0 || h <= 0) return -1;
-
-    /* ARGB8888 (memory: B,G,R,A) → RGBA. */
-    rgba = (uint8_t *)malloc((size_t)w * (size_t)h * 4u);
-    if (!rgba) return -1;
-    for (y = 0; y < h; y++) {
-        const uint8_t *row = argb + (size_t)y * (size_t)stride;
-        uint8_t *dst = rgba + (size_t)y * (size_t)w * 4u;
-        int x;
-        for (x = 0; x < w; x++) {
-            dst[x * 4 + 0] = row[x * 4 + 2];
-            dst[x * 4 + 1] = row[x * 4 + 1];
-            dst[x * 4 + 2] = row[x * 4 + 0];
-            dst[x * 4 + 3] = row[x * 4 + 3];
-        }
-    }
-
-    if (png_encode_rgba(&pb, rgba, w, h, w * 4) < 0) {
-        free(rgba);
-        free(pb.buf);
-        return -1;
-    }
-    free(rgba);
-
-    b64 = (char *)malloc(((size_t)pb.len + 2) / 3 * 4 + 4);
-    if (!b64) {
-        free(pb.buf);
-        return -1;
-    }
-    b64_len = b64_encode(pb.buf, pb.len, b64);
-
-    /* Chunked transmission: first frame carries f=100,a=T,q=2,m=<n>;data,
-     * continuations carry m=<n>;data, final m=0. */
-    for (off = 0; off < b64_len || first; ) {
-        char ctrl[64];
-        int cn, take = b64_len - off > B64_CHUNK ? B64_CHUNK
-                                                 : b64_len - off;
+    while (first || off < b64_len) {
+        char ctrl[256];
+        int take = b64_len - off > B64_CHUNK ? B64_CHUNK : b64_len - off;
         int more = (off + take < b64_len) ? 1 : 0;
+        int cn;
 
         if (first) {
-            cn = snprintf(ctrl, sizeof(ctrl),
-                          "\x1b_Gf=100,a=T,q=2,m=%d;", more);
+            cn = snprintf(ctrl, sizeof(ctrl), "\x1b_G%s,m=%d;", keys, more);
             first = 0;
         } else {
             cn = snprintf(ctrl, sizeof(ctrl), "\x1b_Gm=%d;", more);
         }
+        if (cn < 0 || cn >= (int)sizeof(ctrl)) return -1;
         if (write(fd, ctrl, (size_t)cn) != (ssize_t)cn ||
-            write(fd, b64 + off, (size_t)take) != (ssize_t)take ||
-            write(fd, "\x1b\\", 2) != 2) {
-            free(b64);
-            free(pb.buf);
+            (take > 0 && write(fd, b64 + off, (size_t)take) != (ssize_t)take) ||
+            write(fd, "\x1b\\", 2) != 2)
             return -1;
-        }
         off += take;
     }
-
-    free(b64);
-    free(pb.buf);
     return 0;
+}
+
+/* Deflate `rgba` (w×h, top-down, filter-0 rows) and send it as a
+ * transmission with the given control keys. */
+static int encode_and_send(int fd, const uint8_t *rgba, int w, int h,
+                           const char *keys)
+{
+    png_buf pb = {0};
+    char *b64;
+    int ret = -1, b64_len;
+
+    if (png_encode_rgba(&pb, rgba, w, h, w * 4) < 0) goto done;
+    b64 = (char *)malloc(((size_t)pb.len + 2) / 3 * 4 + 4);
+    if (!b64) goto done;
+    b64_len = b64_encode(pb.buf, pb.len, b64);
+    ret = write_transmission(fd, keys, b64, b64_len);
+    free(b64);
+done:
+    free(pb.buf);
+    return ret;
+}
+
+int kitty_encode_frame(int fd, const uint8_t *argb, int w, int h, int stride)
+{
+    uint8_t *rgba;
+    int ret;
+
+    if (!argb || w <= 0 || h <= 0) return -1;
+
+    rgba = (uint8_t *)malloc((size_t)w * (size_t)h * 4u);
+    if (!rgba) return -1;
+    argb_to_rgba_rect(rgba, argb, stride, 0, 0, w, h);
+    ret = encode_and_send(fd, rgba, w, h, "f=100,a=T,q=2");
+    free(rgba);
+    return ret;
+}
+
+int kitty_encode_rect(int fd, const uint8_t *argb, int fb_w, int fb_h,
+                      int stride, int rx, int ry, int rw, int rh,
+                      const kitty_place *place)
+{
+    uint8_t *rgba;
+    char keys[96], cup[32];
+    int cn, ret;
+
+    if (!argb || !place || fb_w <= 0 || fb_h <= 0) return -1;
+    if (rx < 0) { rw += rx; rx = 0; }
+    if (ry < 0) { rh += ry; ry = 0; }
+    if (rx + rw > fb_w) rw = fb_w - rx;
+    if (ry + rh > fb_h) rh = fb_h - ry;
+    if (rw <= 0 || rh <= 0) return -1;
+
+    rgba = (uint8_t *)malloc((size_t)rw * (size_t)rh * 4u);
+    if (!rgba) return -1;
+    argb_to_rgba_rect(rgba, argb, stride, rx, ry, rw, rh);
+
+    /* kitty places an image at the cursor's cell: move there first, then
+     * transmit with C=1 (no post-placement cursor movement) and the pixel
+     * offsets, which the spec requires to be smaller than the cell. */
+    cn = snprintf(cup, sizeof(cup), "\x1b[%d;%dH",
+                  place->row + 1, place->col + 1);
+    if (cn < 0 || write(fd, cup, (size_t)cn) != (ssize_t)cn) {
+        free(rgba);
+        return -1;
+    }
+    cn = snprintf(keys, sizeof(keys), "i=%u,f=100,a=T,q=2,C=1,X=%d,Y=%d",
+                  place->image_id, place->xoff, place->yoff);
+    if (cn < 0 || cn >= (int)sizeof(keys)) {
+        free(rgba);
+        return -1;
+    }
+    ret = encode_and_send(fd, rgba, rw, rh, keys);
+    free(rgba);
+    return ret;
 }
