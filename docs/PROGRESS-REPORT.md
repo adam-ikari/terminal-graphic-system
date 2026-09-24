@@ -287,3 +287,59 @@ Ryzen 7 5800H；场景 = 1ms 步调计数器 / 无节流计数器 / 全屏逐位
 ≈3.5ms，21.6KB/帧），不再是门控量化；其余场景全部 ≥120。回退路径的全帧编码在重绘削减后
 刚好塞进 8ms → 122.3fps。另修回放脚本：采样截止切在 APC 帧中间时报告为 truncated tail
 （harness 边界）而非报错，流中真正丢同步仍报错。
+
+---
+
+## 12. kitty 原生 G 帧落地（2026-09-24）
+
+**需求**：parser 双识别的后半——裸 kitty 图形帧（传输/显示/删除）解码后像素落画布，
+补齐 spec §8 超集兼容面的接收侧。PIL 权威像素验证方法不变。
+
+**设计（实现前定案，已录 brain `backend-sdl2-skia`）**：
+- **路由**：`G1;` → TGS 帧；其余 `G…` → 新 `kitty_native` 回调（永不进 TGS 解码器）。
+  parser 缓冲 4096→8192——整块 4KB 二进制的 base64 ≈5.5KB 加控制键必须放得下。
+- **语义**：`a=t/T/p/d`（`a=q` 校验回答照 kitty 不解 PNG）；`f=100` PNG（stb_image，
+  IHDR 预检 ≤8192/轴、≤4M 像素、载荷 ≤8MB），`f=32/24` raw 精确尺寸；`m=1/0` 单流
+  分块拼装（流式 6 位累加、eager 出字节、`=` 清余数，非量子边界分块同样正确）；
+  `i=` 64 图像槽，缺省自动 id ≥0x40000000（远离程序分配区），满则逐出放置序最旧。
+- **放置模型**：位置 = 光标格快照（`tgs_term_cx/cy`）+ `X/Y` 格内像素偏移——kitty 没有
+  位置键，`c/r` 是显示尺寸不是坐标；`c/r` 格数、最近邻缩放、缺一轴按纵横比推导；
+  `x/y/w/h` 显示裁剪**仅无数据帧**（数据帧的 w/h 是 raw 数据尺寸，其上的 x/y 视为
+  部分传输而拒绝）；顺序 (z, 放置序)；同 id 重传重置放置。
+- **z 序（承重决策）**：图像在 glyph 之后、场景渲染之前合成进 term-view 像素——
+  字符底之上、场景元素之下（与不透明窗同一条 z 约定），底色重绘时无条件重放。
+- **ACK**：仅 `i=` 存在时回写 app pty；`q=0` 全部 / `q=1` 仅错误 / `q=2` 静默；
+  码 OK/ENOENT/EINVAL/ENOTSUPPORTED；`poll(POLLOUT,0)+write`，满即丢，绝不阻塞循环。
+
+**实现**：`kitty_native.c/.h`（模块本体）、`parser.c/.h`（回调 + 路由 + 缓冲扩容）、
+`main.c`（回调接线、`take_dirty` 块内 draw 钩子、清理 reset）、`deps/stb_image.*`
+（vendored，`STBI_ONLY_PNG`；libsixel 的副本用 `HAVE_STDINT_H` 门控 stdint 包含，
+包装文件补宏）。
+
+**e2e 抓出的真 bug（TGS_RAW_DUMP 定位）**：ACK `Gi=7,OK` 在程序启动前就进了 pty 输入
+队列（printf 原生帧后 exec tgs_client 程序），`tgs_client` 把非 `G1;` 的 APC 帧当流
+错误 → 握手死（raw dump 尾部 `client init failed`），widget 全部缺席、合成只剩
+DEF_BG+图像。根因 = 双识别只做了 compositor 端，**pty 接收端漏了**。修复 = client 侧
+同款分流：非 `G1;` 的 `G…` 载荷消费并跳过（`G1;` 解码失败仍是流错误；事件路径本就
+容错）。`ClientInput` 测试把「ACK 先于 READY」这一顺序钉进 ctest。
+
+**顺手修的潜伏 bug**：`term_resize_to()` 重建 view 后从不重新 `scene_backend_set_underlay`
+——stale 悬垂指针 + stale 尺寸。补一行 repoint + `tgs_kitty_mark_dirty()`。
+
+**验证（PIL 权威，全部精确）**：
+- ctest **67/67**（51 + 16：15 个 kitty_native 套件——放置/裁剪/最近邻/移动/删除/
+  分块拼装/PNG 往返/ack 表/查询/路由/整块缓冲，+ 1 个 ClientInput）。
+- **e2e 字符场景**：光标格 + X/Y 放置 4×4 → 图像 16 px + 周边 7 底色探针**全精确**，
+  杂散 0，稳态 **0 B/s**（图像层脏标只触发一次重绘，无常驻流量、无重绘风暴）。
+- **e2e z 序/遮挡**：原生帧发在 container_demo 启动前、落根 BOX (20,20,600,200) 内 →
+  合成 vs `render_snapshot` ground truth **120000/120000 = 100%，maxdiff=0**——
+  BOX 完全遮住图像：「图像在场景元素之下」像素级钉死（也是 client 修复后的活体回归）。
+
+**诚实边界（已知缺口，spec §8.3 明示、违者按码表拒绝）**：`U=1` 虚拟放置、动画
+（`a=A/a/f/c`）、zlib 压缩、多放置 `p>0`、游标策略 `C=0`（从不移动 vterm 光标）、
+放置与滚动解耦（快照格固定，文本在其下滚动）、BMP/GIF、部分 raw 传输、file/shm
+目标（`t=/o=`）；元素填充源（GRAPHIC 按 id 引用像素）仍 L4。另记两条实现性边界：
+图像层随底色**全量**重放（底色重绘即重贴，暂无图像级脏区）；ACK 在 app 不读输入时
+丢弃（有界缓冲，不阻塞），拼装单流（同 pty 并发传输会相互截断——现实 app 串行传输）。
+
+**提交**：`8681252`（code）+ 本次 docs/brain 提交。

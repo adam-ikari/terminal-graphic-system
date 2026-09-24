@@ -219,19 +219,50 @@ kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
 </section>
 
 <section class="card">
-  <h2><span class="no">7</span>下一步</h2>
+  <h2><span class="no">7</span>kitty 原生 G 帧落地实测（2026-09-24）</h2>
+  <p>接收侧补齐：裸 kitty 图形帧（<code>a=t/T/p/d</code>，<code>f=100/32/24</code>，
+     分块 base64，<code>i=</code> 64 槽）解码后像素直接落画布——<strong>字符底之上、
+     场景元素之下</strong>。双识别在 pty 两端落地：合成器 parser 按 <code>G1;</code>
+     分流，客户端库对非 TGS 的 APC 帧消费跳过。</p>
+  <ul>
+    <li><strong>单测</strong>：ctest <strong>67/67</strong>（新增 16——放置/裁剪/最近邻
+        缩放/移动/删除/跨非量子边界分块拼装/PNG 往返含 alpha 混合/ack q 表/查询/
+        路由/5.5KB 整块缓冲/ClientInput 对偶识别）。</li>
+    <li><strong>e2e 字符场景</strong>：4×4 原始帧放光标格 + <code>X/Y</code> 格内偏移
+        ——图像 16 px + 周边 7 个底色探针<strong>全部精确</strong>（PIL 权威回放），
+        杂散字节 0，稳态 <strong>0 B/s</strong>（无重绘风暴）。</li>
+    <li><strong>e2e 遮挡 / z 序</strong>：原生帧发在 container_demo 启动之前、落在根
+        BOX (20,20,600,200) 之内 → 合成 vs <code>render_snapshot</code> ground truth：
+        <strong>120000/120000 = 100%，maxdiff=0</strong>——BOX 完整遮住图像，
+        「图像画在场景元素之下」以像素级证据钉死。</li>
+    <li><strong>e2e 抓出的真 bug</strong>：ACK（<code>Gi=7,OK</code>）先于握手进入 pty
+        输入队列 → <code>tgs_client</code> 曾把非 <code>G1;</code> 帧当流错误，程序
+        握手即死（raw dump 尾部 <code>client init failed</code>，widget 全部缺席）。
+        双识别原先只做了 compositor 端——修复为客户端同款分流，并以
+        <code>ClientInput</code> 测试把该顺序钉进回归。</li>
+    <li><strong>顺手修的潜伏 bug</strong>：<code>term_resize_to()</code> 重建 view 后
+        underlay 指针悬垂（从不重新 <code>set_underlay</code>）——补 repoint +
+        原生层标脏。</li>
+  </ul>
+  <p><strong>已知缺口（spec §8.3 明示，违者按码表拒绝）</strong>：U=1 虚拟放置、
+     动画（a=A/a/f/c）、zlib、多放置 p&gt;0、C=0 光标策略（从不移动 vterm 光标）、
+     放置与滚动解耦、BMP/GIF、部分 raw 传输、file/shm 目标；元素填充源仍 L4。
+     实现性边界：图像层随底色全量重放（暂无图像级脏区）；ACK 在程序不读输入时丢弃
+     （不阻塞循环）；拼装单流。</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">8</span>下一步</h2>
   <ol>
-    <li><strong>真 kitty 终端实测</strong>（kitty/wezterm/ghostty 环境）：字节流已验证，终端实机渲染是最后一环。</li>
-    <li><strong>全屏翻页收口（109.9 → 120）</strong>：门控量化已消除，剩下的真实每帧工作量
-        （present ≈9.1ms &gt; 8ms：解析+全量重绘 ≈5.6ms + ~50 块编码 ≈3.5ms）——每锚点编码
-        预算分帧（超出部分下锚点续传）与按脏行裁剪 view 重绘是下一处收益点。</li>
-    <li><strong>程序侧控件库</strong>（libtgs-ui）：图形语义价值闭环——radio 组、list 组合、焦点管理（程序侧）。</li>
-    <li><strong>kitty 原生 G 帧落地</strong>：像素放置到画布（GRAPHIC 的像素源），超集兼容面的完整实现。</li>
+    <li><strong>程序侧控件库</strong>（libtgs-ui）：图形语义价值闭环——radio 组、list 组合、焦点管理（程序侧）。<em>当前唯一在列项。</em></li>
+    <li><s><strong>真 kitty 终端实测</strong></s>：已判定<strong>环境不可行</strong>——本机无 kitty/ghostty/wezterm、无图形显示；字节流 + PIL 权威回放即现有实测面。</li>
+    <li><s><strong>全屏翻页收口（109.9 → 120）</strong></s>：已收口为<strong>诚实上限</strong>（用户决定不再优化）；真实每帧工作量 ≈9.1ms &gt; 8ms 的事实与后续路径记录在 §6。</li>
+    <li><s><strong>kitty 原生 G 帧落地</strong></s>：已完成，见 §7。</li>
   </ol>
 </section>
 
 <footer>
-  TGS v2.0 · 3 原语 + kitty G1 APC · 51/51 · 像素级往返 100% · 脏区传输 0 B/s 空闲 · 锚点节拍 123.7fps@120 · 2026-09-24
+  TGS v2.0 · 3 原语 + kitty G1 APC · 67/67 · 像素级往返 100% · 原生帧落地 120000/120000 · 脏区传输 0 B/s 空闲 · 锚点节拍 123.7fps@120 · 2026-09-24
 </footer>
 
 </div>
