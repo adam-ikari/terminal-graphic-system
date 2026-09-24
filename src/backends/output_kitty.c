@@ -175,7 +175,16 @@ int output_init(tgs_display *d, int width, int height)
  * 240; integer ms, so 120 → 8ms → a 125Hz ceiling). The tile path costs
  * only what changed, so the gate is a bandwidth/CPU ceiling rather than
  * an encode deadline — the full-canvas fallback still needs ~7ms a frame
- * and is what makes the old 102fps ceiling. */
+ * and is what makes the old 102fps ceiling.
+ *
+ * An early present WAITS for its anchor (clock_nanosleep, absolute) instead
+ * of being dropped. Dropping quantized presents to the loop's iteration
+ * boundaries: with iteration cost T, the wire saw ceil(gate/T)*T — measured
+ * 17.8/9.38/6.27ms intervals at gate 60/120/240 (~T=3ms), i.e. 106.6fps
+ * under a 125Hz ceiling. Sleeping to the anchor is hrtimer-accurate and
+ * independent of T, so the interval becomes gate + wake jitter (~50µs).
+ * The cost is one input frame of latency (the loop is inside present while
+ * it sleeps) — bounded by the gate itself, exactly like frame buffering. */
 static long present_interval_ms(void)
 {
     static long cached = -1;
@@ -303,9 +312,25 @@ void output_present(tgs_display *d)
 
     clock_gettime(CLOCK_MONOTONIC, &now);
     if (have_last) {
+        long iv = present_interval_ms();
         long ms = (now.tv_sec - last.tv_sec) * 1000L +
                   (now.tv_nsec - last.tv_nsec) / 1000000L;
-        if (ms < present_interval_ms()) return;
+        if (ms < iv) {
+            struct timespec due = last;
+            due.tv_sec += iv / 1000;
+            due.tv_nsec += (iv % 1000) * 1000000L;
+            if (due.tv_nsec >= 1000000000L) {
+                due.tv_sec++;
+                due.tv_nsec -= 1000000000L;
+            }
+            clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &due, NULL);
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            /* A woken-early sleep (EINTR) must not pull the schedule
+             * forward; a late wake must not delay the next anchor. */
+            if (now.tv_sec < due.tv_sec ||
+                (now.tv_sec == due.tv_sec && now.tv_nsec < due.tv_nsec))
+                now = due;
+        }
     }
     last = now;
     have_last = 1;

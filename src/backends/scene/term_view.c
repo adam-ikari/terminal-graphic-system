@@ -64,7 +64,21 @@ static void rect(term_view *tv, int x0, int y0, int x1, int y1, uint32_t c)
 /* Blend a glyph pixel over what the cell already holds. The view buffer is
  * filled opaque before every draw, so the result stays opaque — a terminal's
  * glyph is antialiased against its cell background, never composited later.
- * `a` is the glyph coverage (0..255). */
+ * `a` is the glyph coverage (0..255).
+ *
+ * v/255 is read from a table filled with the very same C division: the
+ * rounding is part of the pixel contract (a reciprocal approximation can
+ * move an antialiased edge by one), while the division itself was the
+ * blend's dominant per-pixel cost. Numerators are bounded — fr*a +
+ * dr*(255-a) ≤ 255*a + 255*(255-a) = 65025 — so 65536 entries cover it. */
+static uint8_t g_div255[65536];
+
+static void div255_init(void)
+{
+    unsigned i;
+    for (i = 0; i < sizeof(g_div255); i++) g_div255[i] = (uint8_t)(i / 255u);
+}
+
 static void blend_cp(term_view *tv, int x, int y, uint32_t fg, uint32_t a)
 {
     uint32_t dst;
@@ -79,12 +93,68 @@ static void blend_cp(term_view *tv, int x, int y, uint32_t fg, uint32_t a)
     dg = (dst >> 8) & 0xFF;
     db = dst & 0xFF;
     tv->px[(size_t)y * tv->w + x] = 0xFF000000u |
-        (((fr * a + dr * (255 - a)) / 255) << 16) |
-        (((fgn * a + dg * (255 - a)) / 255) << 8) |
-        ((fb * a + db * (255 - a)) / 255);
+        ((uint32_t)g_div255[fr * a + dr * (255 - a)] << 16) |
+        ((uint32_t)g_div255[fgn * a + dg * (255 - a)] << 8) |
+        ((uint32_t)g_div255[fb * a + db * (255 - a)]);
 }
 
-/* Real glyph entry: renders one codepoint. */
+/* Glyph rasterisation cache. A full-grid redraw renders every non-space cell
+ * through TTF_RenderUTF8_Blended — thousands of freetype rasterisations per
+ * tick, and the view's dominant redraw cost. The render is deterministic for
+ * a fixed font/text/colour, so each (codepoint, fg) is rasterised once and
+ * its surface reused: the blend reads exactly the bytes a fresh render would
+ * produce, only the rasterisation is saved. Open addressing; a full probe
+ * evicts the hashed slot, but the live working set is a few dozen glyphs.
+ * key 0 marks an empty slot and can never collide (cp >= 1 is guarded). */
+#define GLYPH_SLOTS 1024
+typedef struct { uint64_t key; SDL_Surface *s; } glyph_slot;
+static glyph_slot g_glyphs[GLYPH_SLOTS];
+
+static uint32_t glyph_hash(uint32_t cp, uint32_t fg)
+{
+    return (cp * 2654435761u) ^ (fg * 40503u);
+}
+
+static SDL_Surface *glyph_get(uint32_t cp, uint32_t fg)
+{
+    uint64_t key = ((uint64_t)cp << 24) | (fg & 0xFFFFFFu);
+    uint32_t i = glyph_hash(cp, fg) & (GLYPH_SLOTS - 1);
+    uint32_t steps;
+
+    for (steps = 0; steps < GLYPH_SLOTS; steps++) {
+        if (g_glyphs[i].key == 0) return NULL;
+        if (g_glyphs[i].key == key) return g_glyphs[i].s;
+        i = (i + 1) & (GLYPH_SLOTS - 1);
+    }
+    return NULL;
+}
+
+static void glyph_put(uint32_t cp, uint32_t fg, SDL_Surface *s)
+{
+    uint64_t key = ((uint64_t)cp << 24) | (fg & 0xFFFFFFu);
+    uint32_t start = glyph_hash(cp, fg) & (GLYPH_SLOTS - 1);
+    uint32_t i = start;
+    uint32_t steps = 0;
+
+    while (g_glyphs[i].key != 0 && g_glyphs[i].key != key &&
+           steps++ < GLYPH_SLOTS)
+        i = (i + 1) & (GLYPH_SLOTS - 1);
+    if (g_glyphs[i].s && g_glyphs[i].s != s) SDL_FreeSurface(g_glyphs[i].s);
+    g_glyphs[i].key = key;
+    g_glyphs[i].s = s;
+}
+
+static void glyph_cache_clear(void)
+{
+    int i;
+    for (i = 0; i < GLYPH_SLOTS; i++) {
+        if (g_glyphs[i].s) SDL_FreeSurface(g_glyphs[i].s);
+        g_glyphs[i].s = NULL;
+        g_glyphs[i].key = 0;
+    }
+}
+
+/* Real glyph entry: one codepoint, rasterised at most once per colour. */
 static void blit_cp(term_view *tv, int px, int py, uint32_t cp, uint32_t fg)
 {
     SDL_Surface *s;
@@ -105,12 +175,16 @@ static void blit_cp(term_view *tv, int px, int py, uint32_t cp, uint32_t fg)
         utf8[n++] = (char)(0x80 | (cp & 0x3F));
     }
     utf8[n] = 0;
-    col.r = (fg >> 16) & 0xFF;
-    col.g = (fg >> 8) & 0xFF;
-    col.b = fg & 0xFF;
-    col.a = 255;
-    s = TTF_RenderUTF8_Blended(g_font, utf8, col);
-    if (!s) return;
+    s = glyph_get(cp, fg);
+    if (!s) {
+        col.r = (fg >> 16) & 0xFF;
+        col.g = (fg >> 8) & 0xFF;
+        col.b = fg & 0xFF;
+        col.a = 255;
+        s = TTF_RenderUTF8_Blended(g_font, utf8, col);
+        if (!s) return;
+        glyph_put(cp, fg, s);
+    }
     /* TTF_RenderUTF8_Blended yields a 32-bit RGBA surface — glyph color in
      * RGB, coverage in alpha. (This path used to check BytesPerPixel == 1
      * only: the glyph was rendered and then thrown away, so the character
@@ -135,7 +209,7 @@ static void blit_cp(term_view *tv, int px, int py, uint32_t cp, uint32_t fg)
             }
         }
     }
-    SDL_FreeSurface(s);
+    /* The cache owns the surface now — no SDL_FreeSurface here. */
 }
 
 /* Box-drawing synthesis: line chars draw as rects (exact at any cell size). */
@@ -191,6 +265,7 @@ void *tgs_term_view_create(int cols, int rows)
 
     if (cols < 1 || rows < 1) return NULL;
     ensure_font();
+    div255_init();
     tv = (term_view *)calloc(1, sizeof(*tv));
     if (!tv) return NULL;
     tv->cols = cols;
@@ -202,13 +277,25 @@ void *tgs_term_view_create(int cols, int rows)
     return tv;
 }
 
+/* The prefill covers exactly [0, w-1] x [0, h-1] = the whole buffer, so the
+ * bounds-checked per-pixel rect() call per pixel (473k guarded calls a
+ * redraw) buys nothing: a plain run of stores is the same bytes, ~10x
+ * cheaper. DEF_BG's four bytes differ, so this cannot be a memset. */
+static void fill_bg(term_view *tv)
+{
+    uint32_t *p = tv->px;
+    uint32_t *end = p + (size_t)tv->w * (size_t)tv->h;
+
+    while (p < end) *p++ = DEF_BG;
+}
+
 void tgs_term_view_draw(void *view, const tgs_term *t)
 {
     term_view *tv = (term_view *)view;
     int r, c2;
 
     if (!tv || !t) return;
-    rect(tv, 0, 0, tv->w - 1, tv->h - 1, DEF_BG);
+    fill_bg(tv);
     for (r = 0; r < tv->rows; r++) {
         const tgs_term_cell *line = tgs_term_view_line(t, r);
         if (!line) continue;
@@ -228,6 +315,7 @@ void tgs_term_view_destroy(void *view)
     term_view *tv = (term_view *)view;
 
     if (!tv) return;
+    glyph_cache_clear();
     free(tv->px);
     free(tv);
 }
