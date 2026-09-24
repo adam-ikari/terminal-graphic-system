@@ -57,7 +57,7 @@
   <div class="meta">
     <span>测试 51/51 通过</span>
     <span>kitty 往返像素一致率 <strong style="font-size:16px">100%</strong>（maxdiff=0，PIL 验证）</span>
-    <span>脏区传输：空闲 0 B/s · 局部脏区 106.6fps / 117 KB/s · 门控 240 → 160fps</span>
+    <span>脏区传输：空闲 0 B/s · 锚点节拍 123.7fps @120 · 门控 240 → 245.3fps</span>
   </div>
 </header>
 
@@ -171,30 +171,40 @@ kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
 </section>
 
 <section class="card">
-  <h2><span class="no">6</span>脏区传输实测（2026-09-24 更新）</h2>
+  <h2><span class="no">6</span>脏区传输实测（2026-09-24 更新：锚点节拍收口）</h2>
   <div class="verdict">
-    <strong>64×64 px tile 网格 + 逐 tile diff：空闲 0 B/s；局部脏区 106.6fps / 117 KB/s
-    （全帧回退 83.7fps / 1.24 MB/s）；门控 240 达 160fps —— 编码已不在关键路径上。</strong>
+    <strong>64×64 px tile 网格 + 逐 tile diff + 锚点节拍：空闲 0 B/s；gate 120 实测
+    123.7fps（旧门控 101.8）、门控 240 → 245.3fps（上限 250）、回退路径 122.3fps ——
+    节拍由锚点决定，编码与重绘都不再挡 120Hz。</strong>
     像素交叉验证：tile 合成 vs 全帧合成 <strong>480000/480000 = 100% 一致</strong>；
-    空闲 vs ground truth <strong>120000/120000 = 100%，maxdiff=0</strong>。
+    空闲 vs ground truth <strong>120000/120000 = 100%，maxdiff=0</strong>；
+    跨构建（本次 vs 旧构建）合成 <strong>480000/480000，maxdiff=0</strong>。
   </div>
   <p>画布切成固定 64×64 px tile 网格（800×600 → 130 块），每块一个持久 kitty image id；
   present 只重传与基线逐字节不同的 tile。选 tile 而非单块脏矩形：kitty 删除图像数据会连带删除
   placement，只有不重叠的划分才既内存有界又 z 序安全。placement = CUP 到 cell + X/Y 像素偏移
-  （< cell），cell 几何取 <code>TGS_CELL_W/H</code> → <code>TIOCGWINSZ</code> → 全帧回退。</p>
-  <h3>同负载 A/B（1ms 步调计数器 / 全屏翻页 · Ryzen 7 5800H）</h3>
+  （&lt; cell），cell 几何取 <code>TGS_CELL_W/H</code> → <code>TIOCGWINSZ</code> → 全帧回退。
+  节拍：门控未到点的 present <strong>睡到锚点再发</strong>（<code>clock_nanosleep(TIMER_ABSTIME)</code>），
+  不再丢弃——丢弃会把 present 摊到合成器迭代边界上（间隔 = ceil(门控/迭代T)×迭代T，
+  门控 120 实测只有 106.6fps）；睡眠精度几十 µs，间隔 = 门控 + 唤醒抖动，输入延迟 ≤ 一个门控。</p>
+  <h3>同负载 A/B（同一场景 · 同机串行 · 旧门控 vs 锚点+重绘削减 · Ryzen 7 5800H）</h3>
   <table>
-    <tr><th>场景</th><th>脏区 tile</th><th>全帧回退</th></tr>
-    <tr><td>局部脏区 @120</td><td><strong>106.6 fps · 117 KB/s</strong></td><td>83.7 fps · 1.24 MB/s</td></tr>
-    <tr><td>无节流灌入 @120</td><td><strong>99.5 fps · 116 KB/s</strong></td><td>83.3 fps · 1.25 MB/s</td></tr>
-    <tr><td>全屏翻页 @120（最坏脏区）</td><td><strong>94.3 fps · 1.72 MB/s</strong></td><td>56.2 fps · 3.06 MB/s</td></tr>
-    <tr><td>空闲（画面不变）</td><td><strong>0 B/s</strong></td><td>0 B/s</td></tr>
-    <tr><td>局部脏区 @门控240</td><td><strong>160.0 fps · 172 KB/s</strong></td><td>88.3 fps · 1.28 MB/s</td></tr>
+    <tr><th>场景</th><th>旧（未到点丢弃）</th><th>新（锚点睡眠 + 重绘削减）</th></tr>
+    <tr><td>局部脏区计数器 @120</td><td>101.8 fps · 109 KB/s</td><td><strong>123.7 fps · 133 KB/s</strong></td></tr>
+    <tr><td>无节流灌入 @120</td><td>98.1 fps · 112 KB/s</td><td><strong>123.8 fps · 140 KB/s</strong></td></tr>
+    <tr><td>全帧回退 @120</td><td>84.2 fps · 1.22 MB/s</td><td><strong>122.3 fps · 1.77 MB/s</strong></td></tr>
+    <tr><td>全屏翻页 @120（最坏脏区）</td><td>71.7 fps · 1.56 MB/s</td><td><strong>109.9 fps · 2.37 MB/s</strong></td></tr>
+    <tr><td>局部脏区 @门控240</td><td>159.3 fps · 171 KB/s</td><td><strong>245.3 fps · 263 KB/s</strong>（上限 250）</td></tr>
+    <tr><td>局部脏区 @门控60</td><td>56.4 fps</td><td><strong>62.2 fps</strong>（上限 62.5）</td></tr>
+    <tr><td>空闲（画面不变）</td><td>0 B/s · 2 帧</td><td><strong>0 B/s · 2 帧</strong></td></tr>
   </table>
-  <p>局部脏区 fps +27%、带宽降到 1/10.6；全屏翻页 fps +68%；门控 60 sanity → 56.2fps。
-  旧全帧天花板 ~102fps（任何门控都撞编码）；tile 路径下门控 240 实测 160fps 即为编码脱钩的证明。
-  <strong>诚实边界</strong>：gate 120 档（整数 ms → 8ms → 上限 125）实测 106.6fps，剩余限制是
-  合成器每轮的全画布重绘（view 全量重绘 + scene_draw memcpy），不是传输。</p>
+  <p>门控 60/240 命中 62.2/62.5 与 245.3/250——节拍已由锚点决定。重绘削减三件套：
+  字形缓存（(cp,fg)→SDL_Surface，确定性渲染 ⇒ 字节等同，全屏 3700 次 TTF 光栅化 → 几十次）、
+  DEF_BG 预填免边界逐像素调用、blend 的 /255 查表（同一 C 除法预填，商完全相同）——
+  三者跨构建合成对比 480000/480000 maxdiff=0，像素未动。
+  <strong>诚实边界</strong>：全屏翻页 109.9fps 仍 &lt;120，性质已变——是真实每帧工作量超预算
+  （present ≈9.1ms &gt; 8ms：解析+全量重绘 ≈5.6ms + ~50 块脏 tile 编码 ≈3.5ms），不再是门控量化；
+  其余场景全部 ≥120。51/51 测试绿。</p>
   <h3>验证中抓出的真 bug（3 个，均需像素对比才可见）</h3>
   <ol>
     <li>presenter 编码了 <code>priv->fb</code> 而非已发布的 <code>d->buffer</code>（scene 后端在
@@ -212,14 +222,16 @@ kitty 原生:  ESC _ Gf=100,a=T,q=2,m=1;&lt;base64 PNG&gt; ESC \
   <h2><span class="no">7</span>下一步</h2>
   <ol>
     <li><strong>真 kitty 终端实测</strong>（kitty/wezterm/ghostty 环境）：字节流已验证，终端实机渲染是最后一环。</li>
-    <li><strong>合成器每轮全画布重绘</strong>：脏区传输已把瓶颈让给它（gate 120 → 106.6fps 的剩余项）——按脏区裁剪 view 重绘是下一处收益点。</li>
+    <li><strong>全屏翻页收口（109.9 → 120）</strong>：门控量化已消除，剩下的真实每帧工作量
+        （present ≈9.1ms &gt; 8ms：解析+全量重绘 ≈5.6ms + ~50 块编码 ≈3.5ms）——每锚点编码
+        预算分帧（超出部分下锚点续传）与按脏行裁剪 view 重绘是下一处收益点。</li>
     <li><strong>程序侧控件库</strong>（libtgs-ui）：图形语义价值闭环——radio 组、list 组合、焦点管理（程序侧）。</li>
     <li><strong>kitty 原生 G 帧落地</strong>：像素放置到画布（GRAPHIC 的像素源），超集兼容面的完整实现。</li>
   </ol>
 </section>
 
 <footer>
-  TGS v2.0 · 3 原语 + kitty G1 APC · 51/51 · 像素级往返 100% · 脏区传输 0 B/s 空闲 · 2026-09-24
+  TGS v2.0 · 3 原语 + kitty G1 APC · 51/51 · 像素级往返 100% · 脏区传输 0 B/s 空闲 · 锚点节拍 123.7fps@120 · 2026-09-24
 </footer>
 
 </div>

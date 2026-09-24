@@ -45,12 +45,21 @@ def replay(data, cell_w, cell_h, canvas_w, canvas_h):
     i = 0
     n = len(data)
     stray = 0
+    truncated = 0
 
     while i < n:
         b = data[i]
         if b == 0x1B and i + 2 < n and data[i + 1] == ord("_") and data[i + 2] == ord("G"):
             st = data.find(b"\x1b\\", i + 3)
             if st < 0:
+                # The capture's deadline can cut the stream mid-transmission
+                # — that boundary is the harness's, not a stream fault, so a
+                # frame that never terminates before EOF is reported and
+                # dropped. A later ESC means sync was lost mid-stream, which
+                # is a real decode error and still raises.
+                if data.find(b"\x1b", i + 3) < 0:
+                    truncated = n - i
+                    break
                 raise ValueError(f"APC without ST at {i}")
             semi = data.find(b";", i + 3, st)
             if 0 <= semi < st:
@@ -107,7 +116,7 @@ def replay(data, cell_w, cell_h, canvas_w, canvas_h):
 
     if images == 0:
         raise ValueError("no a=T transmission in stream")
-    return canvas, images, homes, stray
+    return canvas, images, homes, stray, truncated
 
 
 def main():
@@ -124,13 +133,15 @@ def main():
     data = open(args.capture, "rb").read()
     ground = Image.open(args.ground).convert("RGBA")
 
-    canvas, images, homes, stray = replay(
+    canvas, images, homes, stray, truncated = replay(
         data, args.cell[0], args.cell[1], ground.width, ground.height)
 
     print(f"bytes: {len(data)}")
     print(f"transmissions: {images}")
     print(f"presents (home markers): {homes}")
     print(f"stray bytes outside CSI/APC: {stray}")
+    if truncated:
+        print(f"truncated tail (capture cut mid-frame): {truncated} bytes")
     if args.seconds:
         print(f"achieved fps: {homes / args.seconds:.1f} "
               f"({homes} presents / {args.seconds}s)")

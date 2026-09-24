@@ -5,7 +5,7 @@ category: decision
 status: active
 tags: [backends, renderer, skia, sdl2]
 created: "2026-09-19T07:36:33"
-updated: "2026-09-24T01:47:54"
+updated: "2026-09-24T03:30:51"
 ---
 
 <!-- compiled_truth -->
@@ -34,6 +34,32 @@ updated: "2026-09-24T01:47:54"
   SDL2 + SDL2_ttf are system packages.
 - Embedded constraint (200 MHz, no GPU) drives default backend choice;
   SDL2 window is the desktop path, /dev/fb the embedded path.
+
+## Pacing & redraw (2026-09-24)
+
+- **output_present SLEEPS to its anchor instead of dropping early calls**:
+  `clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, last+interval)`; an
+  early wake (EINTR) clamps `now` to `due` so the schedule never pulls
+  forward. Dropping quantized presents onto compositor iteration
+  boundaries (interval = ceil(gate/T)*T; measured 17.8/9.38/6.27ms at
+  gate 60/120/240 ⇒ T≈3ms, 106.6fps under a 125Hz ceiling). Anchor sleep
+  is hrtimer-accurate and independent of T: measured gate120 → 123.7fps,
+  gate240 → 245.3 (cap 250), gate60 → 62.2 (cap 62.5). Trade-off: input
+  is serviced only between anchors, latency ≤ one interval (8ms@120,
+  16ms@60) — frame-buffering semantics, the price of a punctual present
+  in a single loop.
+- **term_view redraw cuts** (all pixel-identical, cross-build composite
+  480000/480000 maxdiff=0): (cp,fg) → SDL_Surface glyph cache via 1024-
+  slot open addressing (render is deterministic ⇒ cached bytes equal a
+  fresh rasterisation; full-grid redraw went from 3700
+  TTF_RenderUTF8_Blended calls to a few dozen); DEF_BG prefill as a
+  bounds-check-free store loop (was 473k guarded px_set calls/frame);
+  blend's /255 as a 65536-entry table filled with the same C division —
+  rounding is part of the pixel contract (a reciprocal approximation can
+  move an antialiased edge by 1), numerators bounded ≤ 255*255=65025.
+- **Honest residual**: full-screen churn = 109.9fps — present work ≈9.1ms
+  > 8ms gate (parse+full redraw ≈5.6ms + ~50 dirty tiles encoded
+  ≈3.5ms). Real per-frame work now, not cadence quantization.
 
 ## Why (compressed)
 
@@ -115,5 +141,17 @@ updated: "2026-09-24T01:47:54"
 - time: 2026-09-24T01:47:54
   kind: evidence
   summary: "Dirty-tile presentation MEASURED (2026-09-24): 64x64 tile grid / persistent kitty ids (base 0x74670000) shipped; idle = 0 B/s (tile and full-frame fallback both, 0 stray bytes); localized dirty @gate120 = 106.6fps / 117 KB/s vs full-frame 83.7fps / 1.24 MB/s (fps +27%, bandwidth 1/10.6); unpaced flood = 99.5fps / 116 KB/s vs 83.3 / 1.25 MB/s; full-screen churn (worst case, all 130 tiles dirty) = 94.3fps / 1.72 MB/s vs 56.2 / 3.06 MB/s; gate240 = 160.0fps / 172 KB/s vs 88.3 / 1.28 MB/s — breaks the old full-frame 102fps ceiling at ANY gate, proving encode left the critical path; gate60 sanity = 56.2fps. yes flood = 0 B/s correctly (screen pixel-identical, no dirty tile — not a worst case; churn scenario replaced it). Pixel (PIL authoritative): idle vs ground truth rect(20,20,600,200) = 120000/120000 100% maxdiff=0; cross-mode char scene tile-composite vs full-composite = 480000/480000 100% identical diff bbox=None; glyphs antialiased (198 colors, 53k non-bg px). ctest 51/51 (9 suites; +test_kitty_dirty). Three pixel-only bugs fixed: (1) presenter encoded priv->fb not published d->buffer (scene republishes in backend_init) -> all-zero first frame; (2) output_resize compared d->width already moved by set_size -> always early-return stale grid, now compares priv->w/h; (3) blit_cp only handled BytesPerPixel==1 but TTF_RenderUTF8_Blended returns 32bpp -> glyphs rendered then dropped, fixed with blend_cp fg-over-cell-bg (text-grid snapshot tests are blind to this — grid content is correct, only pixel diff catches it). pty_capture teardown deadlock fixed (child blocked mid-write in full pty, SIGTERM+SA_RESTART never lands -> WNOHANG drain + 2s SIGKILL). Honest residual: at gate 120 (integer ms -> 8ms -> 125 cap) measured 106.6fps — limiter is now compositor per-iteration full-canvas redraw (view redraw + scene_draw memcpy per dirty tick), not the encoder."
+  source: session
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-24T03:30:35
+  kind: decision
+  summary: "Pacing + redraw truth: present gate sleeps to its anchor; glyph-cache/defill/255-table redraw cuts are pixel-identical"
+  source: brain update-truth
+  affects: [backend-sdl2-skia]
+
+- time: 2026-09-24T03:30:51
+  kind: evidence
+  summary: "Anchor-scheduled present + redraw cuts MEASURED (2026-09-24): replaced output_present's skip-when-early gate with clock_nanosleep(TIMER_ABSTIME, last+interval), so presents land on schedule anchors instead of compositor iteration boundaries (old interval = ceil(gate/T)*T, T≈3ms). Same-scenario serial A/B on this machine (old gate build vs patched, 10s captures): counter@g120 101.8→123.7fps (109→133 KB/s), unpaced flood@g120 98.1→123.8 (112 KB/s→140), full-frame fallback@g120 84.2→122.3fps (1.22→1.77 MB/s), full-screen churn@g120 71.7→109.9fps (1.56→2.37 MB/s), gate240 159.3→245.3 (cap 250), gate60 56.4→62.2 (cap 62.5) — gate probes now hit their caps, proving cadence comes from the anchor. Work-bound residual attacks in term_view.c: (cp,fg) glyph-surface cache (3700 TTF renders/redraw → dozens), bounds-check-free DEF_BG fill, /255 lookup table pre-filled with the same C division (exact quotient; reciprocal approx would move AA edges). Pixel (PIL authoritative): idle vs ground rect(20,20,600,200) 120000/120000 100% maxdiff=0, 0 stray, 0 B/s steady; cross-build composites old vs new (idle + static char scene, tile and fallback each) all 480000/480000 maxdiff=0 — anchor sleep, glyph cache and /255 table moved zero pixels; cross-mode tile vs fallback 480000/480000; 231 distinct colors (AA alive). ctest 51/51 (snapshot suites pixel-unchanged). Replay script hardened: APC truncated at EOF (capture deadline cut mid-frame) reported as truncated tail instead of raising; a later ESC still raises (mid-stream desync = real fault). Honest residual: churn 109.9fps stays <120 — present work ≈9.1ms > 8ms gate (parse+full redraw ≈5.6ms + ~50 dirty-tile encode ≈3.5ms); that is real per-frame work, not quantization. Input latency bound is now one interval (8ms@120), the cost of a punctual present in a single loop."
   source: session
   affects: [backend-sdl2-skia]
