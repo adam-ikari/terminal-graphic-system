@@ -5,7 +5,7 @@ category: project
 status: active
 tags: [website, docs]
 created: "2026-09-24T06:09:25"
-updated: "2026-09-24T06:27:48"
+updated: "2026-09-24T09:02:33"
 ---
 
 <!-- compiled_truth -->
@@ -36,4 +36,10 @@ TGS 对外官网采用 Docusaurus（用户选定），内容为项目介绍 / �
   kind: evidence
   summary: "site/ 落地：Docusaurus 3.10.2 classic 模板，zh-Hans 默认 locale；首页（hero+5 项数据条+4 特性卡+4 张证据截图）+ 7 文档页（简介/快速开始/架构/协议/kitty兼容/验证/路线）。npm run build 全绿（onBrokenLinks=throw 含 CJK 锚点校验）；8 路由 200；图片 baseUrl 与深度锚点（分层路线-l0--l6、验证抓出的真-bug）经产物 grep 验证。所有数字与 docs/VERIFY-REPORT.html、protocol spec 同源；演示模板内容与 Docusaurus 品牌资源已清除。"
   source: build
+  affects: [project-website]
+
+- time: 2026-09-24T09:02:33
+  kind: decision
+  summary: "上线路径定为 GitHub Actions → GitHub Pages（build_type=workflow）：push main 且改动命中 site/** 时自动 npm ci + build，产物 site/build 作为 Pages artifact 发布；地址 https://adam-ikari.github.io/terminal-graphic-system/。远端 origin 此前为空仓库，首推为全历史。"
+  source: deploy
   affects: [project-website]
